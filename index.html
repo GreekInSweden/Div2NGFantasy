@@ -63,7 +63,7 @@ const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:6},MID:{clean:1,goal:5},FW
 const G_GREEN="#1a6b3c",G_GREENL="#e8f5ee",G_GOLD="#b45309",G_GOLDL="#fef3c7";
 
 let TEAMS=[];
-let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="home", homeMode="start", pickPos="GK",
+let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="home", homeMode="start", pickPos="GK", rulesFrom="home",
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null;
 
@@ -173,6 +173,7 @@ function render(){
   if(screen==="home")root.innerHTML=renderHome();
   else if(screen==="reg")root.innerHTML=renderReg();
   else if(screen==="pick")root.innerHTML=renderPick();
+  else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
 }
@@ -187,6 +188,7 @@ function renderHome(){
       <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px">
         <button class="fg-btn" data-act="show-login">Logga in</button>
         <button class="fg-outbtn" style="width:100%" data-act="go-reg">Ny spelare</button>
+        <button data-act="go-rules-home" style="background:none;border:none;color:${G_GREEN};font-size:13px;cursor:pointer;text-decoration:underline;padding:6px">📋 Läs reglerna först</button>
       </div>
     </div>`;
   }
@@ -298,9 +300,83 @@ function renderPick(){
   </div>`;
 }
 
+function renderRulesScreen(){
+  const rulesRows = POSITIONS.map(pos=>`
+    <tr style="border-top:0.5px solid var(--color-border-tertiary)">
+      <td style="padding:6px 0">${POS_LABEL[pos]} (${POS_COUNT[pos]} st)</td>
+      <td style="text-align:center;font-weight:500">+${POS_PTS[pos].clean}</td>
+      <td style="text-align:center;font-weight:500">+${POS_PTS[pos].goal}</td>
+    </tr>`).join("");
+  const backAct = rulesFrom==="main" ? "rules-back-main" : "rules-back-home";
+  return `
+  <div style="min-height:100vh;padding-bottom:20px">
+    <div class="fg-top">
+      <button data-act="${backAct}" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0">←</button>
+      <span style="font-weight:500;font-size:16px">Regler</span>
+    </div>
+    <div style="padding:16px">
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Så funkar det</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du bygger ett 4-3-3-lag: 1 målvakt, 4 försvarare, 3 mittfältare och 3 forwards –
+          totalt 11 spelare från Div2 Norra Götaland. <b>Du får bara välja en spelare per lag</b>,
+          så du måste sprida ut dina val över minst 11 olika lag.
+        </div>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Kapten</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du utser en av dina 11 spelare till kapten. Kaptenens poäng räknas dubbelt varje omgång.
+          Välj klokt!
+        </div>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Poäng per omgång</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">
+          Varje spelare i ditt lag får poäng baserat på sitt riktiga lags resultat den omgången:
+        </div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:10px">
+          <tbody>
+            <tr><td style="padding:4px 0">Laget vinner</td><td style="text-align:right;font-weight:500">+5 p</td></tr>
+            <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">Laget spelar oavgjort</td><td style="text-align:right;font-weight:500">+2 p</td></tr>
+            <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">Laget förlorar</td><td style="text-align:right;font-weight:500">0 p</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:8px;line-height:1.6">
+          Utöver det får varje spelare extra poäng beroende på sin egen position –
+          ju längre bak på planen, desto mer värd är en nollmatch eller ett mål:
+        </div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <thead><tr style="color:var(--color-text-secondary);font-size:11px"><td>Position</td><td style="text-align:center">Nollmatch</td><td style="text-align:center">Eget mål</td></tr></thead>
+          <tbody>${rulesRows}</tbody>
+        </table>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Exempel</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Din försvarare spelar för ett lag som vinner 2–0 och själv gör han ett mål:<br>
+          5 p (vinst) + 4 p (nollmatch som försvarare) + 6 p (mål som försvarare) = <b>15 p</b>.
+          Är han din kapten blir det <b>30 p</b>.
+        </div>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Övrigt</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du kan byta hela ditt lag när som helst innan en omgångs matcher startar – gå till
+          Hem-fliken och klicka "Byt". Resultat matas in av admin efter varje spelad omgång.
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 function renderMain(){
   const sorted=sortedUsers();
-  const tabsDef=[["hem","🏠","Hem"],["liga","📊","Ligatbell"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
+  const tabsDef=[["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
   else if(mainTab==="liga")body=renderLigaTab(sorted);
@@ -601,6 +677,9 @@ function attachHandlers(){
     else if(act==="show-start"){homeMode="start";render();}
     else if(act==="go-reg"){homeMode="reg";errMsg="";screen="reg";render();}
     else if(act==="go-home"){screen="home";homeMode="start";render();}
+    else if(act==="go-rules-home"){ rulesFrom="home"; screen="rules"; render(); }
+    else if(act==="rules-back-home"){ screen="home"; homeMode="start"; render(); }
+    else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
       const u=users.find(x=>x.id===el.dataset.id);
       currentUser=u; screen="main"; mainTab="hem"; render();
@@ -650,7 +729,9 @@ function attachHandlers(){
     }
     else if(act==="logout"){currentUser=null;screen="home";homeMode="start";render();}
     else if(act==="main-tab"){
-      mainTab=el.dataset.tab;errMsg="";
+      const tab=el.dataset.tab;
+      if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
+      mainTab=tab;errMsg="";
       if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
