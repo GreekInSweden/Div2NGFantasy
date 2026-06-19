@@ -74,6 +74,10 @@ async function fetchTeams(){
   if(error){console.error(error);return [];}
   return data;
 }
+async function updateTeamName(id,name){
+  const {error}=await sb.from("teams").update({name}).eq("id",id);
+  if(error)console.error(error);
+}
 async function fetchPlayers(){
   const {data,error}=await sb.from("players").select("*");
   if(error){console.error(error);return [];}
@@ -553,7 +557,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["users","Användare"]].map(([id,l])=>
+  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"]].map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
   ).join("");
 
@@ -614,6 +618,25 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="add-player">Lägg till spelare</button>
     </div>
     <div class="fg-card"><div style="font-weight:500;margin-bottom:10px">Alla spelare (${players.length})</div>${listHtml}</div>`;
+  } else if(adminSection==="teams"){
+    const teamCount={};
+    players.forEach(p=>{ teamCount[p.teamId]=(teamCount[p.teamId]||0)+1; });
+    let rowsHtml = TEAMS.map(t=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <input class="fg-input" data-act="team-name-input" data-id="${t.id}" value="${esc(t.name)}" style="flex:1"/>
+        <span style="font-size:11px;color:var(--color-text-secondary);white-space:nowrap">${teamCount[t.id]||0} spelare</span>
+        <button data-act="save-team-name" data-id="${t.id}" style="background:${G_GREEN};color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;font-weight:500">Spara</button>
+      </div>`).join("");
+    body = `<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">Byt ut lag inför ny säsong</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">
+        Byt namn på ett lag som åkt ur serien till namnet på det nya laget som kommit upp.
+        Detta <b>rör inte dina befintliga spelare</b> – men tänk på att gamla spelare kopplade
+        till det utbytta laget då felaktigt visas under det nya namnet. Ta bort dem manuellt
+        under fliken "Spelare" om du vill rensa upp, och lägg in de nya lagets spelare där.
+      </div>
+    </div>
+    <div class="fg-card">${rowsHtml}</div>`;
   } else if(adminSection==="users"){
     const sorted=sortedUsers();
     let rowsHtml="";
@@ -828,6 +851,15 @@ function attachHandlers(){
     }
     else if(act==="ask-remove-user"){ confirmRemoveId=el.dataset.id; render(); }
     else if(act==="cancel-remove"){ confirmRemoveId=null; render(); }
+    else if(act==="save-team-name"){
+      const id=Number(el.dataset.id);
+      const input=document.querySelector('[data-act="team-name-input"][data-id="'+id+'"]');
+      const newName=input.value.trim();
+      if(!newName){flash("Lagnamn kan inte vara tomt.");return;}
+      await updateTeamName(id,newName);
+      TEAMS=TEAMS.map(t=>t.id===id?{...t,name:newName}:t);
+      flash("✓ Lagnamn uppdaterat!");
+    }
     else if(act==="confirm-remove-user"){
       const id=el.dataset.id;
       const removed=users.find(u=>u.id===id);
