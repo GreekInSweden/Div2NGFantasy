@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fantasy Div2 Norra Götaland</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --color-background-primary:#ffffff;
+  --color-background-secondary:#f0f0ee;
+  --color-background-tertiary:#f5f5f3;
+  --color-border-tertiary:#e5e5e3;
+  --color-border-secondary:#cccccc;
+  --color-text-primary:#1a1a1a;
+  --color-text-secondary:#6b6b6b;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+html,body{height:100%}
+body{font-family:var(--font-sans);background:var(--color-background-tertiary);color:var(--color-text-primary)}
+#fg-root{min-height:100vh;max-width:480px;margin:0 auto;background:var(--color-background-tertiary)}
+input,select,button{font-family:inherit}
+input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
+.fg-card{background:var(--color-background-primary);border-radius:10px;border:0.5px solid var(--color-border-tertiary);padding:1rem 1.25rem;margin-bottom:10px}
+.fg-btn{background:#1a6b3c;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:500;cursor:pointer;width:100%}
+.fg-outbtn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:10px 18px;font-size:14px;cursor:pointer;color:var(--color-text-primary);width:auto}
+.fg-input{width:100%;padding:9px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);box-sizing:border-box}
+.fg-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;display:block}
+.fg-top{background:#1a6b3c;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.fg-bottombar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary);display:flex;z-index:10}
+.fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
+.fg-tabbtn.active{color:#1a6b3c}
+.fg-posbadge{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
+.fg-mrow{display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.fg-mrow select{font-size:13px;padding:8px 6px}
+.fg-mscore{font-size:18px;font-weight:600;padding:8px 4px;text-align:center;-moz-appearance:textfield}
+.fg-mscore::-webkit-outer-spin-button,.fg-mscore::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.fg-adm-tab{padding:8px 4px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer}
+.fg-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--color-text-secondary);font-size:14px}
+</style>
+</head>
+<body>
+<div id="fg-root"><div class="fg-loading">Laddar…</div></div>
+
+<script>
+// ───────────────────────────────────────────────────────────────────────────
+// KONFIGURATION – din Supabase-anslutning
+// ───────────────────────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://vsxqcdsmkozxefyrialf.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzeHFjZHNta296eGVmeXJpYWxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NzE2NjIsImV4cCI6MjA5NzQ0NzY2Mn0.QctNW47LierdfZNaK5bCBwIxXUbIguBUgSsMP0o1wuY";
+const ADMIN_PWD = "div2ng25"; // byt gärna till ditt eget lösenord
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+(function(){
+const POSITIONS=["GK","DEF","MID","FW"];
+const POS_LABEL={GK:"Målvakt",DEF:"Försvarare",MID:"Mittfältare",FW:"Forward"};
+const POS_COUNT={GK:1,DEF:4,MID:3,FW:3};
+const TOTAL_PICKS=11;
+const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
+const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:6},MID:{clean:1,goal:5},FW:{clean:0,goal:4}};
+const G_GREEN="#1a6b3c",G_GREENL="#e8f5ee",G_GOLD="#b45309",G_GOLDL="#fef3c7";
+
+let TEAMS=[];
+let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="home", homeMode="start", pickPos="GK", rulesFrom="home",
+    pendingLoginUser=null, loginErr="",
+    pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
+    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null;
+
+// ── Supabase data layer ─────────────────────────────────────────────────────
+async function fetchTeams(){
+  const {data,error}=await sb.from("teams").select("*").order("id");
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function fetchPlayers(){
+  const {data,error}=await sb.from("players").select("*");
+  if(error){console.error(error);return [];}
+  return data.map(p=>({id:p.id,namn:p.namn,pos:p.pos,teamId:p.team_id}));
+}
+async function insertPlayer(p){
+  const {error}=await sb.from("players").insert({id:p.id,namn:p.namn,pos:p.pos,team_id:p.teamId});
+  if(error)console.error(error);
+}
+async function deletePlayer(id){
+  const {error}=await sb.from("players").delete().eq("id",id);
+  if(error)console.error(error);
+}
+async function fetchUsers(){
+  const {data,error}=await sb.from("fantasy_users").select("*").order("created_at");
+  if(error){console.error(error);return [];}
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,pin:u.pin}));
+}
+async function insertUser(u){
+  const {error}=await sb.from("fantasy_users").insert({id:u.id,namn:u.namn,picks:u.picks,kapten:u.kapten,pin:u.pin});
+  if(error)console.error(error);
+}
+async function updateUserPicks(id,picks,kapten){
+  const {error}=await sb.from("fantasy_users").update({picks,kapten}).eq("id",id);
+  if(error)console.error(error);
+}
+async function deleteUser(id){
+  const {error}=await sb.from("fantasy_users").delete().eq("id",id);
+  if(error)console.error(error);
+}
+async function fetchRounds(){
+  const {data,error}=await sb.from("rounds").select("*");
+  if(error){console.error(error);return {};}
+  const out={};
+  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{}}; });
+  return out;
+}
+async function saveRoundMatches(rnd,matches){
+  const cur=rounds[rnd]||{matches:[],goals:{}};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{}});
+  if(error)console.error(error);
+}
+async function saveRoundGoals(rnd,goals){
+  const cur=rounds[rnd]||{matches:[],goals:{}};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals});
+  if(error)console.error(error);
+}
+async function fetchConfig(){
+  const {data,error}=await sb.from("app_config").select("*").eq("id",1).single();
+  if(error){console.error(error);return {omg:1};}
+  return {omg:data.active_round};
+}
+async function setConfig(omg){
+  const {error}=await sb.from("app_config").update({active_round:omg}).eq("id",1);
+  if(error)console.error(error);
+}
+
+// ── Poängberäkning ──────────────────────────────────────────────────────────
+function allPickedIds(u){
+  if(!u||!u.picks)return [];
+  let arr=[];
+  POSITIONS.forEach(pos=>{ arr=arr.concat(u.picks[pos]||[]); });
+  return arr;
+}
+function pickCount(u){ return allPickedIds(u).length; }
+
+function plPts(player,rd){
+  if(!rd)return 0;
+  const m=rd.matches.find(x=>x.hId===player.teamId||x.aId===player.teamId);
+  if(!m)return 0;
+  const home=m.hId===player.teamId;
+  const mg=home?m.hMål:m.aMål, og=home?m.aMål:m.hMål;
+  let p=mg>og?5:(mg===og?2:0);
+  if(og===0)p+=POS_PTS[player.pos].clean;
+  const goals=(rd.goals&&rd.goals[player.id])||0;
+  p+=goals*POS_PTS[player.pos].goal;
+  return p;
+}
+function userRoundPts(u,r){
+  if(!u||!u.picks)return 0;
+  const rd=rounds[String(r)];
+  let tot=0;
+  allPickedIds(u).forEach(pid=>{
+    const pl=players.find(p=>p.id===pid);
+    if(!pl)return;
+    const pts=plPts(pl,rd);
+    tot+=pts*(pid===u.kapten?2:1);
+  });
+  return tot;
+}
+function userTotPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userRoundPts(u,Number(r)),0); }
+function sortedUsers(){return [...users].sort((a,b)=>userTotPts(b)-userTotPts(a));}
+function esc(str){const d=document.createElement("div");d.textContent=str==null?"":String(str);return d.innerHTML;}
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function render(){
+  const root=document.getElementById("fg-root");
+  if(screen==="home")root.innerHTML=renderHome();
+  else if(screen==="reg")root.innerHTML=renderReg();
+  else if(screen==="pick")root.innerHTML=renderPick();
+  else if(screen==="rules")root.innerHTML=renderRulesScreen();
+  else root.innerHTML=renderMain();
+  attachHandlers();
+}
+
+function renderHome(){
+  if(homeMode==="start"){
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+      <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">🏆</div>
+      <div style="font-size:22px;font-weight:500;margin-bottom:4px">Fantasy Div2 NG</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:32px;text-align:center">4-3-3 · En spelare per lag</div>
+      <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px">
+        <button class="fg-btn" data-act="show-login">Logga in</button>
+        <button class="fg-outbtn" style="width:100%" data-act="go-reg">Ny spelare</button>
+        <button data-act="go-rules-home" style="background:none;border:none;color:${G_GREEN};font-size:13px;cursor:pointer;text-decoration:underline;padding:6px">📋 Läs reglerna först</button>
+      </div>
+    </div>`;
+  }
+  let list = users.map(u=>`
+    <button class="fg-card" data-act="ask-pin" data-id="${u.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary)">
+      <div style="width:38px;height:38px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
+      <div style="flex:1"><div style="font-weight:500">${esc(u.namn)}</div></div>
+      <span style="color:var(--color-text-secondary)">›</span>
+    </button>`).join("");
+  if(homeMode==="pin"){
+    const u=pendingLoginUser;
+    return `
+    <div style="padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
+      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;margin-bottom:24px;padding:7px 14px">← Tillbaka</button>
+      <div style="width:56px;height:56px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:22px;margin-bottom:12px">${esc(u.namn[0])}</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px">${esc(u.namn)}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">Ange din PIN-kod</div>
+      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="max-width:160px;text-align:center;font-size:20px;letter-spacing:6px;margin-bottom:8px" autofocus/>
+      ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:8px">${esc(loginErr)}</div>`:""}
+      <button class="fg-btn" data-act="submit-pin" style="max-width:200px;margin-top:8px">Logga in →</button>
+    </div>`;
+  }
+  return `
+  <div style="padding:20px">
+    <button class="fg-outbtn" data-act="show-start" style="margin-bottom:16px;padding:7px 14px">← Tillbaka</button>
+    ${list || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare registrerade ännu.</div>'}
+  </div>`;
+}
+
+function renderReg(){
+  return `
+  <div style="padding:24px">
+    <button class="fg-outbtn" data-act="go-home" style="margin-bottom:20px;padding:7px 14px">← Tillbaka</button>
+    <div style="font-size:18px;font-weight:500;margin-bottom:16px">Ny spelare</div>
+    <label class="fg-label">Ditt namn</label>
+    <input class="fg-input" id="reg-namn" placeholder="T.ex. Marcus N" autofocus style="margin-bottom:14px"/>
+    <label class="fg-label">Välj en 4-siffrig PIN-kod</label>
+    <input class="fg-input" id="reg-pin" placeholder="T.ex. 4821" inputmode="numeric" maxlength="4" pattern="[0-9]*"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Du behöver PIN-koden varje gång du loggar in – kom ihåg den!</div>
+    ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:6px">${esc(errMsg)}</div>`:""}
+    <button class="fg-btn" data-act="submit-reg" style="margin-top:14px">Registrera →</button>
+  </div>`;
+}
+
+function pickMissingText(){
+  const missing = POSITIONS.filter(pos=>(pickState.picks[pos]||[]).length < POS_COUNT[pos]);
+  if(missing.length) return "Saknas: "+missing.map(p=>{
+    const have=(pickState.picks[p]||[]).length;
+    return `${POS_LABEL[p]} (${have}/${POS_COUNT[p]})`;
+  }).join(", ");
+  if(!pickState.kapten) return "Saknas: välj en kapten (klicka ☆ på en av dina spelare)";
+  return "";
+}
+
+function usedTeamIds(excludePid){
+  let ids=[];
+  POSITIONS.forEach(pos=>{ (pickState.picks[pos]||[]).forEach(pid=>{ if(pid!==excludePid)ids.push(pid); }); });
+  return ids.map(pid=>{const p=players.find(x=>x.id===pid);return p?p.teamId:null;}).filter(x=>x!=null);
+}
+
+function renderPick(){
+  const picks=pickState.picks, kap=pickState.kapten;
+  const totalPicked = POSITIONS.reduce((s,pos)=>s+(picks[pos]||[]).length,0);
+  const filtered=players.filter(p=>p.pos===pickPos);
+  const usedTeams = usedTeamIds(null);
+
+  const posTabs=POSITIONS.map(pos=>{
+    const have=(picks[pos]||[]).length, need=POS_COUNT[pos];
+    const full=have>=need;
+    const active=pickPos===pos;
+    const bg=full?POS_COLOR[pos].bg:"var(--color-background-primary)";
+    const fc=full?POS_COLOR[pos].fc:"var(--color-text-secondary)";
+    return `<button data-act="pos-tab" data-pos="${pos}" style="flex:1;padding:8px 2px;border-radius:6px;border:${active?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${bg};color:${fc};font-size:11px;font-weight:500;cursor:pointer">${pos} ${have}/${need}</button>`;
+  }).join("");
+
+  const rows=filtered.map(p=>{
+    const sel=(picks[p.pos]||[]).includes(p.id);
+    const isCap=kap===p.id;
+    const team=TEAMS.find(t=>t.id===p.teamId);
+    const c=POS_COLOR[p.pos];
+    const teamTaken = !sel && usedTeams.includes(p.teamId);
+    const posFull = !sel && (picks[p.pos]||[]).length >= POS_COUNT[p.pos];
+    const disabled = teamTaken || posFull;
+    return `
+    <div class="fg-card" style="margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${disabled?0.45:1}">
+      <div class="fg-posbadge" style="width:34px;height:34px;background:${c.bg};color:${c.fc};font-size:11px">${p.pos}</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:${sel?500:400}">${esc(p.namn)}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?' · lag redan valt':''}</div>
+      </div>
+      ${sel?`<button data-act="toggle-cap" data-id="${p.id}" style="background:${isCap?G_GOLDL:"var(--color-background-secondary)"};border:0.5px solid ${isCap?G_GOLD:"#ccc"};color:${isCap?G_GOLD:"var(--color-text-secondary)"};border-radius:20px;padding:3px 10px;cursor:pointer;font-size:12px;font-weight:500">${isCap?"★ Kapten":"☆"}</button>`:""}
+      <button data-act="pick-player" data-id="${p.id}" ${disabled?"disabled":""} style="width:32px;height:32px;border-radius:50%;background:${sel?G_GREENL:"var(--color-background-secondary)"};border:0.5px solid ${sel?G_GREEN:"#ccc"};color:${sel?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;cursor:${disabled?"not-allowed":"pointer"};font-size:16px;flex-shrink:0">${sel?"✓":"+"}</button>
+    </div>`;
+  }).join("");
+
+  const missing = pickMissingText();
+
+  return `
+  <div style="min-height:100vh;padding-bottom:90px">
+    <div class="fg-top">
+      <button data-act="back-to-main" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0">←</button>
+      <span style="font-weight:500;font-size:16px">Bygg ditt 4-3-3-lag</span>
+    </div>
+    <div style="padding:12px 16px 0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="background:var(--color-background-secondary);border-radius:6px;padding:10px 8px;text-align:center">
+          <div style="font-size:11px;color:var(--color-text-secondary)">Spelare valda</div>
+          <div style="font-size:18px;font-weight:500">${totalPicked} / ${TOTAL_PICKS}</div>
+        </div>
+        <div style="background:${kap?G_GOLDL:"var(--color-background-secondary)"};border-radius:6px;padding:10px 8px;text-align:center">
+          <div style="font-size:11px;color:${kap?G_GOLD:"var(--color-text-secondary)"}">Kapten</div>
+          <div style="font-size:16px;font-weight:500;color:${kap?G_GOLD:"var(--color-text-primary)"}">${kap?esc((players.find(p=>p.id===kap)||{namn:""}).namn.split(" ")[0]):"Ej vald"}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:10px">${posTabs}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">⚠️ Max en spelare per lag totalt i hela laget</div>
+      ${pickErr?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;font-weight:500">${esc(pickErr)}</div>`:""}
+      <div style="font-size:13px;font-weight:500;margin-bottom:6px">${POS_LABEL[pickPos]}</div>
+    </div>
+    <div style="padding:0 16px">${rows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare på denna position än.</div>'}</div>
+    <div style="position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;padding:12px 16px;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary)">
+      ${missing?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;text-align:center;font-weight:500">${esc(missing)}</div>`:""}
+      <button class="fg-btn" data-act="save-team">Spara mitt lag →</button>
+    </div>
+  </div>`;
+}
+
+function renderRulesScreen(){
+  const rulesRows = POSITIONS.map(pos=>`
+    <tr style="border-top:0.5px solid var(--color-border-tertiary)">
+      <td style="padding:6px 0">${POS_LABEL[pos]} (${POS_COUNT[pos]} st)</td>
+      <td style="text-align:center;font-weight:500">+${POS_PTS[pos].clean}</td>
+      <td style="text-align:center;font-weight:500">+${POS_PTS[pos].goal}</td>
+    </tr>`).join("");
+  const backAct = rulesFrom==="main" ? "rules-back-main" : "rules-back-home";
+  return `
+  <div style="min-height:100vh;padding-bottom:20px">
+    <div class="fg-top">
+      <button data-act="${backAct}" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0">←</button>
+      <span style="font-weight:500;font-size:16px">Regler</span>
+    </div>
+    <div style="padding:16px">
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Så funkar det</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du bygger ett 4-3-3-lag: 1 målvakt, 4 försvarare, 3 mittfältare och 3 forwards –
+          totalt 11 spelare från Div2 Norra Götaland. <b>Du får bara välja en spelare per lag</b>,
+          så du måste sprida ut dina val över minst 11 olika lag.
+        </div>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Kapten</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du utser en av dina 11 spelare till kapten. Kaptenens poäng räknas dubbelt varje omgång.
+          Välj klokt!
+        </div>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Poäng per omgång</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">
+          Varje spelare i ditt lag får poäng baserat på sitt riktiga lags resultat den omgången:
+        </div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:10px">
+          <tbody>
+            <tr><td style="padding:4px 0">Laget vinner</td><td style="text-align:right;font-weight:500">+5 p</td></tr>
+            <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">Laget spelar oavgjort</td><td style="text-align:right;font-weight:500">+2 p</td></tr>
+            <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">Laget förlorar</td><td style="text-align:right;font-weight:500">0 p</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:8px;line-height:1.6">
+          Utöver det får varje spelare extra poäng beroende på sin egen position –
+          ju längre bak på planen, desto mer värd är en nollmatch eller ett mål:
+        </div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse">
+          <thead><tr style="color:var(--color-text-secondary);font-size:11px"><td>Position</td><td style="text-align:center">Nollmatch</td><td style="text-align:center">Eget mål</td></tr></thead>
+          <tbody>${rulesRows}</tbody>
+        </table>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Exempel</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Din försvarare spelar för ett lag som vinner 2–0 och själv gör han ett mål:<br>
+          5 p (vinst) + 4 p (nollmatch som försvarare) + 6 p (mål som försvarare) = <b>15 p</b>.
+          Är han din kapten blir det <b>30 p</b>.
+        </div>
+      </div>
+
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Övrigt</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du kan byta hela ditt lag när som helst innan en omgångs matcher startar – gå till
+          Hem-fliken och klicka "Byt". Resultat matas in av admin efter varje spelad omgång.
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderMain(){
+  const sorted=sortedUsers();
+  const tabsDef=[["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
+  let body="";
+  if(mainTab==="hem")body=renderHemTab(sorted);
+  else if(mainTab==="liga")body=renderLigaTab(sorted);
+  else if(mainTab==="omg")body=renderOmgTab();
+  else body=renderAdminTab();
+
+  const tabs=tabsDef.map(([id,ico,lbl])=>`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`).join("");
+
+  return `
+  <div style="min-height:100vh;padding-bottom:72px">
+    <div class="fg-top"><span style="font-size:18px">🏆</span><span style="font-weight:500;flex:1">Fantasy Div2 NG</span><span style="font-size:12px;opacity:.85">Omg ${cfg.omg}</span></div>
+    <div style="padding:12px 16px">${body}</div>
+    <div class="fg-bottombar">${tabs}</div>
+  </div>`;
+}
+
+function renderHemTab(sorted){
+  const user=currentUser;
+  if(!user)return "";
+  const totP=userTotPts(user);
+  const omgP=userRoundPts(user,cfg.omg);
+  const rank=sorted.findIndex(u=>u.id===user.id)+1;
+  const harLag=user.picks && pickCount(user)===TOTAL_PICKS && user.kapten;
+
+  let teamHtml="";
+  if(harLag){
+    const rd=rounds[String(cfg.omg)];
+    teamHtml = `<div class="fg-card">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+        <div style="font-weight:500">Mitt lag (4-3-3)</div>
+        <button data-act="edit-team" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer">✏ Byt</button>
+      </div>
+      ${POSITIONS.map(pos=>{
+        const ids=user.picks[pos]||[];
+        return ids.map(pid=>{
+          const pl=players.find(p=>p.id===pid);
+          if(!pl)return "";
+          const isCap=pl.id===user.kapten;
+          const pts=plPts(pl,rd);
+          const team=TEAMS.find(t=>t.id===pl.teamId);
+          const c=POS_COLOR[pos];
+          return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+            <div class="fg-posbadge" style="width:30px;height:30px;background:${c.bg};color:${c.fc};font-size:9px">${pos}</div>
+            <div style="flex:1"><div style="font-size:14px">${esc(pl.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")}</div></div>
+            ${isCap?`<span style="background:${G_GOLDL};color:${G_GOLD};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">★</span>`:""}
+            <div style="font-weight:500;font-size:14px">${rd?(isCap?pts*2:pts):"–"} p</div>
+          </div>`;
+        }).join("");
+      }).join("")}
+    </div>`;
+  } else {
+    teamHtml = `<div class="fg-card" style="text-align:center;padding:2rem">
+      <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">Du har inte byggt ditt lag ännu.</div>
+      <button class="fg-btn" data-act="edit-team">Bygg mitt lag →</button>
+    </div>`;
+  }
+
+  const rulesRows = POSITIONS.map(pos=>`
+    <tr style="border-top:0.5px solid var(--color-border-tertiary)">
+      <td style="padding:5px 0">${POS_LABEL[pos]} (${POS_COUNT[pos]} st)</td>
+      <td style="text-align:center;font-weight:500">+${POS_PTS[pos].clean}</td>
+      <td style="text-align:center;font-weight:500">+${POS_PTS[pos].goal}</td>
+    </tr>`).join("");
+
+  return `
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="width:46px;height:46px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:18px">${esc(user.namn[0])}</div>
+    <div style="flex:1"><div style="font-weight:500;font-size:17px">${esc(user.namn)}</div><div style="font-size:12px;color:var(--color-text-secondary)">${rank>0?`Plats ${rank} av ${sorted.length}`:"Inte rankad"}</div></div>
+    <button data-act="logout" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Logga ut</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
+    <div style="background:${G_GREENL};border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:${G_GREEN}">Omgång ${cfg.omg}</div><div style="font-size:28px;font-weight:500;color:${G_GREEN}">${omgP}</div></div>
+    <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:var(--color-text-secondary)">Totalt</div><div style="font-size:28px;font-weight:500">${totP}</div></div>
+  </div>
+  ${teamHtml}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Lagresultat: Vinst 5p · Oavgjort 2p · Förlust 0p</div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse">
+      <thead><tr style="color:var(--color-text-secondary);font-size:11px"><td>Position</td><td style="text-align:center">Nollmatch</td><td style="text-align:center">Per mål</td></tr></thead>
+      <tbody>${rulesRows}</tbody>
+    </table>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px">Kapten: dubbla alla poäng · Max en spelare per lag</div>
+  </div>`;
+}
+
+function renderLigaTab(sorted){
+  const medals=["🥇","🥈","🥉"];
+  const rows=sorted.map((u,i)=>{
+    const pts=userTotPts(u);
+    const isMe=currentUser&&u.id===currentUser.id;
+    const cnt=pickCount(u);
+    return `<div class="fg-card" style="display:flex;align-items:center;gap:10px;background:${isMe?G_GREENL:"var(--color-background-primary)"};border:${isMe?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"}">
+      <div style="width:26px;text-align:center">${i<3?medals[i]:i+1}</div>
+      <div style="width:38px;height:38px;border-radius:50%;background:${isMe?G_GREEN:"var(--color-background-secondary)"};color:${isMe?"#fff":"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
+      <div style="flex:1"><div style="font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?`<span style="font-size:11px;color:${G_GREEN}"> (du)</span>`:""}</div><div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare valda</div></div>
+      <div style="font-weight:500;font-size:18px">${pts}</div>
+    </div>`;
+  }).join("");
+  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Ligatbell</div>${rows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare ännu.</div>'}`;
+}
+
+function renderOmgTab(){
+  const keys=Object.keys(rounds).map(Number).sort((a,b)=>b-a);
+  if(!keys.length)return `<div style="font-size:13px;color:var(--color-text-secondary)">Inga resultat inmatade ännu.</div>`;
+  const items=keys.map(r=>{
+    const rd=rounds[String(r)];
+    const isO=openRound===r;
+    let inner="";
+    if(isO){
+      const matchRows=rd.matches.map(m=>`
+        <div style="display:flex;gap:6px;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <span style="flex:1;text-align:right">${esc((TEAMS.find(t=>t.id===m.hId)||{}).name)}</span>
+          <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:500">${m.hMål}–${m.aMål}</span>
+          <span style="flex:1">${esc((TEAMS.find(t=>t.id===m.aId)||{}).name)}</span>
+        </div>`).join("");
+      const userRows=[...users].sort((a,b)=>userRoundPts(b,r)-userRoundPts(a,r)).map(u=>
+        `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(u.namn)}</span><span style="font-weight:500">${userRoundPts(u,r)} p</span></div>`
+      ).join("");
+      inner = `<div style="margin-top:10px">${matchRows}
+        <div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--color-border-tertiary)">
+          <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px">Spelarpoäng denna omgång</div>
+          ${userRows}
+        </div></div>`;
+    }
+    return `<div class="fg-card">
+      <button data-act="toggle-round" data-r="${r}" style="display:flex;width:100%;background:none;border:none;cursor:pointer;padding:0">
+        <div style="font-weight:500;flex:1;text-align:left;color:var(--color-text-primary)">Omgång ${r}</div>
+        <span style="transform:${isO?"rotate(90deg)":"none"};transition:.2s;color:var(--color-text-secondary)">›</span>
+      </button>
+      ${inner}
+    </div>`;
+  }).join("");
+  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Omgångar</div>${items}`;
+}
+
+// ── Bulk round entry helpers ──────────────────────────────────────────────
+function defaultBulkRows(rndKey){
+  const existing = rounds[rndKey];
+  if(existing && existing.matches.length){
+    return existing.matches.map(m=>({hId:m.hId,aId:m.aId,hMål:m.hMål,aMål:m.aMål}));
+  }
+  const rows=[];
+  for(let i=0;i<TEAMS.length;i+=2){
+    if(TEAMS[i+1]) rows.push({hId:TEAMS[i].id,aId:TEAMS[i+1].id,hMål:0,aMål:0});
+  }
+  return rows;
+}
+
+function renderAdminTab(){
+  if(!adminOk){
+    return `<div style="max-width:300px;margin:0 auto">
+      <div style="font-weight:500;font-size:16px;margin-bottom:16px">🔒 Admin</div>
+      <label class="fg-label">Lösenord</label>
+      <input class="fg-input" id="admin-pwd" type="password"/>
+      ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:4px">${esc(errMsg)}</div>`:""}
+      <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
+    </div>`;
+  }
+  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["users","Användare"]].map(([id,l])=>
+    `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
+  ).join("");
+
+  let body="";
+  if(adminSection==="round"){
+    const teamOpts=t=>TEAMS.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${esc(x.name)}</option>`).join("");
+    const rowsHtml=bulkRows.map((r,i)=>`
+      <div class="fg-mrow">
+        <select data-act="bulk-hid" data-idx="${i}">${teamOpts(r.hId)}</select>
+        <input class="fg-mscore" data-act="bulk-hm" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.hMål}"/>
+        <span style="text-align:center;color:var(--color-text-secondary);font-weight:600">–</span>
+        <input class="fg-mscore" data-act="bulk-am" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.aMål}"/>
+        <select data-act="bulk-aid" data-idx="${i}">${teamOpts(r.aId)}</select>
+        <button data-act="bulk-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px">×</button>
+      </div>`).join("");
+    body=`<div class="fg-card">
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
+        <div style="flex:1">
+          <label class="fg-label">Omgång</label>
+          <input class="fg-input" id="bulk-rnd" type="number" value="${cfg.omg}"/>
+        </div>
+        <button class="fg-outbtn" data-act="bulk-load" style="padding:9px 14px">Hämta</button>
+      </div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
+      <div style="display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
+        <span>Hemmalag</span><span style="text-align:center">Mål</span><span></span><span style="text-align:center">Mål</span><span>Bortalag</span><span></span>
+      </div>
+      ${rowsHtml}
+      <button class="fg-outbtn" data-act="bulk-addrow" style="width:100%;margin-top:10px">+ Lägg till matchrad</button>
+      <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara hela omgången</button>
+    </div>`;
+  } else if(adminSection==="players"){
+    const teamOpts=TEAMS.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
+    const posOpts=POSITIONS.map(p=>`<option value="${p}">${POS_LABEL[p]}</option>`).join("");
+    let listHtml="";
+    POSITIONS.forEach(pos=>{
+      const list=players.filter(p=>p.pos===pos);
+      if(!list.length)return;
+      listHtml+=`<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;font-weight:500">${POS_LABEL[pos]}</div>`;
+      list.forEach(p=>{
+        const team=TEAMS.find(t=>t.id===p.teamId);
+        listHtml+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+          <span style="flex:1">${esc(p.namn)}</span>
+          <span style="color:var(--color-text-secondary);font-size:12px">${esc(team?team.name:"")}</span>
+          <button data-act="remove-player" data-id="${p.id}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:16px">×</button>
+        </div>`;
+      });
+      listHtml+=`</div>`;
+    });
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:10px">Lägg till spelare</div>
+      <label class="fg-label">Namn</label>
+      <input class="fg-input" id="np-namn" style="margin-bottom:8px" placeholder="T.ex. Erik Lund"/>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+        <div><label class="fg-label">Position</label><select class="fg-input" id="np-pos" style="padding:7px 8px">${posOpts}</select></div>
+        <div><label class="fg-label">Lag</label><select class="fg-input" id="np-team" style="padding:7px 8px">${teamOpts}</select></div>
+      </div>
+      <button class="fg-btn" data-act="add-player">Lägg till spelare</button>
+    </div>
+    <div class="fg-card"><div style="font-weight:500;margin-bottom:10px">Alla spelare (${players.length})</div>${listHtml}</div>`;
+  } else if(adminSection==="users"){
+    const sorted=sortedUsers();
+    let rowsHtml="";
+    if(!sorted.length){
+      rowsHtml=`<div style="font-size:13px;color:var(--color-text-secondary)">Inga registrerade användare ännu.</div>`;
+    } else {
+      rowsHtml = sorted.map((u,i)=>{
+        const cnt=pickCount(u);
+        const pts=userTotPts(u);
+        const complete = cnt===TOTAL_PICKS && u.kapten;
+        const teamList = POSITIONS.map(pos=>(u.picks&&u.picks[pos]||[]).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.namn:null;}).filter(Boolean)).flat().join(", ");
+        const confirming = confirmRemoveId===u.id;
+        return `<div class="fg-card" style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:36px;height:36px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
+            <div style="flex:1">
+              <div style="font-weight:500">${esc(u.namn)}</div>
+              <div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare ${complete?'· lag klart':'· ofullständigt lag'} · ${pts} p totalt</div>
+            </div>
+            ${confirming
+              ? `<button data-act="cancel-remove" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Avbryt</button>
+                 <button data-act="confirm-remove-user" data-id="${u.id}" style="background:#A32D2D;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:500">Ja, uteslut</button>`
+              : `<button data-act="ask-remove-user" data-id="${u.id}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-weight:500">Uteslut</button>`}
+          </div>
+          ${teamList?`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:8px;padding-top:8px;border-top:0.5px solid var(--color-border-tertiary)">${esc(teamList)}</div>`:""}
+        </div>`;
+      }).join("");
+    }
+    body = `<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">Registrerade användare (${users.length})</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
+    </div>
+    ${rowsHtml}`;
+  } else {
+    const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
+    const curRD = rounds[rndVal] || {matches:[],goals:{}};
+    const teamsInRound = new Set();
+    curRD.matches.forEach(m=>{teamsInRound.add(m.hId);teamsInRound.add(m.aId);});
+    const relevantPlayers = teamsInRound.size ? players.filter(p=>teamsInRound.has(p.teamId)) : players;
+    let goalsHtml="";
+    relevantPlayers.forEach(p=>{
+      const val=(curRD.goals&&curRD.goals[p.id])||0;
+      const team=TEAMS.find(t=>t.id===p.teamId);
+      goalsHtml+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1">${esc(p.namn)} <span style="color:var(--color-text-secondary);font-size:11px">(${p.pos} · ${esc(team?team.name:"")})</span></span>
+        <input class="fg-input" data-act="set-goals" data-id="${p.id}" type="number" min="0" max="10" value="${val}" style="width:56px;padding:4px 8px"/>
+      </div>`;
+    });
+    body=`<div class="fg-card">
+      <label class="fg-label">Omgång</label>
+      <input class="fg-input" id="goals-rnd-input" type="number" value="${rndVal}" style="margin-bottom:4px;width:100px"/>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Visar bara spelare i lag som spelat denna omgång</div>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">Mål per spelare – omgång ${esc(rndVal)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Ange antal mål varje spelare gjorde denna omgång</div>
+      ${goalsHtml || '<div style="font-size:13px;color:var(--color-text-secondary)">Lägg in matcher för denna omgång först (under "Omgång").</div>'}
+    </div>`;
+  }
+
+  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Admin</div>
+    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${sectionTabs}</div>
+    ${errMsg?`<div style="color:${errMsg.indexOf('✓')===0?G_GREEN:'#A32D2D'};font-size:13px;margin-bottom:10px;font-weight:500">${esc(errMsg)}</div>`:""}
+    ${body}`;
+}
+
+function flash(m){errMsg=m;render();setTimeout(()=>{errMsg="";render();},2200);}
+
+// ── Event handling (delegation) ─────────────────────────────────────────────
+function attachHandlers(){
+  const root=document.getElementById("fg-root");
+  root.onclick=async function(e){
+    const el=e.target.closest("[data-act]");
+    if(!el)return;
+    const act=el.dataset.act;
+
+    if(act==="show-login"){homeMode="login";render();}
+    else if(act==="show-start"){homeMode="start";render();}
+    else if(act==="go-reg"){homeMode="reg";errMsg="";screen="reg";render();}
+    else if(act==="go-home"){screen="home";homeMode="start";render();}
+    else if(act==="go-rules-home"){ rulesFrom="home"; screen="rules"; render(); }
+    else if(act==="rules-back-home"){ screen="home"; homeMode="start"; render(); }
+    else if(act==="rules-back-main"){ screen="main"; render(); }
+    else if(act==="login-as"){
+      const u=users.find(x=>x.id===el.dataset.id);
+      currentUser=u; screen="main"; mainTab="hem"; render();
+    }
+    else if(act==="ask-pin"){
+      pendingLoginUser=users.find(x=>x.id===el.dataset.id);
+      loginErr=""; homeMode="pin"; render();
+    }
+    else if(act==="submit-pin"){
+      const val=document.getElementById("login-pin").value.trim();
+      if(val===String(pendingLoginUser.pin||"")){
+        currentUser=pendingLoginUser; pendingLoginUser=null; loginErr="";
+        screen="main"; mainTab="hem"; render();
+      } else {
+        loginErr="Fel PIN-kod."; render();
+      }
+    }
+    else if(act==="submit-reg"){
+      const namn=document.getElementById("reg-namn").value.trim();
+      const pin=document.getElementById("reg-pin").value.trim();
+      if(!namn){errMsg="Ange ett namn.";render();return;}
+      if(!/^[0-9]{4}$/.test(pin)){errMsg="PIN-koden måste vara exakt 4 siffror.";render();return;}
+      if(users.find(u=>u.namn.toLowerCase()===namn.toLowerCase())){errMsg="Namnet finns redan.";render();return;}
+      const ny={id:Math.random().toString(36).slice(2,10),namn:namn,picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null,pin:pin};
+      await insertUser(ny);
+      users=[...users,ny];
+      currentUser=ny; errMsg=""; screen="pick"; pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}; pickPos="GK"; pickErr=""; render();
+    }
+    else if(act==="back-to-main"){screen="main";render();}
+    else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
+    else if(act==="pick-player"){
+      const pl=players.find(p=>p.id===el.dataset.id);
+      const inPos=(pickState.picks[pl.pos]||[]);
+      if(inPos.includes(pl.id)){
+        pickState.picks[pl.pos]=inPos.filter(id=>id!==pl.id);
+        if(pickState.kapten===pl.id)pickState.kapten=null;
+        pickErr=""; render(); return;
+      }
+      if(inPos.length>=POS_COUNT[pl.pos]){pickErr=`Du har redan valt ${POS_COUNT[pl.pos]} ${POS_LABEL[pl.pos].toLowerCase()}(e).`;render();setTimeout(()=>{pickErr="";render();},2200);return;}
+      const used=usedTeamIds(null);
+      if(used.includes(pl.teamId)){pickErr="Du har redan en spelare från det laget i ditt lag.";render();setTimeout(()=>{pickErr="";render();},2200);return;}
+      pickState.picks[pl.pos]=[...inPos,pl.id];
+      pickErr=""; render();
+    }
+    else if(act==="toggle-cap"){
+      const id=el.dataset.id;
+      pickState.kapten = pickState.kapten===id ? null : id;
+      pickErr=""; render();
+    }
+    else if(act==="save-team"){
+      const allFilled=POSITIONS.every(pos=>(pickState.picks[pos]||[]).length===POS_COUNT[pos]);
+      if(!allFilled){pickErr="Fyll alla positioner enligt 4-3-3 innan du sparar.";render();return;}
+      if(!pickState.kapten){pickErr="Sätt en kapten innan du sparar.";render();return;}
+      await updateUserPicks(currentUser.id,pickState.picks,pickState.kapten);
+      users=users.map(u=>u.id===currentUser.id?{...u,picks:pickState.picks,kapten:pickState.kapten}:u);
+      currentUser={...currentUser,picks:pickState.picks,kapten:pickState.kapten};
+      pickErr=""; screen="main"; mainTab="hem"; render();
+    }
+    else if(act==="edit-team"){
+      pickState={picks: currentUser.picks ? {GK:[...(currentUser.picks.GK||[])],DEF:[...(currentUser.picks.DEF||[])],MID:[...(currentUser.picks.MID||[])],FW:[...(currentUser.picks.FW||[])]} : {GK:[],DEF:[],MID:[],FW:[]}, kapten:currentUser.kapten||null};
+      pickPos="GK"; pickErr=""; screen="pick"; render();
+    }
+    else if(act==="logout"){currentUser=null;screen="home";homeMode="start";render();}
+    else if(act==="main-tab"){
+      const tab=el.dataset.tab;
+      if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
+      mainTab=tab;errMsg="";
+      if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
+      render();
+    }
+    else if(act==="toggle-round"){const r=Number(el.dataset.r);openRound=openRound===r?null:r;render();}
+    else if(act==="admin-login"){
+      const pwd=document.getElementById("admin-pwd").value;
+      if(pwd===ADMIN_PWD){adminOk=true;errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}else{errMsg="Fel lösenord.";}
+      render();
+    }
+    else if(act==="admin-section"){
+      adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;
+      if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
+      render();
+    }
+    else if(act==="bulk-load"){
+      const rnd=document.getElementById("bulk-rnd").value;
+      bulkRows=defaultBulkRows(rnd);
+      cfg={...cfg,omg:Number(rnd)};
+      render();
+    }
+    else if(act==="bulk-addrow"){
+      bulkRows=[...bulkRows,{hId:TEAMS[0].id,aId:TEAMS[1].id,hMål:0,aMål:0}];
+      render();
+    }
+    else if(act==="bulk-remove"){
+      const idx=Number(el.dataset.idx);
+      bulkRows=bulkRows.filter((_,i)=>i!==idx);
+      render();
+    }
+    else if(act==="bulk-save"){
+      const rnd=document.getElementById("bulk-rnd").value;
+      const teamCount={};
+      let dup=false;
+      bulkRows.forEach(r=>{
+        teamCount[r.hId]=(teamCount[r.hId]||0)+1;
+        teamCount[r.aId]=(teamCount[r.aId]||0)+1;
+        if(r.hId===r.aId)dup=true;
+      });
+      if(dup){flash("Ett lag kan inte möta sig själv.");return;}
+      const matches=bulkRows.map(r=>({hId:r.hId,aId:r.aId,hMål:r.hMål,aMål:r.aMål}));
+      await saveRoundMatches(rnd,matches);
+      const cur=rounds[rnd]||{matches:[],goals:{}};
+      rounds={...rounds,[rnd]:{...cur,matches}};
+      await setConfig(Number(rnd));
+      cfg={...cfg,omg:Number(rnd)};
+      flash("✓ Omgång "+rnd+" sparad och satt som aktiv!");
+    }
+    else if(act==="add-player"){
+      const namn=document.getElementById("np-namn").value.trim();
+      const pos=document.getElementById("np-pos").value;
+      const team=Number(document.getElementById("np-team").value);
+      if(!namn){flash("Ange spelarnamn.");return;}
+      const np={id:"p"+Math.random().toString(36).slice(2,10),namn:namn,pos:pos,teamId:team};
+      await insertPlayer(np);
+      players=[...players,np];
+      flash("✓ Spelare tillagd!");
+    }
+    else if(act==="remove-player"){
+      const id=el.dataset.id;
+      await deletePlayer(id);
+      players=players.filter(p=>p.id!==id); render();
+    }
+    else if(act==="ask-remove-user"){ confirmRemoveId=el.dataset.id; render(); }
+    else if(act==="cancel-remove"){ confirmRemoveId=null; render(); }
+    else if(act==="confirm-remove-user"){
+      const id=el.dataset.id;
+      const removed=users.find(u=>u.id===id);
+      await deleteUser(id);
+      users=users.filter(u=>u.id!==id);
+      if(currentUser && currentUser.id===id){ currentUser=null; screen="home"; homeMode="start"; }
+      confirmRemoveId=null;
+      flash("✓ "+(removed?removed.namn:"Användaren")+" har uteslutits.");
+    }
+  };
+
+  root.onchange=async function(e){
+    const el=e.target;
+    if(!el.dataset||!el.dataset.act)return;
+    const act=el.dataset.act;
+    if(act==="set-goals"){
+      const rnd=document.getElementById("goals-rnd-input").value;
+      const pid=el.dataset.id;
+      const val=Number(el.value);
+      const cur=rounds[rnd]||{matches:[],goals:{}};
+      const goals={...cur.goals,[pid]:val};
+      await saveRoundGoals(rnd,goals);
+      rounds={...rounds,[rnd]:{...cur,goals}};
+    }
+    else if(act==="bulk-hid"){ bulkRows[Number(el.dataset.idx)].hId=Number(el.value); }
+    else if(act==="bulk-aid"){ bulkRows[Number(el.dataset.idx)].aId=Number(el.value); }
+    else if(act==="bulk-hm"){ bulkRows[Number(el.dataset.idx)].hMål=Number(el.value); }
+    else if(act==="bulk-am"){ bulkRows[Number(el.dataset.idx)].aMål=Number(el.value); }
+  };
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(async function init(){
+  TEAMS=await fetchTeams();
+  players=await fetchPlayers();
+  users=await fetchUsers();
+  rounds=await fetchRounds();
+  cfg=await fetchConfig();
+  render();
+})();
+})();
+</script>
+</body>
+</html>
