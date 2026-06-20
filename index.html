@@ -66,7 +66,7 @@ let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
-    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={};
+    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null;
 
 // ── Supabase data layer ─────────────────────────────────────────────────────
 async function fetchLeagues(){
@@ -229,10 +229,37 @@ function render(){
   if(screen==="leagues")root.innerHTML=renderLeagues();
   else if(screen==="home")root.innerHTML=renderHome();
   else if(screen==="reg")root.innerHTML=renderReg();
+  else if(screen==="mode")root.innerHTML=renderModeSelect();
   else if(screen==="pick")root.innerHTML=renderPick();
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
+}
+
+function renderModeSelect(){
+  return `
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+    <div style="width:56px;height:56px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:22px;margin-bottom:12px">${esc(currentUser.namn[0])}</div>
+    <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:4px">Hej ${esc(currentUser.namn)}!</div>
+    <div style="font-size:20px;font-weight:500;margin-bottom:28px;text-align:center">Vad vill du göra?</div>
+    <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px">
+      <button data-act="pick-mode" data-mode="fantasy" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">⚽</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Fantasy</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Bygg ditt 4-3-3-lag och tävla i ligatabellen</div>
+        </div>
+      </button>
+      <button data-act="pick-mode" data-mode="tipp" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🎯</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Tippa resultat</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Gissa matchresultat varje omgång</div>
+        </div>
+      </button>
+    </div>
+    <button data-act="logout" style="margin-top:24px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
+  </div>`;
 }
 
 function renderLeagues(){
@@ -466,7 +493,9 @@ function renderRulesScreen(){
 
 function renderMain(){
   const sorted=sortedUsers();
-  const tabsDef=[["hem","🏠","Hem"],["tipp","🎯","Tippa"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
+  const tabsDef = appMode==="tipp"
+    ? [["tipp","🎯","Tippa"],["omg","📅","Omgångar"],["adm","🔒","Admin"]]
+    : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
   else if(mainTab==="tipp")body=renderTippTab();
@@ -478,7 +507,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh;padding-bottom:72px">
-    <div class="fg-top"><span style="font-size:18px">🏆</span><span style="font-weight:500;flex:1">${esc(currentLeague.name)}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-top"><span style="font-size:18px">${appMode==="tipp"?"🎯":"🏆"}</span><span style="font-weight:500;flex:1">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":""}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
     <div style="padding:12px 16px">${body}</div>
     <div class="fg-bottombar">${tabs}</div>
   </div>`;
@@ -892,7 +921,7 @@ function attachHandlers(){
       render();
     }
     else if(act==="switch-league"){
-      currentUser=null; currentLeague=null; screen="leagues"; homeMode="start";
+      currentUser=null; currentLeague=null; appMode=null; screen="leagues"; homeMode="start";
       render();
     }
     else if(act==="show-login"){homeMode="login";render();}
@@ -904,7 +933,7 @@ function attachHandlers(){
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
       const u=users.find(x=>x.id===el.dataset.id);
-      currentUser=u; screen="main"; mainTab="hem"; render();
+      currentUser=u; screen="mode"; render();
     }
     else if(act==="ask-pin"){
       pendingLoginUser=users.find(x=>x.id===el.dataset.id);
@@ -914,7 +943,7 @@ function attachHandlers(){
       const val=document.getElementById("login-pin").value.trim();
       if(val===String(pendingLoginUser.pin||"")){
         currentUser=pendingLoginUser; pendingLoginUser=null; loginErr="";
-        screen="main"; mainTab="hem"; render();
+        screen="mode"; render();
       } else {
         loginErr="Fel PIN-kod."; render();
       }
@@ -928,8 +957,14 @@ function attachHandlers(){
       const ny={id:Math.random().toString(36).slice(2,10),namn:namn,picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null,pin:pin};
       await insertUser(ny);
       users=[...users,ny];
-      currentUser=ny; errMsg=""; screen="pick"; pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}; pickPos="GK"; pickErr=""; render();
+      currentUser=ny; errMsg=""; screen="mode"; render();
     }
+    else if(act==="pick-mode"){
+      appMode=el.dataset.mode;
+      screen="main"; mainTab = appMode==="tipp" ? "tipp" : "hem";
+      render();
+    }
+    else if(act==="switch-mode"){ screen="mode"; render(); }
     else if(act==="back-to-main"){screen="main";render();}
     else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
     else if(act==="pick-player"){
@@ -964,7 +999,7 @@ function attachHandlers(){
       pickState={picks: currentUser.picks ? {GK:[...(currentUser.picks.GK||[])],DEF:[...(currentUser.picks.DEF||[])],MID:[...(currentUser.picks.MID||[])],FW:[...(currentUser.picks.FW||[])]} : {GK:[],DEF:[],MID:[],FW:[]}, kapten:currentUser.kapten||null};
       pickPos="GK"; pickErr=""; screen="pick"; render();
     }
-    else if(act==="logout"){currentUser=null;screen="home";homeMode="start";render();}
+    else if(act==="logout"){currentUser=null;appMode=null;screen="home";homeMode="start";render();}
     else if(act==="main-tab"){
       const tab=el.dataset.tab;
       if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
