@@ -66,7 +66,7 @@ let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
-    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null;
+    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false;
 
 // ── Supabase data layer ─────────────────────────────────────────────────────
 async function fetchLeagues(){
@@ -128,6 +128,10 @@ async function saveRoundMatches(rnd,matches){
 async function saveRoundGoals(rnd,goals){
   const cur=rounds[rnd]||{matches:[],goals:{}};
   const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,league_id:currentLeague.id});
+  if(error)console.error(error);
+}
+async function deleteRound(rnd){
+  const {error}=await sb.from("rounds").delete().eq("round_num",Number(rnd)).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 async function fetchConfig(){
@@ -615,6 +619,16 @@ function renderAdminTab(){
       ${rowsHtml}
       <button class="fg-outbtn" data-act="bulk-addrow" style="width:100%;margin-top:10px">+ Lägg till matchrad</button>
       <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara hela omgången</button>
+      <div style="border-top:0.5px solid var(--color-border-tertiary);margin-top:16px;padding-top:14px">
+        ${confirmDeleteRound
+          ? `<div style="font-size:13px;color:#A32D2D;margin-bottom:8px;font-weight:500">Säker? Detta tar bort omgång ${cfg.omg} permanent, inklusive alla mål.</div>
+             <div style="display:flex;gap:8px">
+               <button class="fg-outbtn" data-act="cancel-delete-round" style="flex:1">Avbryt</button>
+               <button data-act="confirm-delete-round" style="flex:1;background:#A32D2D;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:500;cursor:pointer">Ja, radera omgång ${cfg.omg}</button>
+             </div>`
+          : `<button data-act="ask-delete-round" style="width:100%;background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:10px 18px;font-size:13px;cursor:pointer;font-weight:500">🗑 Radera omgång ${cfg.omg}</button>
+             <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px;text-align:center">Bra för att rensa bort en testomgång</div>`}
+      </div>
     </div>`;
   } else if(adminSection==="players"){
     const teamOpts=TEAMS.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
@@ -840,7 +854,7 @@ function attachHandlers(){
       render();
     }
     else if(act==="admin-section"){
-      adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;
+      adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
@@ -848,6 +862,7 @@ function attachHandlers(){
       const rnd=document.getElementById("bulk-rnd").value;
       bulkRows=defaultBulkRows(rnd);
       cfg={...cfg,omg:Number(rnd)};
+      confirmDeleteRound=false;
       render();
     }
     else if(act==="bulk-addrow"){
@@ -858,6 +873,16 @@ function attachHandlers(){
       const idx=Number(el.dataset.idx);
       bulkRows=bulkRows.filter((_,i)=>i!==idx);
       render();
+    }
+    else if(act==="ask-delete-round"){ confirmDeleteRound=true; render(); }
+    else if(act==="cancel-delete-round"){ confirmDeleteRound=false; render(); }
+    else if(act==="confirm-delete-round"){
+      const rnd=String(cfg.omg);
+      await deleteRound(rnd);
+      const newRounds={...rounds}; delete newRounds[rnd]; rounds=newRounds;
+      confirmDeleteRound=false;
+      bulkRows=defaultBulkRows(rnd);
+      flash("✓ Omgång "+rnd+" raderad.");
     }
     else if(act==="bulk-save"){
       const rnd=document.getElementById("bulk-rnd").value;
