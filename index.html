@@ -32,8 +32,8 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
 .fg-tabbtn.active{color:#1a6b3c}
 .fg-posbadge{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
-.fg-mrow{display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
-.fg-mrow select{font-size:13px;padding:8px 6px}
+.fg-mrow{display:grid;grid-template-columns:minmax(0,1fr) 56px 14px 56px minmax(0,1fr) 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.fg-mrow select{font-size:13px;padding:8px 6px;min-width:0;width:100%;max-width:100%;text-overflow:ellipsis}
 .fg-mscore{font-size:18px;font-weight:600;padding:8px 4px;text-align:center;-moz-appearance:textfield}
 .fg-mscore::-webkit-outer-spin-button,.fg-mscore::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fg-adm-tab{padding:8px 4px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer}
