@@ -739,7 +739,7 @@ function renderAdminTab(){
   }
 
   return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Admin</div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">${sectionTabs}</div>
+    <div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${sectionTabs}</div>
     ${errMsg?`<div style="color:${errMsg.indexOf('✓')===0?G_GREEN:'#A32D2D'};font-size:13px;margin-bottom:10px;font-weight:500">${esc(errMsg)}</div>`:""}
     ${body}`;
 }
