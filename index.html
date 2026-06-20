@@ -63,53 +63,58 @@ const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:6},MID:{clean:1,goal:5},FW
 const G_GREEN="#1a6b3c",G_GREENL="#e8f5ee",G_GOLD="#b45309",G_GOLDL="#fef3c7";
 
 let TEAMS=[];
-let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="home", homeMode="start", pickPos="GK", rulesFrom="home",
-    pendingLoginUser=null, loginErr="",
+let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
+    pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null;
 
 // ── Supabase data layer ─────────────────────────────────────────────────────
+async function fetchLeagues(){
+  const {data,error}=await sb.from("leagues").select("*").order("id");
+  if(error){console.error(error);return [];}
+  return data;
+}
 async function fetchTeams(){
-  const {data,error}=await sb.from("teams").select("*").order("id");
+  const {data,error}=await sb.from("teams").select("*").eq("league_id",currentLeague.id).order("id");
   if(error){console.error(error);return [];}
   return data;
 }
 async function updateTeamName(id,name){
-  const {error}=await sb.from("teams").update({name}).eq("id",id);
+  const {error}=await sb.from("teams").update({name}).eq("id",id).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 async function fetchPlayers(){
-  const {data,error}=await sb.from("players").select("*");
+  const {data,error}=await sb.from("players").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return [];}
   return data.map(p=>({id:p.id,namn:p.namn,pos:p.pos,teamId:p.team_id}));
 }
 async function insertPlayer(p){
-  const {error}=await sb.from("players").insert({id:p.id,namn:p.namn,pos:p.pos,team_id:p.teamId});
+  const {error}=await sb.from("players").insert({id:p.id,namn:p.namn,pos:p.pos,team_id:p.teamId,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function deletePlayer(id){
-  const {error}=await sb.from("players").delete().eq("id",id);
+  const {error}=await sb.from("players").delete().eq("id",id).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 async function fetchUsers(){
-  const {data,error}=await sb.from("fantasy_users").select("*").order("created_at");
+  const {data,error}=await sb.from("fantasy_users").select("*").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
   return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,pin:u.pin}));
 }
 async function insertUser(u){
-  const {error}=await sb.from("fantasy_users").insert({id:u.id,namn:u.namn,picks:u.picks,kapten:u.kapten,pin:u.pin});
+  const {error}=await sb.from("fantasy_users").insert({id:u.id,namn:u.namn,picks:u.picks,kapten:u.kapten,pin:u.pin,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function updateUserPicks(id,picks,kapten){
-  const {error}=await sb.from("fantasy_users").update({picks,kapten}).eq("id",id);
+  const {error}=await sb.from("fantasy_users").update({picks,kapten}).eq("id",id).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 async function deleteUser(id){
-  const {error}=await sb.from("fantasy_users").delete().eq("id",id);
+  const {error}=await sb.from("fantasy_users").delete().eq("id",id).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 async function fetchRounds(){
-  const {data,error}=await sb.from("rounds").select("*");
+  const {data,error}=await sb.from("rounds").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return {};}
   const out={};
   data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{}}; });
@@ -117,21 +122,25 @@ async function fetchRounds(){
 }
 async function saveRoundMatches(rnd,matches){
   const cur=rounds[rnd]||{matches:[],goals:{}};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{}});
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function saveRoundGoals(rnd,goals){
   const cur=rounds[rnd]||{matches:[],goals:{}};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals});
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("*").eq("id",1).single();
+  const {data,error}=await sb.from("app_config").select("*").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1};}
+  if(!data){
+    await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1});
+    return {omg:1};
+  }
   return {omg:data.active_round};
 }
 async function setConfig(omg){
-  const {error}=await sb.from("app_config").update({active_round:omg}).eq("id",1);
+  const {error}=await sb.from("app_config").update({active_round:omg}).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 
@@ -175,7 +184,8 @@ function esc(str){const d=document.createElement("div");d.textContent=str==null?
 // ── Render ──────────────────────────────────────────────────────────────────
 function render(){
   const root=document.getElementById("fg-root");
-  if(screen==="home")root.innerHTML=renderHome();
+  if(screen==="leagues")root.innerHTML=renderLeagues();
+  else if(screen==="home")root.innerHTML=renderHome();
   else if(screen==="reg")root.innerHTML=renderReg();
   else if(screen==="pick")root.innerHTML=renderPick();
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
@@ -183,12 +193,29 @@ function render(){
   attachHandlers();
 }
 
+function renderLeagues(){
+  const list = leagues.map(l=>`
+    <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary)">
+      <div style="width:40px;height:40px;border-radius:10px;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:18px">🏆</div>
+      <div style="flex:1"><div style="font-weight:500;font-size:15px">${esc(l.name)}</div></div>
+      <span style="color:var(--color-text-secondary)">›</span>
+    </button>`).join("");
+  return `
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+    <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">⚽</div>
+    <div style="font-size:22px;font-weight:500;margin-bottom:24px;text-align:center">Välj serie</div>
+    <div style="width:100%;max-width:340px">
+      ${list || '<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">Inga serier tillgängliga ännu.</div>'}
+    </div>
+  </div>`;
+}
+
 function renderHome(){
   if(homeMode==="start"){
     return `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
       <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">🏆</div>
-      <div style="font-size:22px;font-weight:500;margin-bottom:4px">Fantasy Div2 NG</div>
+      <div style="font-size:22px;font-weight:500;margin-bottom:4px">${esc(currentLeague.name)}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:32px;text-align:center">4-3-3 · En spelare per lag</div>
       <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px">
         <button class="fg-btn" data-act="show-login">Logga in</button>
@@ -408,7 +435,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh;padding-bottom:72px">
-    <div class="fg-top"><span style="font-size:18px">🏆</span><span style="font-weight:500;flex:1">Fantasy Div2 NG</span><span style="font-size:12px;opacity:.85">Omg ${cfg.omg}</span></div>
+    <div class="fg-top"><span style="font-size:18px">🏆</span><span style="font-weight:500;flex:1">${esc(currentLeague.name)}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
     <div style="padding:12px 16px">${body}</div>
     <div class="fg-bottombar">${tabs}</div>
   </div>`;
@@ -713,7 +740,23 @@ function attachHandlers(){
     if(!el)return;
     const act=el.dataset.act;
 
-    if(act==="show-login"){homeMode="login";render();}
+    if(act==="choose-league"){
+      currentLeague=leagues.find(l=>l.id===Number(el.dataset.id));
+      const root=document.getElementById("fg-root");
+      root.innerHTML='<div class="fg-loading">Laddar serie…</div>';
+      TEAMS=await fetchTeams();
+      players=await fetchPlayers();
+      users=await fetchUsers();
+      rounds=await fetchRounds();
+      cfg=await fetchConfig();
+      screen="home"; homeMode="start";
+      render();
+    }
+    else if(act==="switch-league"){
+      currentUser=null; currentLeague=null; screen="leagues"; homeMode="start";
+      render();
+    }
+    else if(act==="show-login"){homeMode="login";render();}
     else if(act==="show-start"){homeMode="start";render();}
     else if(act==="go-reg"){homeMode="reg";errMsg="";screen="reg";render();}
     else if(act==="go-home"){screen="home";homeMode="start";render();}
@@ -893,11 +936,18 @@ function attachHandlers(){
 
 // ── Init ──────────────────────────────────────────────────────────────────
 (async function init(){
-  TEAMS=await fetchTeams();
-  players=await fetchPlayers();
-  users=await fetchUsers();
-  rounds=await fetchRounds();
-  cfg=await fetchConfig();
+  leagues=await fetchLeagues();
+  if(leagues.length===1){
+    currentLeague=leagues[0];
+    TEAMS=await fetchTeams();
+    players=await fetchPlayers();
+    users=await fetchUsers();
+    rounds=await fetchRounds();
+    cfg=await fetchConfig();
+    screen="home";
+  } else {
+    screen="leagues";
+  }
   render();
 })();
 })();
