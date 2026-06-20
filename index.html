@@ -741,7 +741,16 @@ function renderAdminTab(){
     const teamOpts=t=>TEAMS.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${esc(x.name)}</option>`).join("");
     const curRoundData = rounds[String(cfg.omg)];
     const isLocked = curRoundData && curRoundData.locked;
-    const rowsHtml=bulkRows.map((r,i)=>`
+    const rowsHtml = isLocked
+      ? bulkRows.map(r=>{
+          const h=TEAMS.find(t=>t.id===r.hId), a=TEAMS.find(t=>t.id===r.aId);
+          return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+            <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
+            <span style="font-weight:600;min-width:50px;text-align:center">${r.hMål} – ${r.aMål}</span>
+            <span style="flex:1">${esc(a?a.name:"")}</span>
+          </div>`;
+        }).join("")
+      : bulkRows.map((r,i)=>`
       <div class="fg-mrow">
         <select data-act="bulk-hid" data-idx="${i}">${teamOpts(r.hId)}</select>
         <input class="fg-mscore" data-act="bulk-hm" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.hMål}"/>
@@ -762,17 +771,20 @@ function renderAdminTab(){
         <span style="font-size:18px">${isLocked?'🔒':'🔓'}</span>
         <div style="flex:1">
           <div style="font-size:13px;font-weight:500;color:${isLocked?'#A32D2D':G_GREEN}">${isLocked?'Omgången är låst':'Omgången är olåst'}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">${isLocked?'Tips är stängda. Fantasy-poäng räknas.':'Tips är öppna. Fantasy-poäng räknas INTE än.'}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${isLocked?'Facit är satt. Resultat går inte att ändra förrän du låser upp.':'Tips är öppna. Fantasy-poäng räknas INTE än.'}</div>
         </div>
         <button data-act="toggle-lock" data-locked="${isLocked?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;font-weight:500;white-space:nowrap">${isLocked?'Lås upp':'Lås omgång'}</button>
       </div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
-      <div style="display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
-        <span>Hemmalag</span><span style="text-align:center">Mål</span><span></span><span style="text-align:center">Mål</span><span>Bortalag</span><span></span>
-      </div>
-      ${rowsHtml}
-      <button class="fg-outbtn" data-act="bulk-addrow" style="width:100%;margin-top:10px">+ Lägg till matchrad</button>
-      <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara hela omgången</button>
+      ${isLocked
+        ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Resultaten nedan är facit och kan inte redigeras. Lås upp omgången ovan om du behöver rätta något.</div>
+           ${rowsHtml}`
+        : `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
+           <div style="display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
+             <span>Hemmalag</span><span style="text-align:center">Mål</span><span></span><span style="text-align:center">Mål</span><span>Bortalag</span><span></span>
+           </div>
+           ${rowsHtml}
+           <button class="fg-outbtn" data-act="bulk-addrow" style="width:100%;margin-top:10px">+ Lägg till matchrad</button>
+           <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara hela omgången</button>`}
       <div style="border-top:0.5px solid var(--color-border-tertiary);margin-top:16px;padding-top:14px">
         ${confirmDeleteRound
           ? `<div style="font-size:13px;color:#A32D2D;margin-bottom:8px;font-weight:500">Säker? Detta tar bort omgång ${cfg.omg} permanent, inklusive alla mål.</div>
@@ -868,6 +880,7 @@ function renderAdminTab(){
   } else {
     const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
     const curRD = rounds[rndVal] || {matches:[],goals:{}};
+    const goalsLocked = curRD.locked;
     const teamsInRound = new Set();
     curRD.matches.forEach(m=>{teamsInRound.add(m.hId);teamsInRound.add(m.aId);});
     const relevantPlayers = teamsInRound.size ? players.filter(p=>teamsInRound.has(p.teamId)) : players;
@@ -877,13 +890,16 @@ function renderAdminTab(){
       const team=TEAMS.find(t=>t.id===p.teamId);
       goalsHtml+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${esc(p.namn)} <span style="color:var(--color-text-secondary);font-size:11px">(${p.pos} · ${esc(team?team.name:"")})</span></span>
-        <input class="fg-input" data-act="set-goals" data-id="${p.id}" type="number" min="0" max="10" value="${val}" style="width:56px;padding:4px 8px"/>
+        ${goalsLocked
+          ? `<span style="width:56px;text-align:center;font-weight:500">${val}</span>`
+          : `<input class="fg-input" data-act="set-goals" data-id="${p.id}" type="number" min="0" max="10" value="${val}" style="width:56px;padding:4px 8px"/>`}
       </div>`;
     });
     body=`<div class="fg-card">
       <label class="fg-label">Omgång</label>
       <input class="fg-input" id="goals-rnd-input" type="number" value="${rndVal}" style="margin-bottom:4px;width:100px"/>
       <div style="font-size:12px;color:var(--color-text-secondary)">Visar bara spelare i lag som spelat denna omgång</div>
+      ${goalsLocked?`<div style="font-size:12px;color:#A32D2D;margin-top:6px">🔒 Omgången är låst – lås upp under "Omgång" för att ändra mål.</div>`:""}
     </div>
     <div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">Mål per spelare – omgång ${esc(rndVal)}</div>
