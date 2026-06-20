@@ -66,7 +66,7 @@ let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
-    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false;
+    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={};
 
 // ── Supabase data layer ─────────────────────────────────────────────────────
 async function fetchLeagues(){
@@ -99,10 +99,14 @@ async function deletePlayer(id){
 async function fetchUsers(){
   const {data,error}=await sb.from("fantasy_users").select("*").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,pin:u.pin}));
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,pin:u.pin,tips:u.tips||{}}));
 }
 async function insertUser(u){
-  const {error}=await sb.from("fantasy_users").insert({id:u.id,namn:u.namn,picks:u.picks,kapten:u.kapten,pin:u.pin,league_id:currentLeague.id});
+  const {error}=await sb.from("fantasy_users").insert({id:u.id,namn:u.namn,picks:u.picks,kapten:u.kapten,pin:u.pin,league_id:currentLeague.id,tips:{}});
+  if(error)console.error(error);
+}
+async function saveUserTips(userId,roundNum,tipsArr){
+  const {error}=await sb.from("fantasy_users").update({tips:Object.assign({},users.find(u=>u.id===userId).tips,{[roundNum]:tipsArr})}).eq("id",userId).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
 async function updateUserPicks(id,picks,kapten){
@@ -117,17 +121,22 @@ async function fetchRounds(){
   const {data,error}=await sb.from("rounds").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return {};}
   const out={};
-  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{}}; });
+  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked}; });
   return out;
 }
 async function saveRoundMatches(rnd,matches){
-  const cur=rounds[rnd]||{matches:[],goals:{}};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},locked:cur.locked||false,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function saveRoundGoals(rnd,goals){
-  const cur=rounds[rnd]||{matches:[],goals:{}};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,locked:cur.locked||false,league_id:currentLeague.id});
+  if(error)console.error(error);
+}
+async function toggleRoundLock(rnd,locked){
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function deleteRound(rnd){
@@ -172,6 +181,7 @@ function plPts(player,rd){
 function userRoundPts(u,r){
   if(!u||!u.picks)return 0;
   const rd=rounds[String(r)];
+  if(!rd||!rd.locked)return 0;
   let tot=0;
   allPickedIds(u).forEach(pid=>{
     const pl=players.find(p=>p.id===pid);
@@ -182,6 +192,34 @@ function userRoundPts(u,r){
   return tot;
 }
 function userTotPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userRoundPts(u,Number(r)),0); }
+
+// ── Tipp-poäng ──────────────────────────────────────────────────────────────
+function tipMatchPts(pred,actualH,actualA){
+  if(!pred)return 0;
+  const ph=Number(pred.predH), pa=Number(pred.predA);
+  if(ph===actualH && pa===actualA) return 10;
+  let pts=0;
+  if(ph===actualH) pts+=4;
+  if(pa===actualA) pts+=4;
+  if(pts===0){
+    const actualSign = actualH>actualA?1:(actualH<actualA?-1:0);
+    const predSign = ph>pa?1:(ph<pa?-1:0);
+    if(actualSign===predSign) pts=2;
+  }
+  return pts;
+}
+function userTipRoundPts(u,r){
+  const rd=rounds[String(r)];
+  if(!rd||!rd.locked||!rd.matches.length)return 0;
+  const tipsForRound = (u.tips&&u.tips[String(r)])||[];
+  let tot=0;
+  rd.matches.forEach(m=>{
+    const pred=tipsForRound.find(t=>t.hId===m.hId&&t.aId===m.aId);
+    tot+=tipMatchPts(pred,m.hMål,m.aMål);
+  });
+  return tot;
+}
+function userTipTotalPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userTipRoundPts(u,Number(r)),0); }
 function sortedUsers(){return [...users].sort((a,b)=>userTotPts(b)-userTotPts(a));}
 function esc(str){const d=document.createElement("div");d.textContent=str==null?"":String(str);return d.innerHTML;}
 
@@ -428,9 +466,10 @@ function renderRulesScreen(){
 
 function renderMain(){
   const sorted=sortedUsers();
-  const tabsDef=[["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
+  const tabsDef=[["hem","🏠","Hem"],["tipp","🎯","Tippa"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
+  else if(mainTab==="tipp")body=renderTippTab();
   else if(mainTab==="liga")body=renderLigaTab(sorted);
   else if(mainTab==="omg")body=renderOmgTab();
   else body=renderAdminTab();
@@ -474,7 +513,7 @@ function renderHemTab(sorted){
             <div class="fg-posbadge" style="width:30px;height:30px;background:${c.bg};color:${c.fc};font-size:9px">${pos}</div>
             <div style="flex:1"><div style="font-size:14px">${esc(pl.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")}</div></div>
             ${isCap?`<span style="background:${G_GOLDL};color:${G_GOLD};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">★</span>`:""}
-            <div style="font-weight:500;font-size:14px">${rd?(isCap?pts*2:pts):"–"} p</div>
+            <div style="font-weight:500;font-size:14px">${(rd&&rd.locked)?(isCap?pts*2:pts):"–"} p</div>
           </div>`;
         }).join("");
       }).join("")}
@@ -512,6 +551,82 @@ function renderHemTab(sorted){
       <tbody>${rulesRows}</tbody>
     </table>
     <div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px">Kapten: dubbla alla poäng · Max en spelare per lag</div>
+  </div>`;
+}
+
+function renderTippTab(){
+  const user=currentUser;
+  const rd=rounds[String(cfg.omg)];
+  const sortedTip=[...users].sort((a,b)=>userTipTotalPts(b)-userTipTotalPts(a));
+
+  let inputSection="";
+  if(!rd || !rd.matches.length){
+    inputSection = `<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga matcher inlagda för omgång ${cfg.omg} ännu. Admin behöver lägga in matcherna (resultat kan vara 0-0 i förväg) innan ni kan tippa.</div></div>`;
+  } else if(rd.locked){
+    const savedTips = (user.tips && user.tips[String(cfg.omg)]) || [];
+    const rows = rd.matches.map(m=>{
+      const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
+      const pred=savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId);
+      const pts=tipMatchPts(pred,m.hMål,m.aMål);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1;text-align:right">${esc(hTeam?hTeam.name:"")}</span>
+        <span style="font-weight:500">${pred?pred.predH:"–"} – ${pred?pred.predA:"–"}</span>
+        <span style="flex:1">${esc(aTeam?aTeam.name:"")}</span>
+        <span style="color:${G_GREEN};font-weight:500;width:36px;text-align:right">${pred?pts+'p':''}</span>
+      </div>`;
+    }).join("");
+    inputSection = `<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔒 Omgång ${cfg.omg} är låst</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Facit: ${rd.matches.map(m=>`${m.hMål}-${m.aMål}`).join(", ")}. Dina tips och poäng syns nedan.</div>
+      ${rows}
+    </div>`;
+  } else {
+    const savedTips = (user.tips && user.tips[String(cfg.omg)]) || [];
+    const rows = rd.matches.map((m,i)=>{
+      const key=m.hId+"-"+m.aId;
+      const existing = tipDraft[key] !== undefined ? tipDraft[key] : (savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId) || {predH:"",predA:""});
+      const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="flex:1;text-align:right;font-size:13px">${esc(hTeam?hTeam.name:"")}</span>
+        <input class="fg-input" data-act="tip-input" data-side="h" data-hid="${m.hId}" data-aid="${m.aId}" type="number" min="0" max="20" value="${existing.predH}" style="width:50px;text-align:center;padding:6px 4px"/>
+        <span style="color:var(--color-text-secondary)">–</span>
+        <input class="fg-input" data-act="tip-input" data-side="a" data-hid="${m.hId}" data-aid="${m.aId}" type="number" min="0" max="20" value="${existing.predA}" style="width:50px;text-align:center;padding:6px 4px"/>
+        <span style="flex:1;font-size:13px">${esc(aTeam?aTeam.name:"")}</span>
+      </div>`;
+    }).join("");
+    inputSection = `<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">Tippa omgång ${cfg.omg}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Gissa resultatet på varje match. Spara innan omgången startar!</div>
+      ${rows}
+      <button class="fg-btn" data-act="save-tips" style="margin-top:14px">Spara mina tips</button>
+    </div>`;
+  }
+
+  const lbRows = sortedTip.map((u,i)=>{
+    const pts=userTipTotalPts(u);
+    const isMe=u.id===user.id;
+    const medals=["🥇","🥈","🥉"];
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px;padding-right:8px`:""}">
+      <span style="width:24px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?' (du)':''}</span>
+      <span style="font-weight:500">${pts} p</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">🎯 Tippa resultat</div>
+  ${inputSection}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Poängregler för tips</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+      Exakt resultat: <b>10 p</b><br>
+      Rätt antal mål för ena laget (men inte exakt): <b>4 p</b> per lag som stämmer<br>
+      Rätt tecken (1X2) men inget mål stämmer: <b>2 p</b>
+    </div>
+  </div>
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Tipsligan – totalt</div>
+    ${lbRows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>'}
   </div>`;
 }
 
@@ -595,6 +710,8 @@ function renderAdminTab(){
   let body="";
   if(adminSection==="round"){
     const teamOpts=t=>TEAMS.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${esc(x.name)}</option>`).join("");
+    const curRoundData = rounds[String(cfg.omg)];
+    const isLocked = curRoundData && curRoundData.locked;
     const rowsHtml=bulkRows.map((r,i)=>`
       <div class="fg-mrow">
         <select data-act="bulk-hid" data-idx="${i}">${teamOpts(r.hId)}</select>
@@ -611,6 +728,14 @@ function renderAdminTab(){
           <input class="fg-input" id="bulk-rnd" type="number" value="${cfg.omg}"/>
         </div>
         <button class="fg-outbtn" data-act="bulk-load" style="padding:9px 14px">Hämta</button>
+      </div>
+      <div style="background:${isLocked?'#FCEBEB':G_GREENL};border-radius:6px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">${isLocked?'🔒':'🔓'}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:500;color:${isLocked?'#A32D2D':G_GREEN}">${isLocked?'Omgången är låst':'Omgången är olåst'}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${isLocked?'Tips är stängda. Fantasy-poäng räknas.':'Tips är öppna. Fantasy-poäng räknas INTE än.'}</div>
+        </div>
+        <button data-act="toggle-lock" data-locked="${isLocked?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;font-weight:500;white-space:nowrap">${isLocked?'Lås upp':'Lås omgång'}</button>
       </div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
       <div style="display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
@@ -844,6 +969,7 @@ function attachHandlers(){
       const tab=el.dataset.tab;
       if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
       mainTab=tab;errMsg="";
+      if(tab==="tipp"){ tipDraft={}; }
       if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
@@ -874,8 +1000,34 @@ function attachHandlers(){
       bulkRows=bulkRows.filter((_,i)=>i!==idx);
       render();
     }
+    else if(act==="toggle-lock"){
+      const rnd=String(cfg.omg);
+      const nowLocked = el.dataset.locked==="1" ? false : true;
+      await toggleRoundLock(rnd,nowLocked);
+      const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
+      rounds={...rounds,[rnd]:{...cur,locked:nowLocked}};
+      flash(nowLocked ? "✓ Omgången är nu låst – poäng räknas!" : "✓ Omgången är upplåst igen.");
+    }
     else if(act==="ask-delete-round"){ confirmDeleteRound=true; render(); }
     else if(act==="cancel-delete-round"){ confirmDeleteRound=false; render(); }
+    else if(act==="save-tips"){
+      const rd=rounds[String(cfg.omg)];
+      if(!rd||!rd.matches.length){flash("Inga matcher att tippa på.");return;}
+      const tipsArr=rd.matches.map(m=>{
+        const key=m.hId+"-"+m.aId;
+        const draft=tipDraft[key];
+        const saved=((currentUser.tips&&currentUser.tips[String(cfg.omg)])||[]).find(t=>t.hId===m.hId&&t.aId===m.aId);
+        const predH = draft?.predH!==undefined?draft.predH:(saved?saved.predH:"");
+        const predA = draft?.predA!==undefined?draft.predA:(saved?saved.predA:"");
+        return {hId:m.hId,aId:m.aId,predH:predH===""?0:Number(predH),predA:predA===""?0:Number(predA)};
+      });
+      await saveUserTips(currentUser.id,String(cfg.omg),tipsArr);
+      const updTips={...currentUser.tips,[String(cfg.omg)]:tipsArr};
+      currentUser={...currentUser,tips:updTips};
+      users=users.map(u=>u.id===currentUser.id?{...u,tips:updTips}:u);
+      tipDraft={};
+      flash("✓ Dina tips är sparade!");
+    }
     else if(act==="confirm-delete-round"){
       const rnd=String(cfg.omg);
       await deleteRound(rnd);
@@ -956,6 +1108,12 @@ function attachHandlers(){
     else if(act==="bulk-aid"){ bulkRows[Number(el.dataset.idx)].aId=Number(el.value); }
     else if(act==="bulk-hm"){ bulkRows[Number(el.dataset.idx)].hMål=Number(el.value); }
     else if(act==="bulk-am"){ bulkRows[Number(el.dataset.idx)].aMål=Number(el.value); }
+    else if(act==="tip-input"){
+      const key=el.dataset.hid+"-"+el.dataset.aid;
+      const cur=tipDraft[key]||{predH:"",predA:""};
+      if(el.dataset.side==="h") cur.predH=el.value; else cur.predA=el.value;
+      tipDraft[key]=cur;
+    }
   };
 }
 
