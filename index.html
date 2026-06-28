@@ -1064,6 +1064,8 @@ function attachHandlers(){
     else if(act==="save-tips"){
       const rd=rounds[String(cfg.omg)];
       if(!rd||!rd.matches.length){flash("Inga matcher att tippa på.");return;}
+      el.textContent="Sparar…";
+      el.disabled=true;
       const tipsArr=rd.matches.map(m=>{
         const hInput=document.querySelector(`[data-act="tip-input"][data-side="h"][data-hid="${m.hId}"][data-aid="${m.aId}"]`);
         const aInput=document.querySelector(`[data-act="tip-input"][data-side="a"][data-hid="${m.hId}"][data-aid="${m.aId}"]`);
@@ -1072,8 +1074,12 @@ function attachHandlers(){
         return {hId:m.hId,aId:m.aId,predH,predA};
       });
       const allTips={...(currentUser.tips||{}),[String(cfg.omg)]:tipsArr};
-      const {error}=await sb.from("fantasy_users").update({tips:allTips}).eq("id",currentUser.id).eq("league_id",currentLeague.id);
-      if(error){flash("Fel: kunde inte spara tips. Försök igen.");console.error(error);return;}
+      const {error}=await sb.from("fantasy_users").update({tips:allTips}).eq("id",currentUser.id);
+      if(error){
+        console.error("Tips-fel:",error);
+        flash("❌ Kunde inte spara: "+error.message);
+        return;
+      }
       currentUser={...currentUser,tips:allTips};
       users=users.map(u=>u.id===currentUser.id?{...u,tips:allTips}:u);
       tipDraft={};
