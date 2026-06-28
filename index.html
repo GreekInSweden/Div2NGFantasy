@@ -914,31 +914,59 @@ function renderAdminTab(){
     ${rowsHtml}`;
   } else {
     const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
+    const goalSearch = document.getElementById("goals-search") ? document.getElementById("goals-search").value.toLowerCase() : "";
     const curRD = rounds[rndVal] || {matches:[],goals:{}};
     const goalsLocked = curRD.locked;
     const teamsInRound = new Set();
     curRD.matches.forEach(m=>{teamsInRound.add(m.hId);teamsInRound.add(m.aId);});
-    const relevantPlayers = teamsInRound.size ? players.filter(p=>teamsInRound.has(p.teamId)) : players;
+
+    // Alla spelare, sorterade: spelare med mål > 0 först, sedan lag som spelar, sen resten
+    const allSorted = [...players].sort((a,b)=>{
+      const aGoals=(curRD.goals&&curRD.goals[a.id])||0;
+      const bGoals=(curRD.goals&&curRD.goals[b.id])||0;
+      if(bGoals!==aGoals) return bGoals-aGoals;
+      const aInRound=teamsInRound.has(a.teamId)?0:1;
+      const bInRound=teamsInRound.has(b.teamId)?0:1;
+      if(aInRound!==bInRound) return aInRound-bInRound;
+      return a.namn.localeCompare(b.namn);
+    });
+
+    const filtered = goalSearch
+      ? allSorted.filter(p=>{
+          const team=TEAMS.find(t=>t.id===p.teamId);
+          return p.namn.toLowerCase().includes(goalSearch) || (team&&team.name.toLowerCase().includes(goalSearch));
+        })
+      : allSorted;
+
     let goalsHtml="";
-    relevantPlayers.forEach(p=>{
+    filtered.forEach(p=>{
       const val=(curRD.goals&&curRD.goals[p.id])||0;
       const team=TEAMS.find(t=>t.id===p.teamId);
-      goalsHtml+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+      const inRound=teamsInRound.size===0||teamsInRound.has(p.teamId);
+      const hasGoal=val>0;
+      goalsHtml+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px;opacity:${inRound?1:0.4}">
         <span style="flex:1">${esc(p.namn)} <span style="color:var(--color-text-secondary);font-size:11px">(${p.pos} · ${esc(team?team.name:"")})</span></span>
         ${goalsLocked
-          ? `<span style="width:56px;text-align:center;font-weight:500">${val}</span>`
-          : `<input class="fg-input" data-act="set-goals" data-id="${p.id}" type="number" min="0" max="10" value="${val}" style="width:56px;padding:4px 8px"/>`}
+          ? `<span style="width:56px;text-align:center;font-weight:500;color:${hasGoal?G_GREEN:'var(--color-text-secondary)'}">${val}</span>`
+          : `<input class="fg-input" data-act="set-goals" data-id="${p.id}" type="number" min="0" max="10" value="${val}" style="width:56px;padding:4px 8px;${hasGoal?'border-color:'+G_GREEN+';font-weight:500':''}"/>`}
       </div>`;
     });
+
     body=`<div class="fg-card">
-      <label class="fg-label">Omgång</label>
-      <input class="fg-input" id="goals-rnd-input" type="number" value="${rndVal}" style="margin-bottom:4px;width:100px"/>
-      <div style="font-size:12px;color:var(--color-text-secondary)">Visar bara spelare i lag som spelat denna omgång</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:8px">
+        <div><label class="fg-label">Omgång</label>
+        <input class="fg-input" id="goals-rnd-input" type="number" value="${rndVal}" style="width:80px"/></div>
+      </div>
+      <input class="fg-input" id="goals-search" placeholder="🔍 Sök spelare eller lag…" value="${goalSearch}" oninput="document.getElementById('goals-search-trigger').click()" style="margin-bottom:6px"/>
+      <button id="goals-search-trigger" data-act="goals-search-update" style="display:none"></button>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Spelare som inte spelar denna omgång är nedtonade. Spelare med mål visas överst.</div>
       ${goalsLocked?`<div style="font-size:12px;color:#A32D2D;margin-top:6px">🔒 Omgången är låst – lås upp under "Omgång" för att ändra mål.</div>`:""}
     </div>
     <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">Mål per spelare – omgång ${esc(rndVal)}</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Ange antal mål varje spelare gjorde denna omgång</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-weight:500">Mål per spelare – omgång ${esc(rndVal)}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${filtered.length} spelare</div>
+      </div>
       ${goalsHtml || '<div style="font-size:13px;color:var(--color-text-secondary)">Lägg in matcher för denna omgång först (under "Omgång").</div>'}
     </div>`;
   }
@@ -1076,6 +1104,7 @@ function attachHandlers(){
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
+    else if(act==="goals-search-update"){ render(); }
     else if(act==="bulk-load"){
       const rnd=document.getElementById("bulk-rnd").value;
       bulkRows=defaultBulkRows(rnd);
