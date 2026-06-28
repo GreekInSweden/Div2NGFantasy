@@ -54,6 +54,11 @@ const ADMIN_PWD = "div2ng25"; // byt gärna till ditt eget lösenord
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 window.saveTips = async function(){
+  const rounds = window._appState.rounds;
+  const cfg = window._appState.cfg;
+  const currentUser = window._appState.currentUser;
+  const currentLeague = window._appState.currentLeague;
+  const users = window._appState.users;
   const statusEl = document.getElementById("tipp-status");
   if(statusEl) statusEl.textContent = "Sparar…";
   try {
@@ -71,8 +76,8 @@ window.saveTips = async function(){
       if(statusEl) statusEl.innerHTML = '<span style="color:#A32D2D">Fel: '+error.message+'</span>';
       return;
     }
-    currentUser = Object.assign({}, currentUser, { tips: allTips });
-    users = users.map(u => u.id === currentUser.id ? Object.assign({}, u, { tips: allTips }) : u);
+    window._appState.currentUser = Object.assign({}, currentUser, { tips: allTips });
+    window._appState.users = users.map(u => u.id === currentUser.id ? Object.assign({}, u, { tips: allTips }) : u);
     if(statusEl) statusEl.innerHTML = '<span style="color:#1a6b3c;font-weight:500">✓ Tips sparade!</span>';
   } catch(e){
     if(statusEl) statusEl.innerHTML = '<span style="color:#A32D2D">JS-fel: '+e.message+'</span>';
@@ -259,6 +264,7 @@ function esc(str){const d=document.createElement("div");d.textContent=str==null?
 
 // ── Render ──────────────────────────────────────────────────────────────────
 function render(){
+  window._appState = { rounds, cfg, currentUser, currentLeague, users };
   const root=document.getElementById("fg-root");
   if(screen==="leagues")root.innerHTML=renderLeagues();
   else if(screen==="home")root.innerHTML=renderHome();
