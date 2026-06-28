@@ -53,6 +53,32 @@ const ADMIN_PWD = "div2ng25"; // byt gärna till ditt eget lösenord
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+window.saveTips = async function(){
+  const statusEl = document.getElementById("tipp-status");
+  if(statusEl) statusEl.textContent = "Sparar…";
+  try {
+    const rd = rounds[String(cfg.omg)];
+    if(!rd || !rd.matches.length){ if(statusEl) statusEl.textContent="Inga matcher att tippa på."; return; }
+    const tipsArr = rd.matches.map(m => {
+      const hEl = document.querySelector('[data-hid="'+m.hId+'"][data-aid="'+m.aId+'"][data-side="h"]');
+      const aEl = document.querySelector('[data-hid="'+m.hId+'"][data-aid="'+m.aId+'"][data-side="a"]');
+      return { hId:m.hId, aId:m.aId, predH: hEl?Number(hEl.value)||0:0, predA: aEl?Number(aEl.value)||0:0 };
+    });
+    const allTips = Object.assign({}, currentUser.tips || {});
+    allTips[String(cfg.omg)] = tipsArr;
+    const { error } = await sb.from("fantasy_users").update({ tips: allTips }).eq("id", currentUser.id);
+    if(error){
+      if(statusEl) statusEl.innerHTML = '<span style="color:#A32D2D">Fel: '+error.message+'</span>';
+      return;
+    }
+    currentUser = Object.assign({}, currentUser, { tips: allTips });
+    users = users.map(u => u.id === currentUser.id ? Object.assign({}, u, { tips: allTips }) : u);
+    if(statusEl) statusEl.innerHTML = '<span style="color:#1a6b3c;font-weight:500">✓ Tips sparade!</span>';
+  } catch(e){
+    if(statusEl) statusEl.innerHTML = '<span style="color:#A32D2D">JS-fel: '+e.message+'</span>';
+  }
+};
+
 (function(){
 const POSITIONS=["GK","DEF","MID","FW"];
 const POS_LABEL={GK:"Målvakt",DEF:"Försvarare",MID:"Mittfältare",FW:"Forward"};
@@ -627,7 +653,8 @@ function renderTippTab(){
       <div style="font-weight:500;margin-bottom:4px">Tippa omgång ${cfg.omg}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Gissa resultatet på varje match. Spara innan omgången startar!</div>
       ${rows}
-      <button class="fg-btn" data-act="save-tips" style="margin-top:14px">Spara mina tips</button>
+      <div id="tipp-status" style="font-size:13px;margin-top:10px;min-height:20px"></div>
+      <button class="fg-btn" style="margin-top:8px" onclick="window.saveTips()">Spara mina tips</button>
     </div>`;
   }
 
