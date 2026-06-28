@@ -1065,17 +1065,17 @@ function attachHandlers(){
       const rd=rounds[String(cfg.omg)];
       if(!rd||!rd.matches.length){flash("Inga matcher att tippa på.");return;}
       const tipsArr=rd.matches.map(m=>{
-        const key=m.hId+"-"+m.aId;
-        const draft=tipDraft[key];
-        const saved=((currentUser.tips&&currentUser.tips[String(cfg.omg)])||[]).find(t=>t.hId===m.hId&&t.aId===m.aId);
-        const predH = draft?.predH!==undefined?draft.predH:(saved?saved.predH:"");
-        const predA = draft?.predA!==undefined?draft.predA:(saved?saved.predA:"");
-        return {hId:m.hId,aId:m.aId,predH:predH===""?0:Number(predH),predA:predA===""?0:Number(predA)};
+        const hInput=document.querySelector(`[data-act="tip-input"][data-side="h"][data-hid="${m.hId}"][data-aid="${m.aId}"]`);
+        const aInput=document.querySelector(`[data-act="tip-input"][data-side="a"][data-hid="${m.hId}"][data-aid="${m.aId}"]`);
+        const predH=hInput?Number(hInput.value)||0:0;
+        const predA=aInput?Number(aInput.value)||0:0;
+        return {hId:m.hId,aId:m.aId,predH,predA};
       });
-      await saveUserTips(currentUser.id,String(cfg.omg),tipsArr);
-      const updTips={...currentUser.tips,[String(cfg.omg)]:tipsArr};
-      currentUser={...currentUser,tips:updTips};
-      users=users.map(u=>u.id===currentUser.id?{...u,tips:updTips}:u);
+      const allTips={...(currentUser.tips||{}),[String(cfg.omg)]:tipsArr};
+      const {error}=await sb.from("fantasy_users").update({tips:allTips}).eq("id",currentUser.id).eq("league_id",currentLeague.id);
+      if(error){flash("Fel: kunde inte spara tips. Försök igen.");console.error(error);return;}
+      currentUser={...currentUser,tips:allTips};
+      users=users.map(u=>u.id===currentUser.id?{...u,tips:allTips}:u);
       tipDraft={};
       flash("✓ Dina tips är sparade!");
     }
