@@ -128,8 +128,16 @@ async function fetchUsers(){
   return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,pin:u.pin,tips:u.tips||{}}));
 }
 async function insertUser(u){
-  const {error}=await sb.from("fantasy_users").insert({id:u.id,namn:u.namn,picks:u.picks,kapten:u.kapten,pin:u.pin,league_id:currentLeague.id,tips:{}});
-  if(error)console.error(error);
+  const {error}=await sb.from("fantasy_users").insert({
+    id:u.id,
+    namn:u.namn,
+    picks:u.picks,
+    kapten:u.kapten,
+    pin:u.pin,
+    league_id:currentLeague.id,
+    tips:{}
+  });
+  return error;
 }
 async function saveUserTips(userId,roundNum,tipsArr){
   const {error}=await sb.from("fantasy_users").update({tips:Object.assign({},users.find(u=>u.id===userId).tips,{[roundNum]:tipsArr})}).eq("id",userId).eq("league_id",currentLeague.id);
@@ -997,8 +1005,14 @@ function attachHandlers(){
       if(!namn){errMsg="Ange ett namn.";render();return;}
       if(!/^[0-9]{4}$/.test(pin)){errMsg="PIN-koden måste vara exakt 4 siffror.";render();return;}
       if(users.find(u=>u.namn.toLowerCase()===namn.toLowerCase())){errMsg="Namnet finns redan.";render();return;}
-      const ny={id:Math.random().toString(36).slice(2,10),namn:namn,picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null,pin:pin};
-      await insertUser(ny);
+      const ny={id:Math.random().toString(36).slice(2,10),namn,picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null,pin};
+      errMsg="Registrerar…";render();
+      const insertError=await insertUser(ny);
+      if(insertError){
+        errMsg="Kunde inte spara: "+insertError.message;
+        render();
+        return;
+      }
       users=[...users,ny];
       currentUser=ny; errMsg=""; screen="mode"; render();
     }
