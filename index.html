@@ -68,7 +68,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
-    ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]};
+    ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
+    snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[];
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -157,7 +158,7 @@ async function fetchRounds(){
   const {data,error}=await sb.from("rounds").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return {};}
   const out={};
-  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null}; });
+  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[]}; });
   return out;
 }
 async function saveRoundMatches(rnd,matches){
@@ -230,8 +231,50 @@ async function fetchLigatippStandings(){
   data.forEach(s=>{out[s.checkpoint]={standings:s.standings||[],locked:!!s.locked};});
   return out;
 }
-async function saveLigatippStandings(checkpoint,standingsArr){
-  const {error}=await sb.from("league_standings").upsert({league_id:currentLeague.id,checkpoint:Number(checkpoint),standings:standingsArr,locked:true});
+async function fetchMySnabbastTips(){
+  const {data,error}=await sb.from("snabbast_tips").select("*").eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
+  if(error){console.error(error);return {};}
+  const out={};
+  data.forEach(t=>{out[t.round_num]=t.picks||[];});
+  return out;
+}
+async function fetchAllSnabbastTips(roundNum){
+  const {data,error}=await sb.from("snabbast_tips").select("*").eq("league_id",currentLeague.id).eq("round_num",roundNum);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function saveSnabbastTip(roundNum,picks){
+  const {error}=await sb.from("snabbast_tips").upsert({id:currentUser.id+"-"+currentLeague.id+"-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
+  return error;
+}
+async function saveSnabbastResult(roundNum,result){
+  const cur=rounds[String(roundNum)]||{matches:[],goals:{},locked:false};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(roundNum),matches:cur.matches||[],goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:result,league_id:currentLeague.id});
+  if(error)console.error(error);
+  return error;
+}
+
+// ── Snabbast-poäng ────────────────────────────────────────────────────────────
+function calcSnabbastPts(userPicks,actualResult){
+  if(!userPicks||!actualResult||!actualResult.length)return 0;
+  let pts=0;
+  actualResult.forEach((teamId,idx)=>{
+    if(userPicks.map(Number).includes(Number(teamId))) pts+=(7-idx);
+  });
+  return pts;
+}
+function userSnabbastRoundPts(userId,roundNum){
+  const rd=rounds[String(roundNum)];
+  if(!rd||!rd.locked||!rd.snabbast_result||!rd.snabbast_result.length)return 0;
+  const tip=snabbastAllTips.find(t=>t.user_id===userId&&t.round_num===roundNum);
+  if(!tip)return 0;
+  return calcSnabbastPts(tip.picks||[],rd.snabbast_result);
+}
+function userSnabbastTotalPts(userId){
+  return Object.keys(rounds).reduce((s,r)=>s+userSnabbastRoundPts(userId,Number(r)),0);
+}
+
+async function saveLigatippStandings(checkpoint,standingsArr){  const {error}=await sb.from("league_standings").upsert({league_id:currentLeague.id,checkpoint:Number(checkpoint),standings:standingsArr,locked:true});
   if(error)console.error(error);
   return error;
 }
@@ -273,6 +316,22 @@ function userRoundPts(u,r){
   return tot;
 }
 function userTotPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userRoundPts(u,Number(r)),0); }
+
+window.saveSnabbast=async function(){
+  const statusEl=document.getElementById("snabbast-status");
+  if(statusEl)statusEl.textContent="Sparar…";
+  try{
+    const error=await saveSnabbastTip(cfg.omg,[...snabbastDraft]);
+    if(error){if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+error.message+'</span>';return;}
+    snabbastMyTips={...snabbastMyTips,[cfg.omg]:[...snabbastDraft]};
+    const existing=snabbastAllTips.findIndex(t=>t.user_id===currentUser.id&&t.round_num===cfg.omg);
+    if(existing>=0) snabbastAllTips[existing]={...snabbastAllTips[existing],picks:[...snabbastDraft]};
+    else snabbastAllTips=[...snabbastAllTips,{user_id:currentUser.id,round_num:cfg.omg,picks:[...snabbastDraft]}];
+    if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
+  }catch(e){
+    if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
+  }
+};
 
 // ── Ligatippen – poäng ────────────────────────────────────────────────────────────
 function calcLigatippPts(userTip,actualStandings){
@@ -379,6 +438,13 @@ function renderModeSelect(){
         <div>
           <div style="font-weight:500;font-size:16px">Tippa serien</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">Tippa tabellen vid halvtid och säsongsslut</div>
+        </div>
+      </button>
+      <button data-act="pick-mode" data-mode="snabbast" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">⚡</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Snabbast vinner</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Tippa vilka 7 lag som gör snabbast mål</div>
         </div>
       </button>
     </div>
@@ -629,11 +695,14 @@ function renderMain(){
     ? [["tipp","🎯","Tippa"],["omg","📅","Omgångar"],["adm","🔒","Admin"]]
     : appMode==="ligatipp"
     ? [["ligatipp","📊","Tippa serien"],["adm","🔒","Admin"]]
+    : appMode==="snabbast"
+    ? [["snabbast","⚡","Snabbast"],["adm","🔒","Admin"]]
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
   else if(mainTab==="tipp")body=renderTippTab();
   else if(mainTab==="ligatipp")body=renderLigatippTab();
+  else if(mainTab==="snabbast")body=renderSnabbastTab();
   else if(mainTab==="liga")body=renderLigaTab(sorted);
   else if(mainTab==="omg")body=renderOmgTab();
   else body=renderAdminTab();
@@ -795,6 +864,82 @@ function renderTippTab(){
   </div>`;
 }
 
+function renderSnabbastTab(){
+  const rd=rounds[String(cfg.omg)];
+  const locked=rd&&rd.locked;
+  const result=rd&&rd.snabbast_result||[];
+  const hasResult=result.length>0;
+  const myPicks=snabbastMyTips[cfg.omg]||[];
+
+  // Slots – 7 platser
+  const slots=Array.from({length:7}).map((_,i)=>{
+    const teamId=snabbastDraft[i];
+    const team=teamId!==undefined?TEAMS.find(t=>t.id===Number(teamId)):null;
+    const actualPos=hasResult?result.map(Number).indexOf(Number(teamId)):-1;
+    const pts=actualPos>=0?(7-actualPos):0;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <div style="width:28px;height:28px;border-radius:50%;background:${team?G_GREENL:'var(--color-background-secondary)'};color:${team?G_GREEN:'var(--color-text-secondary)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0">${i+1}</div>
+      ${team
+        ? `<span style="flex:1;font-size:14px">${esc(team.name)}</span>
+           ${hasResult&&pts>0?`<span style="background:#e8f5ee;color:#1a6b3c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">+${pts}p ✓</span>`:''}
+           ${locked?'':`<button data-act="snabbast-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px;padding:0 4px">×</button>`}`
+        : `<span style="flex:1;font-size:13px;color:var(--color-text-secondary);font-style:italic">— välj lag nedan —</span>`}
+    </div>`;
+  }).join("");
+
+  const placed=snabbastDraft.map(Number);
+  const unplaced=TEAMS.filter(t=>!placed.includes(t.id));
+  const availableHtml=locked?"":(snabbastDraft.length>=7
+    ? `<div style="font-size:13px;color:${G_GREEN};font-weight:500">Alla 7 lag valda! Glöm inte spara.</div>`
+    : `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Klicka ett lag för att lägga till det:</div>
+       <div style="display:flex;flex-wrap:wrap;gap:6px">${unplaced.map(t=>`<button data-act="snabbast-place" data-id="${t.id}" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">${esc(t.name)}</button>`).join("")}</div>`);
+
+  // Facit-visning
+  const facitHtml=hasResult?`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Facit – omgång ${cfg.omg}</div>
+    ${result.map((teamId,i)=>{
+      const team=TEAMS.find(t=>t.id===Number(teamId));
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="width:22px;text-align:center;font-weight:500;color:${G_GREEN}">${i+1}</span>
+        <span style="flex:1">${esc(team?team.name:"?")}</span>
+        <span style="color:var(--color-text-secondary)">${7-i} p</span>
+      </div>`;
+    }).join("")}
+  </div>`:"";
+
+  // Ligatabell
+  const allUsersWithTips=[...users].filter(u=>snabbastAllTips.find(t=>t.user_id===u.id));
+  const lb=[...users].sort((a,b)=>userSnabbastTotalPts(b.id)-userSnabbastTotalPts(a.id));
+  const lbRows=lb.length?lb.map((u,i)=>{
+    const pts=userSnabbastTotalPts(u.id);
+    const isMe=currentUser&&u.id===currentUser.id;
+    const medals=["🥇","🥈","🥉"];
+    const hasTip=snabbastAllTips.find(t=>t.user_id===u.id&&t.round_num===cfg.omg);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?'background:'+G_GREENL+';border-radius:6px;padding-left:6px;padding-right:6px':''}">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+      <span style="font-size:11px;color:var(--color-text-secondary)">${hasTip?"✓ tippad":""}</span>
+      <span style="font-weight:500">${pts} p</span>
+    </div>`;
+  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>`;
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">⚡ Snabbast vinner – Omgång ${cfg.omg}</div>
+  <div class="fg-card">
+    ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">🔒 Omgången är låst – tippning stängd</div>`:""}
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Välj de 7 lag du tror gör snabbast mål. Poäng: 7p för snabbast, 6p för näst snabbast... 1p för 7:e.</div>
+    ${slots}
+    ${!locked?`<div style="margin-top:12px">${availableHtml}</div>`:""}
+    <div id="snabbast-status" style="font-size:13px;min-height:20px;margin-top:10px"></div>
+    ${!locked?`<button class="fg-btn" style="margin-top:8px" onclick="window.saveSnabbast()">Spara mitt tips</button>`:""}
+  </div>
+  ${facitHtml}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Poängställning – totalt</div>
+    ${lbRows}
+  </div>`;
+}
+
 function renderLigatippTab(){
   const locked=cfg.ligatippLocked;
   const draft=ligatippCheckpoint===1?ligatippDraft.half:ligatippDraft.full;
@@ -940,7 +1085,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"]].map(([id,l])=>
+  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"]].map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
   ).join("");
 
@@ -1122,6 +1267,19 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
     </div>
     ${rowsHtml}`;
+  } else if(adminSection==="snabbast"){
+    const rndValS=cfg.omg;
+    const rdS=rounds[String(rndValS)]||{};
+    const existingS=(rdS.snabbast_result||[]).map(Number);
+    const placedS=existingS;
+    const unplacedAdminS=TEAMS.filter(t=>!placedS.includes(t.id));
+    const slotsS=Array.from({length:7}).map((_,i)=>{
+      const teamId=placedS[i];
+      const team=teamId!==undefined?TEAMS.find(t=>t.id===teamId):null;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)"><div style="width:28px;height:28px;border-radius:50%;background:${team?G_GREENL:'var(--color-background-secondary)'};color:${team?G_GREEN:'var(--color-text-secondary)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500">${i+1}</div>${team?`<span style="flex:1;font-size:14px">${esc(team.name)}</span><button data-act="snabbast-admin-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px;padding:0 4px">×</button>`:`<span style="flex:1;font-size:13px;color:var(--color-text-secondary);font-style:italic">— välj lag nedan —</span>`}</div>`;
+    }).join("");
+    const availS=placedS.length>=7?`<div style="font-size:13px;color:${G_GREEN};font-weight:500">Alla 7 lag inlagda!</div>`:`<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Klicka lag i ordning (snabbast → 7:e snabbast):</div><div style="display:flex;flex-wrap:wrap;gap:6px">${unplacedAdminS.map(t=>`<button data-act="snabbast-admin-place" data-id="${t.id}" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">${esc(t.name)}</button>`).join("")}</div>`;
+    body=`<div class="fg-card"><div style="font-weight:500;margin-bottom:4px">Snabbast vinner – Omgång ${rndValS}</div><div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Mata in de 7 lag som gjort mål snabbast, i rätt ordning.</div>${slotsS}<div style="margin-top:12px">${availS}</div><button class="fg-btn" data-act="save-snabbast-result" style="margin-top:14px">Spara facit</button></div>`;
   } else {
     const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
     const goalSearch = document.getElementById("goals-search") ? document.getElementById("goals-search").value.toLowerCase() : "";
@@ -1180,7 +1338,6 @@ function renderAdminTab(){
       ${goalsHtml || '<div style="font-size:13px;color:var(--color-text-secondary)">Lägg in matcher för denna omgång först (under "Omgång").</div>'}
     </div>`;
   }
-
   return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Admin</div>
     <div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${sectionTabs}</div>
     ${errMsg?`<div style="color:${errMsg.indexOf('✓')===0?G_GREEN:'#A32D2D'};font-size:13px;margin-bottom:10px;font-weight:500">${esc(errMsg)}</div>`:""}
@@ -1268,10 +1425,50 @@ function attachHandlers(){
         };
         ligatippCheckpoint=1;
         screen="main"; mainTab="ligatipp";
+      } else if(appMode==="snabbast"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Snabbast vinner…</div>';
+        snabbastMyTips=await fetchMySnabbastTips();
+        snabbastAllTips=await fetchAllSnabbastTips(cfg.omg);
+        snabbastDraft=[...(snabbastMyTips[cfg.omg]||[])].map(Number);
+        screen="main"; mainTab="snabbast";
       } else {
         screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
       }
       render();
+    }
+    else if(act==="snabbast-place"){
+      const id=Number(el.dataset.id);
+      if(snabbastDraft.length<7&&!snabbastDraft.map(Number).includes(id)){
+        snabbastDraft=[...snabbastDraft,id]; render();
+      }
+    }
+    else if(act==="snabbast-remove"){
+      const idx=Number(el.dataset.idx);
+      snabbastDraft=snabbastDraft.filter((_,i)=>i!==idx); render();
+    }
+    else if(act==="snabbast-admin-place"){
+      const id=Number(el.dataset.id);
+      const cur=((rounds[String(cfg.omg)]||{}).snabbast_result||[]).map(Number);
+      if(cur.length<7&&!cur.includes(id)){
+        const updated=[...cur,id];
+        rounds={...rounds,[String(cfg.omg)]:{...(rounds[String(cfg.omg)]||{}),snabbast_result:updated}};
+        render();
+      }
+    }
+    else if(act==="snabbast-admin-remove"){
+      const idx=Number(el.dataset.idx);
+      const cur=((rounds[String(cfg.omg)]||{}).snabbast_result||[]).map(Number);
+      cur.splice(idx,1);
+      rounds={...rounds,[String(cfg.omg)]:{...(rounds[String(cfg.omg)]||{}),snabbast_result:[...cur]}};
+      render();
+    }
+    else if(act==="save-snabbast-result"){
+      const result=((rounds[String(cfg.omg)]||{}).snabbast_result||[]).map(Number);
+      if(!result.length){flash("Lägg till minst ett lag.");return;}
+      const error=await saveSnabbastResult(cfg.omg,result);
+      if(error){flash("Fel: "+error.message);return;}
+      flash("✓ Facit sparat för omgång "+cfg.omg+"!");
     }
     else if(act==="ligatipp-tab"){
       ligatippCheckpoint=Number(el.dataset.cp); render();
