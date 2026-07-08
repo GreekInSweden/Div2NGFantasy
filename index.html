@@ -23,14 +23,14 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 input,select,button{font-family:inherit}
 input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-card{background:var(--color-background-primary);border-radius:10px;border:0.5px solid var(--color-border-tertiary);padding:1rem 1.25rem;margin-bottom:10px}
-.fg-btn{background:#1a6b3c;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:500;cursor:pointer;width:100%}
+.fg-btn{background:#c1272d;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:500;cursor:pointer;width:100%}
 .fg-outbtn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:10px 18px;font-size:14px;cursor:pointer;color:var(--color-text-primary);width:auto}
 .fg-input{width:100%;padding:9px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);box-sizing:border-box}
 .fg-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;display:block}
-.fg-top{background:#1a6b3c;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.fg-top{background:#1a1a1a;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
 .fg-bottombar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary);display:flex;z-index:10}
 .fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
-.fg-tabbtn.active{color:#1a6b3c}
+.fg-tabbtn.active{color:#c1272d}
 .fg-posbadge{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
 .fg-mrow{display:grid;grid-template-columns:minmax(0,1fr) 56px 14px 56px minmax(0,1fr) 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
 .fg-mrow select{font-size:13px;padding:8px 6px;min-width:0;width:100%;max-width:100%;text-overflow:ellipsis}
@@ -60,7 +60,8 @@ const POS_COUNT={GK:1,DEF:4,MID:3,FW:3};
 const TOTAL_PICKS=11;
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:6},MID:{clean:1,goal:5},FW:{clean:0,goal:4}};
-const G_GREEN="#1a6b3c",G_GREENL="#e8f5ee",G_GOLD="#b45309",G_GOLDL="#fef3c7";
+const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
+const TOPBAR="#1a1a1a";
 
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
@@ -281,8 +282,16 @@ function render(){
 
 function renderModeSelect(){
   return `
-  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-    <div style="width:56px;height:56px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:22px;margin-bottom:12px">${esc(currentUser.namn[0])}</div>
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#fff">
+    <div style="text-align:center;margin-bottom:28px">
+      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;color:#1a1a1a;margin-bottom:6px">Div2 Norra Götaland</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+        <div style="height:1.5px;width:110px;background:#c1272d"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+      </div>
+      <div style="font-size:10px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
+    </div>
     <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:4px">Hej ${esc(currentUser.namn)}!</div>
     <div style="font-size:20px;font-weight:500;margin-bottom:28px;text-align:center">Vad vill du göra?</div>
     <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px">
@@ -325,16 +334,22 @@ function renderLeagues(){
 function renderHome(){
   if(homeMode==="start"){
     return `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-      <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">🏆</div>
-      <div style="font-size:22px;font-weight:500;margin-bottom:4px">${esc(currentLeague.name)}</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:32px;text-align:center">4-3-3 · En spelare per lag</div>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#fff">
+      <div style="text-align:center;margin-bottom:36px">
+        <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:28px;color:#1a1a1a;letter-spacing:-0.3px;margin-bottom:8px;line-height:1.2">Div2 Norra Götaland</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
+          <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+          <div style="height:1.5px;width:130px;background:#c1272d"></div>
+          <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+        </div>
+        <div style="font-size:11px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
+      </div>
       <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px">
         <button class="fg-btn" data-act="show-login">Logga in</button>
         ${cfg.registrationOpen
           ? `<button class="fg-outbtn" style="width:100%" data-act="go-reg">Ny spelare</button>`
-          : `<div style="background:#FCEBEB;border-radius:6px;padding:10px;text-align:center;font-size:13px;color:#A32D2D">🔒 Registrering är stängd</div>`}
-        <button data-act="go-rules-home" style="background:none;border:none;color:${G_GREEN};font-size:13px;cursor:pointer;text-decoration:underline;padding:6px">📋 Läs reglerna först</button>
+          : `<div style="background:#fce8e8;border-radius:6px;padding:10px;text-align:center;font-size:13px;color:#c1272d">🔒 Registrering är stängd</div>`}
+        <button data-act="go-rules-home" style="background:none;border:none;color:#c1272d;font-size:13px;cursor:pointer;text-decoration:underline;padding:6px">📋 Läs reglerna först</button>
       </div>
     </div>`;
   }
@@ -552,7 +567,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh;padding-bottom:72px">
-    <div class="fg-top"><span style="font-size:18px">${appMode==="tipp"?"🎯":"🏆"}</span><span style="font-weight:500;flex:1">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":""}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":""}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
     <div style="padding:12px 16px">${body}</div>
     <div class="fg-bottombar">${tabs}</div>
   </div>`;
