@@ -274,7 +274,7 @@ function userRoundPts(u,r){
 }
 function userTotPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userRoundPts(u,Number(r)),0); }
 
-// ── Ligatipp-poäng ────────────────────────────────────────────────────────────
+// ── Ligatippen – poäng ────────────────────────────────────────────────────────────
 function calcLigatippPts(userTip,actualStandings){
   if(!userTip||!actualStandings||!actualStandings.length)return 0;
   let pts=0;
@@ -377,7 +377,7 @@ function renderModeSelect(){
       <button data-act="pick-mode" data-mode="ligatipp" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">📊</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Ligatipp</div>
+          <div style="font-weight:500;font-size:16px">Tippa serien</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">Tippa tabellen vid halvtid och säsongsslut</div>
         </div>
       </button>
@@ -628,7 +628,7 @@ function renderMain(){
   const tabsDef = appMode==="tipp"
     ? [["tipp","🎯","Tippa"],["omg","📅","Omgångar"],["adm","🔒","Admin"]]
     : appMode==="ligatipp"
-    ? [["ligatipp","📊","Ligatipp"],["adm","🔒","Admin"]]
+    ? [["ligatipp","📊","Tippa serien"],["adm","🔒","Admin"]]
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
@@ -844,7 +844,7 @@ function renderLigatippTab(){
   }).join("") : `<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>`;
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:12px">📊 Ligatipp</div>
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">📊 Tippa serien</div>
   <div class="fg-card" style="padding:10px">
     ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">🔒 Tippning är stängd – säsongen har börjat</div>`:""}
     <div style="display:flex;gap:6px;margin-bottom:12px">${cpTabs}</div>
@@ -862,7 +862,7 @@ function renderLigatippTab(){
     </div>
   </div>
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">Ligatippen – poängställning</div>
+    <div style="font-weight:500;margin-bottom:8px">Tippa serienen – poängställning</div>
     ${lbRows}
   </div>`;
 }
@@ -940,7 +940,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Ligatipp"]].map(([id,l])=>
+  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"]].map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
   ).join("");
 
@@ -1071,7 +1071,7 @@ function renderAdminTab(){
     };
     body=`<div class="fg-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-weight:500">Ligatippning</div>
+        <div style="font-weight:500">Tippa serienning</div>
         <button data-act="toggle-ligatipp-lock" style="background:${cfg.ligatippLocked?'#fce8e8':G_GREEN};color:${cfg.ligatippLocked?G_GREEN:'#fff'};border:${cfg.ligatippLocked?'0.5px solid '+G_GREEN:'none'};border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500">
           ${cfg.ligatippLocked?'🔓 Öppna tippning':'🔒 Stäng tippning'}
         </button>
@@ -1366,7 +1366,7 @@ function attachHandlers(){
       const newLocked=!cfg.ligatippLocked;
       await toggleLigatippLock(newLocked);
       cfg={...cfg,ligatippLocked:newLocked};
-      flash(newLocked?"✓ Ligatippning stängd!":"✓ Ligatippning öppnad!");
+      flash(newLocked?"✓ Tippa serienning stängd!":"✓ Tippa serienning öppnad!");
     }
     else if(act==="save-standings"){
       const cp=Number(el.dataset.cp);
