@@ -1053,7 +1053,7 @@ function renderAdminTab(){
     </div>
     <div class="fg-card">${rowsHtml}</div>`;
   } else if(adminSection==="ligatipp"){
-    const curTips=allLeagueTips.length?allLeagueTips:(await fetchAllLigatips());
+    const curTips=allLeagueTips;
     const cp1=ligatippStandings[1]||{standings:[],locked:false};
     const cp2=ligatippStandings[2]||{standings:[],locked:false};
     const makeStandingsInput=(cp,existing)=>{
@@ -1382,7 +1382,7 @@ function attachHandlers(){
       ligatippStandings={...ligatippStandings,[cp]:{standings:arr,locked:true}};
       flash("✓ Verklig tabell sparad för checkpoint "+cp+"!");
     }
-      const open=!cfg.registrationOpen;
+    else if(act==="toggle-registration"){
       await toggleRegistration(open);
       cfg={...cfg,registrationOpen:open};
       flash(open?"✓ Registrering är nu öppen.":"✓ Registrering är nu stängd.");
