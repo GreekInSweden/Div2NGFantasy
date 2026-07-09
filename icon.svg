@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="80" fill="#1a1a1a"/>
+  <!-- Red diamond -->
+  <polygon points="256,80 400,256 256,400 112,256" fill="#c1272d"/>
+  <!-- White D2 text -->
+  <text x="256" y="290" font-family="Georgia,serif" font-style="italic" font-size="140" font-weight="bold" fill="white" text-anchor="middle">D2</text>
+</svg>

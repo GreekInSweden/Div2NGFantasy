@@ -1,0 +1,18 @@
+{
+  "name": "Div2 Norra Götaland Play",
+  "short_name": "Div2NG Play",
+  "description": "Fantasy, tippning och mer för Div2 Norra Götaland",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a1a1a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
