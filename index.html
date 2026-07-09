@@ -28,9 +28,9 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-input{width:100%;padding:9px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);box-sizing:border-box}
 .fg-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;display:block}
 .fg-top{background:#1a1a1a;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
-.fg-bottombar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary);display:flex;z-index:10}
-.fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:10px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
-.fg-tabbtn.active{color:#c1272d}
+.fg-topbar-tabs{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);display:flex;position:sticky;top:52px;z-index:9}
+.fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
+.fg-tabbtn.active{color:#c1272d;border-bottom:2px solid #c1272d}
 .fg-posbadge{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
 .fg-mrow{display:grid;grid-template-columns:minmax(0,1fr) 56px 14px 56px minmax(0,1fr) 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
 .fg-mrow select{font-size:13px;padding:8px 6px;min-width:0;width:100%;max-width:100%;text-overflow:ellipsis}
@@ -802,11 +802,11 @@ function renderMain(){
     </div>` : "";
 
   return `
-  <div style="min-height:100vh;padding-bottom:72px">
-    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":""}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+  <div style="min-height:100vh">
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":""}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-topbar-tabs">${tabs}</div>
     ${roundStrip}
-    <div style="padding:12px 16px">${body}</div>
-    <div class="fg-bottombar">${tabs}</div>
+    <div style="padding:12px 16px 24px">${body}</div>
   </div>`;
 }
 
