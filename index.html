@@ -61,7 +61,7 @@ const TOTAL_PICKS=11;
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:6},MID:{clean:1,goal:5},FW:{clean:0,goal:4}};
 const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
-const TOPBAR="#1a1a1a",S_GREEN="#1a6b3c",S_GREENL="#e8f5ee";
+const TOPBAR="#1a1a1a",S_GREEN="#1a6b3c",S_GREENL="#e8f5ee",S_AMBER="#92400e",S_AMBERL="#fffbeb";
 
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
@@ -893,7 +893,7 @@ function renderTippTab(){
     ${roundKeys.map(r=>{
       const isActive=r===activeRound;
       const rd2=rounds[String(r)];
-      return `<button data-act="user-pick-tipp-round" data-r="${r}" style="min-width:36px;height:32px;border-radius:6px;border:1.5px solid ${isActive?"#1a1a1a":"var(--color-border-secondary)"};background:${isActive?"#1a1a1a":rd2.results_published?S_GREENL:rd2.locked?"#fce8e8":"var(--color-background-primary)"};color:${isActive?"#fff":rd2.results_published?S_GREEN:rd2.locked?"#c1272d":"var(--color-text-secondary)"};font-size:12px;font-weight:${isActive?700:500};cursor:pointer">${r}</button>`;
+      return `<button data-act="user-pick-tipp-round" data-r="${r}" style="min-width:36px;height:32px;border-radius:6px;border:1.5px solid ${isActive?"#1a1a1a":"var(--color-border-secondary)"};background:${isActive?"#1a1a1a":rd2.results_published?S_AMBERL:rd2.locked?"#fce8e8":"var(--color-background-primary)"};color:${isActive?"#fff":rd2.results_published?S_AMBER:rd2.locked?"#c1272d":"var(--color-text-secondary)"};font-size:12px;font-weight:${isActive?700:500};cursor:pointer">${r}</button>`;
     }).join("")}
   </div>`:"";
 
@@ -1249,7 +1249,7 @@ function renderOmgTab(){
     if(!rd){
       bg="var(--color-background-secondary)"; col="var(--color-text-secondary)"; border="transparent";
     } else if(rd.results_published){
-      bg=S_GREENL; col=S_GREEN; border=S_GREEN;
+      bg=S_AMBERL; col=S_AMBER; border=S_AMBER;
     } else if(rd.locked){
       bg="#fce8e8"; col="#c1272d"; border="#c1272d";
     } else {
@@ -1295,7 +1295,7 @@ function renderOmgTab(){
     return `<div class="fg-card" style="margin-top:10px">
       <div style="font-weight:500;margin-bottom:8px;display:flex;justify-content:space-between">
         <span>Omgång ${r}</span>
-        ${rd.results_published?`<span style="font-size:12px;color:${S_GREEN}">✅ Resultat klara</span>`:rd.locked?`<span style="font-size:12px;color:#c1272d">🔒 Stängd</span>`:`<span style="font-size:12px;color:${S_GREEN}">🟢 Öppen</span>`}
+        ${rd.results_published?`<span style="font-size:12px;color:${S_AMBER}">✅ Resultat klara</span>`:rd.locked?`<span style="font-size:12px;color:#c1272d">🔒 Stängd</span>`:`<span style="font-size:12px;color:${S_GREEN}">🟢 Öppen</span>`}
       </div>
       ${matchRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Matcher ej inlagda.</div>'}
       ${rd.results_published?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
@@ -1373,8 +1373,8 @@ function renderAdminTab(){
       <div style="display:flex;flex-wrap:wrap;gap:4px">
         ${Array.from({length:26},(_,i)=>i+1).map(n=>{
           const rd=rounds[String(n)];
-          const bg=!rd?'var(--color-background-secondary)':rd.results_published?S_GREENL:rd.locked?'#fce8e8':S_GREENL;
-          const col=!rd?'var(--color-text-secondary)':rd.results_published?S_GREEN:rd.locked?'#c1272d':S_GREEN;
+          const bg=!rd?'var(--color-background-secondary)':rd.results_published?S_AMBERL:rd.locked?'#fce8e8':S_GREENL;
+          const col=!rd?'var(--color-text-secondary)':rd.results_published?S_AMBER:rd.locked?'#c1272d':S_GREEN;
           const isCurrent=n===cfg.omg;
           return `<button data-act="admin-jump-round" data-n="${n}" style="width:36px;height:36px;border-radius:6px;border:${isCurrent?'2px solid '+S_GREEN:'1.5px solid transparent'};background:${bg};color:${col};font-size:12px;font-weight:${isCurrent?700:500};cursor:pointer">${n}</button>`;
         }).join("")}
