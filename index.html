@@ -1402,12 +1402,12 @@ function renderAdminTab(){
           </div>
           <button data-act="toggle-lock" data-locked="${isLocked?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isLocked?'Öppna':'Stäng'}</button>
         </div>
-        <div style="flex:1;background:${isPublished?'#e8f5ee':'var(--color-background-secondary)'};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+        <div style="flex:1;background:${isPublished?'#fffbeb':'var(--color-background-secondary)'};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${isPublished?'✅':'⏳'}</span>
           <div style="flex:1">
-            <div style="font-size:12px;font-weight:500;color:${isPublished?'#1a6b3c':'var(--color-text-secondary)'}">${isPublished?'Poäng räknas':'Resultat ej klara'}</div>
+            <div style="font-size:12px;font-weight:500;color:${isPublished?'#92400e':'var(--color-text-secondary)'}">${isPublished?'Poäng räknas':'Resultat ej klara'}</div>
           </div>
-          <button data-act="publish-results" style="background:${isPublished?'#fff':'#1a1a1a'};color:${isPublished?'#1a6b3c':'#fff'};border:${isPublished?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isPublished?'Ångra':'Resultat klara'}</button>
+          <button data-act="publish-results" style="background:${isPublished?'#fff':'#1a1a1a'};color:${isPublished?'#92400e':'#fff'};border:${isPublished?'0.5px solid #92400e':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isPublished?'Ångra':'Resultat klara'}</button>
         </div>
       </div>
       ${isLocked
