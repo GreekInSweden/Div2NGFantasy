@@ -67,7 +67,7 @@ let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
-    openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
+    openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[];
@@ -1219,7 +1219,7 @@ function renderOmgTab(){
     const rd=rounds[String(r)];
     const isPublished=rd.results_published;
     const isLocked=rd.locked;
-    const isOpen=openRound===r;
+    const isOpen=openRounds.has(r);
     const matchCount=rd.matches?rd.matches.length:0;
 
     // Status badges
@@ -1804,7 +1804,7 @@ function attachHandlers(){
       if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
-    else if(act==="toggle-round"){const r=Number(el.dataset.r);openRound=openRound===r?null:r;render();}
+    else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
     else if(act==="admin-login"){
       const pwd=document.getElementById("admin-pwd").value;
       if(pwd===ADMIN_PWD){adminOk=true;errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}else{errMsg="Fel lösenord.";}
