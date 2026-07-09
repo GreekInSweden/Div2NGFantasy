@@ -1205,37 +1205,88 @@ function renderLigaTab(sorted){
 }
 
 function renderOmgTab(){
-  const keys=Object.keys(rounds).map(Number).sort((a,b)=>b-a);
-  if(!keys.length)return `<div style="font-size:13px;color:var(--color-text-secondary)">Inga resultat inmatade ännu.</div>`;
+  const keys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  if(!keys.length) return `
+    <div style="font-weight:500;font-size:16px;margin-bottom:12px">📅 Säsongsöversikt</div>
+    <div class="fg-card" style="text-align:center;color:var(--color-text-secondary);font-size:13px">
+      Inga omgångar inlagda ännu.
+    </div>`;
+
+  const mySnabbastTips=snabbastMyTips||{};
+  const myMåljaktenTips=måljaktenMyTips||{};
+
   const items=keys.map(r=>{
     const rd=rounds[String(r)];
-    const isO=openRound===r;
+    const isPublished=rd.results_published;
+    const isLocked=rd.locked;
+    const isOpen=openRound===r;
+    const matchCount=rd.matches?rd.matches.length:0;
+
+    // Status badges
+    const badges=[];
+    if(isPublished) badges.push(`<span style="background:#e8f5ee;color:#1a6b3c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">✅ Resultat klara</span>`);
+    else if(isLocked) badges.push(`<span style="background:#fce8e8;color:#c1272d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Tippning stängd</span>`);
+    else badges.push(`<span style="background:${G_GREENL};color:${G_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🟢 Öppen för tippning</span>`);
+
+    // User's own points for this round
+    const myPts=userRoundPts(currentUser,r);
+    const hasTipped=mySnabbastTips[r]||myMåljaktenTips[r];
+
     let inner="";
-    if(isO){
-      const matchRows=rd.matches.map(m=>`
-        <div style="display:flex;gap:6px;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)">
-          <span style="flex:1;text-align:right">${esc((TEAMS.find(t=>t.id===m.hId)||{}).name)}</span>
-          <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:500">${m.hMål}–${m.aMål}</span>
-          <span style="flex:1">${esc((TEAMS.find(t=>t.id===m.aId)||{}).name)}</span>
-        </div>`).join("");
-      const userRows=[...users].sort((a,b)=>userRoundPts(b,r)-userRoundPts(a,r)).map(u=>
-        `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0"><span>${esc(u.namn)}</span><span style="font-weight:500">${userRoundPts(u,r)} p</span></div>`
-      ).join("");
-      inner = `<div style="margin-top:10px">${matchRows}
-        <div style="margin-top:8px;padding-top:8px;border-top:0.5px solid var(--color-border-tertiary)">
-          <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px">Spelarpoäng denna omgång</div>
-          ${userRows}
-        </div></div>`;
+    if(isOpen){
+      // Match results
+      const matchRows=(rd.matches||[]).map(m=>{
+        const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
+        return `<div style="display:flex;gap:6px;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
+          <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:500;min-width:40px;text-align:center">${isPublished?m.hMål+"–"+m.aMål:"–"}</span>
+          <span style="flex:1">${esc(a?a.name:"")}</span>
+        </div>`;
+      }).join("");
+
+      // Poängraderna om publicerat
+      const ptsRows=isPublished?[...users].sort((a,b)=>userRoundPts(b,r)-userRoundPts(a,r)).map(u=>{
+        const pts=userRoundPts(u,r);
+        const isMe=u.id===currentUser.id;
+        return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;${isMe?"font-weight:500":""}">
+          <span>${esc(u.namn)}${isMe?" (du)":""}</span>
+          <span>${pts} p</span>
+        </div>`;
+      }).join(""):"";
+
+      inner=`<div style="margin-top:10px">
+        ${matchRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Matcher ej inlagda.</div>'}
+        ${isPublished?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+          <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px">Fantasy-poäng denna omgång</div>
+          ${ptsRows}
+        </div>`:""}
+      </div>`;
     }
-    return `<div class="fg-card">
-      <button data-act="toggle-round" data-r="${r}" style="display:flex;width:100%;background:none;border:none;cursor:pointer;padding:0">
-        <div style="font-weight:500;flex:1;text-align:left;color:var(--color-text-primary)">Omgång ${r}</div>
-        <span style="transform:${isO?"rotate(90deg)":"none"};transition:.2s;color:var(--color-text-secondary)">›</span>
+
+    return `<div class="fg-card" style="padding:12px 16px">
+      <button data-act="toggle-round" data-r="${r}" style="display:flex;width:100%;background:none;border:none;cursor:pointer;padding:0;align-items:center;gap:10px;text-align:left">
+        <div style="width:36px;height:36px;border-radius:8px;background:${isPublished?"#e8f5ee":isLocked?"#fce8e8":G_GREENL};color:${isPublished?"#1a6b3c":isLocked?"#c1272d":G_GREEN};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${r}</div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
+            <span style="font-weight:500;font-size:14px">Omgång ${r}</span>
+            ${badges.join("")}
+          </div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${matchCount} matcher${isPublished&&myPts>0?` · Du fick ${myPts} p`:""}</div>
+        </div>
+        <span style="transform:${isOpen?"rotate(90deg)":"none"};transition:.2s;color:var(--color-text-secondary);font-size:18px">›</span>
       </button>
       ${inner}
     </div>`;
   }).join("");
-  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Omgångar</div>${items}`;
+
+  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">📅 Säsongsöversikt</div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <span style="font-size:12px;background:#e8f5ee;color:#1a6b3c;border-radius:20px;padding:3px 10px">${keys.filter(r=>rounds[String(r)].results_published).length} klara</span>
+    <span style="font-size:12px;background:#fce8e8;color:#c1272d;border-radius:20px;padding:3px 10px">${keys.filter(r=>rounds[String(r)].locked&&!rounds[String(r)].results_published).length} stängda</span>
+    <span style="font-size:12px;background:${G_GREENL};color:${G_GREEN};border-radius:20px;padding:3px 10px">${keys.filter(r=>!rounds[String(r)].locked).length} öppna</span>
+    <span style="font-size:12px;background:var(--color-background-secondary);color:var(--color-text-secondary);border-radius:20px;padding:3px 10px">${keys.length}/26 omgångar inlagda</span>
+  </div>
+  ${items}`;
 }
 
 // ── Bulk round entry helpers ──────────────────────────────────────────────
@@ -1289,7 +1340,26 @@ function renderAdminTab(){
         <select data-act="bulk-aid" data-idx="${i}">${teamOpts(r.aId)}</select>
         <button data-act="bulk-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px">×</button>
       </div>`).join("");
-    body=`<div class="fg-card">
+    body=`
+    <div class="fg-card" style="padding:10px 14px;margin-bottom:0">
+      <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px">Säsongsöversikt – klicka en omgång för att hoppa dit</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px">
+        ${Array.from({length:26},(_,i)=>i+1).map(n=>{
+          const rd=rounds[String(n)];
+          const bg=!rd?'var(--color-background-secondary)':rd.results_published?'#e8f5ee':rd.locked?'#fce8e8':G_GREENL;
+          const col=!rd?'var(--color-text-secondary)':rd.results_published?'#1a6b3c':rd.locked?'#c1272d':G_GREEN;
+          const isCurrent=n===cfg.omg;
+          return `<button data-act="admin-jump-round" data-n="${n}" style="width:36px;height:36px;border-radius:6px;border:${isCurrent?'2px solid '+G_GREEN:'1.5px solid transparent'};background:${bg};color:${col};font-size:12px;font-weight:${isCurrent?700:500};cursor:pointer">${n}</button>`;
+        }).join("")}
+      </div>
+      <div style="display:flex;gap:10px;margin-top:8px;font-size:11px;color:var(--color-text-secondary)">
+        <span style="color:#1a6b3c">■ Resultat klara</span>
+        <span style="color:#c1272d">■ Tippning stängd</span>
+        <span style="color:${G_GREEN}">■ Öppen</span>
+        <span>□ Ej inlagd</span>
+      </div>
+    </div>
+    <div class="fg-card">
       <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px">
         <div style="flex:1">
           <label class="fg-label">Omgång</label>
@@ -1746,6 +1816,13 @@ function attachHandlers(){
       render();
     }
     else if(act==="goals-search-update"){ render(); }
+    else if(act==="admin-jump-round"){
+      const n=Number(el.dataset.n);
+      bulkRows=defaultBulkRows(String(n));
+      cfg={...cfg,omg:n};
+      confirmDeleteRound=false;
+      render();
+    }
     else if(act==="bulk-load"){
       const rnd=document.getElementById("bulk-rnd").value;
       bulkRows=defaultBulkRows(rnd);
