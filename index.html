@@ -1642,78 +1642,59 @@ function renderAdminTab(){
 }
 
 function parseScheduleText(text){
-  const results=[];
-  // Rensa bort " emblem" och normalisera
+  // Rensa " emblem" och normalisera radbrytningar
   const cleaned=text.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
-  const lines=cleaned.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
 
-  let currentRound=null;
-  let pendingTeam=null;
-  let matchPairs=[];
-  let errors=[];
-
-  const isTimeLine=l=>/^\d{1,2}:\d{2},\s+\d{1,2}\s+\w+/.test(l);
-  const isRoundLine=l=>/^Omgång\s+\d+/.test(l);
-  const isTeamLine=l=>{
-    if(isTimeLine(l)||isRoundLine(l))return false;
-    // Check if it matches any team name (fuzzy)
-    return TEAMS.some(t=>teamFuzzyMatch(l,t.name));
-  };
-
-  const teamFuzzyMatch=(raw,name)=>{
-    const r=raw.toLowerCase().replace(/\s+/g," ").trim();
-    const n=name.toLowerCase().replace(/\s+/g," ").trim();
-    return r===n||r.includes(n)||n.includes(r);
-  };
-
-  const findTeam=raw=>{
-    const r=raw.toLowerCase().replace(/\s+/g," ").trim();
-    // Exact match
-    let t=TEAMS.find(t=>t.name.toLowerCase().trim()===r);
+  // Hitta team från en rad – hanterar "Lagnamn Lagnamn"-duplicerat format
+  const findTeamFromLine=line=>{
+    const lower=line.toLowerCase().replace(/\s+/g," ").trim();
+    // Försök startsWith (hanterar "IK Tord IK Tord"-format)
+    let t=TEAMS.find(t=>lower.startsWith(t.name.toLowerCase().trim()+" ")||lower===t.name.toLowerCase().trim());
     if(t)return t;
-    // Starts-with match (handles "TeamName TeamName" duplicate format)
-    t=TEAMS.find(t=>r.startsWith(t.name.toLowerCase().trim()));
-    if(t)return t;
-    // Contains match
-    t=TEAMS.find(t=>r.includes(t.name.toLowerCase().trim())||t.name.toLowerCase().trim().includes(r));
+    // Fallback: contains
+    t=TEAMS.find(t=>lower.includes(" "+t.name.toLowerCase().trim())||t.name.toLowerCase().trim().includes(lower));
     return t||null;
   };
 
-  const flushRound=()=>{
-    if(currentRound!==null){
-      if(pendingTeam)errors.push(pendingTeam);
-      results.push({roundNum:currentRound,matches:matchPairs,errors:[...errors]});
-    }
-  };
+  // Dela upp texten vid "Omgång X"
+  const sections=cleaned.split(/(?=^Omgång\s+\d+)/m);
+  const results=[];
 
-  for(const line of lines){
-    if(isRoundLine(line)){
-      flushRound();
-      currentRound=Number(line.match(/\d+/)[0]);
-      matchPairs=[];
-      errors=[];
-      pendingTeam=null;
-    } else if(isTimeLine(line)||(!isTeamLine(line)&&currentRound!==null&&line.length<60)){
-      // Skip time/arena lines
-      continue;
-    } else if(currentRound!==null){
-      const team=findTeam(line);
-      if(pendingTeam===null){
-        pendingTeam=line;
-      } else {
-        const hTeam=findTeam(pendingTeam);
-        const aTeam=team;
-        if(hTeam&&aTeam){
-          matchPairs.push({hId:hTeam.id,aId:aTeam.id,hRaw:pendingTeam,aRaw:line});
-        } else {
-          if(!hTeam)errors.push(pendingTeam);
-          if(!aTeam)errors.push(line);
+  for(const section of sections){
+    const roundMatch=section.match(/^Omgång\s+(\d+)/);
+    if(!roundMatch)continue;
+    const roundNum=Number(roundMatch[1]);
+    const lines=section.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+
+    const foundTeams=[];
+    const unmatched=[];
+
+    for(const line of lines){
+      if(/^Omgång\s+\d+/.test(line))continue; // skip header
+      if(/^\d{1,2}:\d{2}/.test(line))continue; // skip times
+      const t=findTeamFromLine(line);
+      if(t){
+        // Avoid duplicating same team twice in a row
+        if(foundTeams.length===0||foundTeams[foundTeams.length-1].id!==t.id){
+          foundTeams.push(t);
         }
-        pendingTeam=null;
       }
+      // Skip non-matching lines (arenas, dates etc) silently
     }
+
+    // Para ihop lag: 1+2=match1, 3+4=match2, etc.
+    const matches=[];
+    const errors=[];
+    for(let i=0;i<foundTeams.length-1;i+=2){
+      matches.push({hId:foundTeams[i].id,aId:foundTeams[i+1].id,hRaw:foundTeams[i].name,aRaw:foundTeams[i+1].name});
+    }
+    if(foundTeams.length%2!==0){
+      errors.push(`Ojämnt antal lag (${foundTeams.length}) – sista laget saknar motståndare`);
+    }
+
+    results.push({roundNum,matches,errors});
   }
-  flushRound();
+
   return results;
 }
 
