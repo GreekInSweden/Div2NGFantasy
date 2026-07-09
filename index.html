@@ -70,13 +70,14 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
-    måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[];
+    måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[],
+    userSelectedRound=null;
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
   if(statusEl) statusEl.textContent = "Sparar…";
   try {
-    const rd = rounds[String(cfg.omg)];
+    const rd = rounds[String(userSelectedRound||cfg.omg)];
     if(!rd || !rd.matches.length){ if(statusEl) statusEl.textContent="Inga matcher att tippa på."; return; }
     const tipsArr = rd.matches.map(m => {
       const hEl = document.querySelector('[data-hid="'+m.hId+'"][data-aid="'+m.aId+'"][data-side="h"]');
@@ -84,7 +85,7 @@ window.saveTips = async function(){
       return { hId:m.hId, aId:m.aId, predH: hEl?Number(hEl.value)||0:0, predA: aEl?Number(aEl.value)||0:0 };
     });
     const allTips = Object.assign({}, currentUser.tips || {});
-    allTips[String(cfg.omg)] = tipsArr;
+    allTips[String(userSelectedRound||cfg.omg)] = tipsArr;
     const { error } = await sb.from("fantasy_users").update({ tips: allTips }).eq("id", currentUser.id);
     if(error){
       if(statusEl) statusEl.innerHTML = '<span style="color:#A32D2D">Fel: '+error.message+'</span>';
@@ -882,14 +883,25 @@ function renderHemTab(sorted){
 
 function renderTippTab(){
   const user=currentUser;
-  const rd=rounds[String(cfg.omg)];
+  const activeRound=userSelectedRound||cfg.omg;
+  const rd=rounds[String(activeRound)];
+  const locked=rd&&rd.locked;
   const sortedTip=[...users].sort((a,b)=>userTipTotalPts(b)-userTipTotalPts(a));
+
+  const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  const roundPicker=roundKeys.length>1?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">
+    ${roundKeys.map(r=>{
+      const isActive=r===activeRound;
+      const rd2=rounds[String(r)];
+      return `<button data-act="user-pick-tipp-round" data-r="${r}" style="min-width:36px;height:32px;border-radius:6px;border:1.5px solid ${isActive?"#1a1a1a":"var(--color-border-secondary)"};background:${isActive?"#1a1a1a":rd2.results_published?S_GREENL:rd2.locked?"#fce8e8":"var(--color-background-primary)"};color:${isActive?"#fff":rd2.results_published?S_GREEN:rd2.locked?"#c1272d":"var(--color-text-secondary)"};font-size:12px;font-weight:${isActive?700:500};cursor:pointer">${r}</button>`;
+    }).join("")}
+  </div>`:"";
 
   let inputSection="";
   if(!rd || !rd.matches.length){
     inputSection = `<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga matcher inlagda för omgång ${cfg.omg} ännu. Admin behöver lägga in matcherna (resultat kan vara 0-0 i förväg) innan ni kan tippa.</div></div>`;
   } else if(rd.locked){
-    const savedTips = (user.tips && user.tips[String(cfg.omg)]) || [];
+    const savedTips = (user.tips && user.tips[String(activeRound)]) || [];
     const rows = rd.matches.map(m=>{
       const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
       const pred=savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId);
@@ -902,12 +914,12 @@ function renderTippTab(){
       </div>`;
     }).join("");
     inputSection = `<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">🔒 Omgång ${cfg.omg} är låst</div>
+      <div style="font-weight:500;margin-bottom:4px">🔒 Omgång ${activeRound} är låst</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Facit: ${rd.matches.map(m=>`${m.hMål}-${m.aMål}`).join(", ")}. Dina tips och poäng syns nedan.</div>
       ${rows}
     </div>`;
   } else {
-    const savedTips = (user.tips && user.tips[String(cfg.omg)]) || [];
+    const savedTips = (user.tips && user.tips[String(activeRound)]) || [];
     const rows = rd.matches.map((m,i)=>{
       const key=m.hId+"-"+m.aId;
       const existing = tipDraft[key] !== undefined ? tipDraft[key] : (savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId) || {predH:"",predA:""});
@@ -921,7 +933,7 @@ function renderTippTab(){
       </div>`;
     }).join("");
     inputSection = `<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">Tippa omgång ${cfg.omg}</div>
+      <div style="font-weight:500;margin-bottom:4px">Tippa omgång ${activeRound}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Gissa resultatet på varje match. Spara innan omgången startar!</div>
       ${rows}
       <div id="tipp-status" style="font-size:13px;margin-top:10px;min-height:20px"></div>
@@ -1818,9 +1830,13 @@ function attachHandlers(){
       if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
+    else if(act==="user-pick-tipp-round"){
+      userSelectedRound=Number(el.dataset.r); render();
+    }
     else if(act==="user-jump-round"){
       const r=Number(el.dataset.r);
       cfg={...cfg,omg:r};
+      userSelectedRound=r;
       openRounds=new Set([r]);
       mainTab="omg";
       render();
