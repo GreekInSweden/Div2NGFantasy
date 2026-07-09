@@ -1339,7 +1339,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"]].map(([id,l])=>
+  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"]].map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
   ).join("");
 
@@ -1550,6 +1550,20 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
     </div>
     ${rowsHtml}`;
+  } else if(adminSection==="import"){
+    const importVal=document.getElementById("import-text")?document.getElementById("import-text").value:"";
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">Importera schema från Fotbollskollen</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
+        1. Gå till Fotbollskollen / FOGIS och kopiera texten för de omgångar du vill lägga in (Ctrl+A, Ctrl+C)<br>
+        2. Klistra in texten i rutan nedan<br>
+        3. Klicka "Förhandsgranska" – appen matchar lagnamnen automatiskt<br>
+        4. Klicka "Spara alla omgångar" om allt ser rätt ut
+      </div>
+      <textarea id="import-text" placeholder="Klistra in text från Fotbollskollen här..." style="width:100%;height:160px;padding:10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-secondary)">${esc(importVal)}</textarea>
+      <button class="fg-btn" data-act="import-preview" style="margin-top:10px">Förhandsgranska</button>
+    </div>
+    <div id="import-preview-area"></div>`;
   } else if(adminSection==="snabbast"){
     const rndValS=cfg.omg;
     const rdS=rounds[String(rndValS)]||{};
@@ -1625,6 +1639,79 @@ function renderAdminTab(){
     <div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${sectionTabs}</div>
     ${errMsg?`<div style="color:${errMsg.indexOf('✓')===0?G_GREEN:'#A32D2D'};font-size:13px;margin-bottom:10px;font-weight:500">${esc(errMsg)}</div>`:""}
     ${body}`;
+}
+
+function parseScheduleText(text){
+  const results=[];
+  // Rensa bort " emblem" och normalisera
+  const cleaned=text.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+  const lines=cleaned.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+
+  let currentRound=null;
+  let pendingTeam=null;
+  let matchPairs=[];
+  let errors=[];
+
+  const isTimeLine=l=>/^\d{1,2}:\d{2},\s+\d{1,2}\s+\w+/.test(l);
+  const isRoundLine=l=>/^Omgång\s+\d+/.test(l);
+  const isTeamLine=l=>{
+    if(isTimeLine(l)||isRoundLine(l))return false;
+    // Check if it matches any team name (fuzzy)
+    return TEAMS.some(t=>teamFuzzyMatch(l,t.name));
+  };
+
+  const teamFuzzyMatch=(raw,name)=>{
+    const r=raw.toLowerCase().replace(/\s+/g," ").trim();
+    const n=name.toLowerCase().replace(/\s+/g," ").trim();
+    return r===n||r.includes(n)||n.includes(r);
+  };
+
+  const findTeam=raw=>{
+    const r=raw.toLowerCase().replace(/\s+/g," ").trim();
+    // Exact match first
+    let t=TEAMS.find(t=>t.name.toLowerCase().trim()===r);
+    if(t)return t;
+    // Contains match
+    t=TEAMS.find(t=>r.includes(t.name.toLowerCase().trim())||t.name.toLowerCase().trim().includes(r));
+    return t||null;
+  };
+
+  const flushRound=()=>{
+    if(currentRound!==null){
+      if(pendingTeam)errors.push(pendingTeam);
+      results.push({roundNum:currentRound,matches:matchPairs,errors:[...errors]});
+    }
+  };
+
+  for(const line of lines){
+    if(isRoundLine(line)){
+      flushRound();
+      currentRound=Number(line.match(/\d+/)[0]);
+      matchPairs=[];
+      errors=[];
+      pendingTeam=null;
+    } else if(isTimeLine(line)||(!isTeamLine(line)&&currentRound!==null&&line.length<60)){
+      // Skip time/arena lines
+      continue;
+    } else if(currentRound!==null){
+      const team=findTeam(line);
+      if(pendingTeam===null){
+        pendingTeam=line;
+      } else {
+        const hTeam=findTeam(pendingTeam);
+        const aTeam=team;
+        if(hTeam&&aTeam){
+          matchPairs.push({hId:hTeam.id,aId:aTeam.id,hRaw:pendingTeam,aRaw:line});
+        } else {
+          if(!hTeam)errors.push(pendingTeam);
+          if(!aTeam)errors.push(line);
+        }
+        pendingTeam=null;
+      }
+    }
+  }
+  flushRound();
+  return results;
 }
 
 function flash(m){errMsg=m;render();setTimeout(()=>{errMsg="";render();},2200);}
@@ -1877,8 +1964,51 @@ function attachHandlers(){
       bulkRows=bulkRows.filter((_,i)=>i!==idx);
       render();
     }
+    else if(act==="import-preview"){
+      const text=document.getElementById("import-text").value;
+      const parsed=parseScheduleText(text);
+      const previewArea=document.getElementById("import-preview-area");
+      if(!parsed.length){
+        previewArea.innerHTML=`<div class="fg-card" style="color:#c1272d;font-size:13px">Inga omgångar hittades. Kontrollera att texten innehåller "Omgång X" och lagnamn.</div>`;
+        return;
+      }
+      let html=`<div class="fg-card"><div style="font-weight:500;margin-bottom:8px">Förhandsvisning – ${parsed.length} omgångar hittade</div>`;
+      parsed.forEach(({roundNum,matches,errors})=>{
+        html+=`<div style="margin-bottom:14px"><div style="font-weight:500;font-size:13px;color:${G_GREEN};margin-bottom:6px">Omgång ${roundNum} (${matches.length} matcher)</div>`;
+        matches.forEach(m=>{
+          const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
+          html+=`<div style="display:flex;gap:6px;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+            <span style="flex:1;text-align:right">${esc(h?h.name:m.hRaw)}</span>
+            <span style="color:var(--color-text-secondary)">vs</span>
+            <span style="flex:1">${esc(a?a.name:m.aRaw)}</span>
+          </div>`;
+        });
+        if(errors.length) html+=`<div style="font-size:11px;color:#c1272d;margin-top:4px">⚠ Kunde inte matcha: ${errors.join(", ")}</div>`;
+        html+=`</div>`;
+      });
+      html+=`<button class="fg-btn" data-act="import-save" style="margin-top:4px">Spara alla omgångar</button></div>`;
+      previewArea.innerHTML=html;
+      previewArea._parsed=parsed;
+    }
+    else if(act==="import-save"){
+      const previewArea=document.getElementById("import-preview-area");
+      const parsed=previewArea._parsed;
+      if(!parsed||!parsed.length){flash("Kör förhandsgranskning först.");return;}
+      el.textContent="Sparar…"; el.disabled=true;
+      let saved=0;
+      for(const {roundNum,matches} of parsed){
+        const matchData=matches.filter(m=>m.hId&&m.aId).map(m=>({hId:m.hId,aId:m.aId,hMål:0,aMål:0}));
+        if(!matchData.length)continue;
+        const cur=rounds[String(roundNum)]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
+        const {error}=await sb.from("rounds").upsert({round_num:Number(roundNum),matches:matchData,goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},results_published:cur.results_published||false,league_id:currentLeague.id});
+        if(!error){
+          rounds={...rounds,[String(roundNum)]:{...cur,matches:matchData}};
+          saved++;
+        }
+      }
+      flash(`✓ ${saved} omgångar sparade!`);
+    }
     else if(act==="toggle-ligatipp-lock"){
-      const newLocked=!cfg.ligatippLocked;
       await toggleLigatippLock(newLocked);
       cfg={...cfg,ligatippLocked:newLocked};
       flash(newLocked?"✓ Tippa serienning stängd!":"✓ Tippa serienning öppnad!");
