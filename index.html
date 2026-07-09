@@ -159,25 +159,29 @@ async function fetchRounds(){
   const {data,error}=await sb.from("rounds").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return {};}
   const out={};
-  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[]}; });
+  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[],picks_snapshot:r.picks_snapshot||{}}; });
   return out;
 }
 async function saveRoundMatches(rnd,matches){
-  const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},locked:cur.locked||false,league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function saveRoundGoals(rnd,goals){
-  const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,locked:cur.locked||false,league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function toggleRoundLock(rnd,locked){
-  const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
-  const locked_at = locked ? new Date().toISOString() : null;
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,locked_at,league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
+  const locked_at=locked?new Date().toISOString():null;
+  // Ta en ögonblicksbild av alla spelares lag när omgången låses
+  const picks_snapshot=locked
+    ? users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten};return acc;},{})
+    : (cur.picks_snapshot||{});
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,locked_at,snabbast_result:cur.snabbast_result||[],picks_snapshot,league_id:currentLeague.id});
   if(error)console.error(error);
-  return locked_at;
+  return {locked_at,picks_snapshot};
 }
 async function deleteRound(rnd){
   const {error}=await sb.from("rounds").delete().eq("round_num",Number(rnd)).eq("league_id",currentLeague.id);
@@ -354,17 +358,22 @@ function plPts(player,rd){
   return p;
 }
 function userRoundPts(u,r){
-  if(!u||!u.picks)return 0;
+  if(!u)return 0;
   const rd=rounds[String(r)];
   if(!rd||!rd.locked)return 0;
-  // Räkna bara poäng för omgångar som låstes EFTER att användaren registrerade sig
-  if(rd.locked_at && u.created_at && new Date(rd.locked_at) < new Date(u.created_at)) return 0;
+  if(rd.locked_at&&u.created_at&&new Date(rd.locked_at)<new Date(u.created_at))return 0;
+  // Använd ögonblicksbilden om den finns, annars nuvarande lag
+  const snapshot=rd.picks_snapshot&&rd.picks_snapshot[u.id];
+  const picks=snapshot?snapshot.picks:u.picks;
+  const kapten=snapshot?snapshot.kapten:u.kapten;
+  if(!picks)return 0;
   let tot=0;
-  allPickedIds(u).forEach(pid=>{
+  const allPicked=[...(picks.GK||[]),...(picks.DEF||[]),...(picks.MID||[]),...(picks.FW||[])];
+  allPicked.forEach(pid=>{
     const pl=players.find(p=>p.id===pid);
     if(!pl)return;
     const pts=plPts(pl,rd);
-    tot+=pts*(pid===u.kapten?2:1);
+    tot+=pts*(pid===kapten?2:1);
   });
   return tot;
 }
@@ -1763,11 +1772,11 @@ function attachHandlers(){
     }
     else if(act==="toggle-lock"){
       const rnd=String(cfg.omg);
-      const nowLocked = el.dataset.locked==="1" ? false : true;
-      const locked_at = await toggleRoundLock(rnd,nowLocked);
-      const cur=rounds[rnd]||{matches:[],goals:{},locked:false};
-      rounds={...rounds,[rnd]:{...cur,locked:nowLocked,locked_at:nowLocked?locked_at:null}};
-      flash(nowLocked ? "✓ Omgången är nu låst – poäng räknas!" : "✓ Omgången är upplåst igen.");
+      const nowLocked=el.dataset.locked==="1"?false:true;
+      const result=await toggleRoundLock(rnd,nowLocked);
+      const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
+      rounds={...rounds,[rnd]:{...cur,locked:nowLocked,locked_at:nowLocked?result.locked_at:null,picks_snapshot:result.picks_snapshot}};
+      flash(nowLocked?"✓ Omgången är nu låst – poäng räknas!":"✓ Omgången är upplåst igen.");
     }
     else if(act==="ask-delete-round"){ confirmDeleteRound=true; render(); }
     else if(act==="cancel-delete-round"){ confirmDeleteRound=false; render(); }
