@@ -69,7 +69,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRound=null, errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
-    snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[];
+    snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
+    måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[];
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -254,7 +255,59 @@ async function saveSnabbastResult(roundNum,result){
   return error;
 }
 
-// ── Snabbast-poäng ────────────────────────────────────────────────────────────
+async function fetchMyMåljaktenTips(){
+  const {data,error}=await sb.from("måljakten_tips").select("*").eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
+  if(error){console.error(error);return {};}
+  const out={};
+  data.forEach(t=>{out[t.round_num]=(t.picks||[]).map(Number);});
+  return out;
+}
+async function fetchAllMåljaktenTips(roundNum){
+  const {data,error}=await sb.from("måljakten_tips").select("*").eq("league_id",currentLeague.id).eq("round_num",roundNum);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function saveMåljaktenTip(roundNum,picks){
+  const {error}=await sb.from("måljakten_tips").upsert({id:currentUser.id+"-ml-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
+  return error;
+}
+
+// ── Måljakten-poäng ────────────────────────────────────────────────────────────
+function calcMåljaktenTeamPts(teamId,rd){
+  if(!rd||!rd.matches)return{pts:0,goals:0,isHome:null};
+  const m=rd.matches.find(m=>Number(m.hId)===Number(teamId)||Number(m.aId)===Number(teamId));
+  if(!m)return{pts:0,goals:0,isHome:null};
+  const isHome=Number(m.hId)===Number(teamId);
+  const goals=isHome?Number(m.hMål||0):Number(m.aMål||0);
+  const pts=goals*(isHome?2:3)+(goals>=3?5:0);
+  return{pts,goals,isHome};
+}
+function userMåljaktenRoundPts(userId,roundNum){
+  const rd=rounds[String(roundNum)];
+  if(!rd||!rd.locked)return 0;
+  const tip=måljaktenAllTips.find(t=>t.user_id===userId&&t.round_num===roundNum);
+  if(!tip)return 0;
+  return (tip.picks||[]).reduce((s,teamId)=>s+calcMåljaktenTeamPts(teamId,rd).pts,0);
+}
+function userMåljaktenTotalPts(userId){
+  return Object.keys(rounds).reduce((s,r)=>s+userMåljaktenRoundPts(userId,Number(r)),0);
+}
+
+window.saveMåljakten=async function(){
+  const statusEl=document.getElementById("måljakten-status");
+  if(statusEl)statusEl.textContent="Sparar…";
+  try{
+    const error=await saveMåljaktenTip(cfg.omg,[...måljaktenDraft]);
+    if(error){if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+error.message+'</span>';return;}
+    måljaktenMyTips={...måljaktenMyTips,[cfg.omg]:[...måljaktenDraft]};
+    const idx=måljaktenAllTips.findIndex(t=>t.user_id===currentUser.id&&t.round_num===cfg.omg);
+    if(idx>=0)måljaktenAllTips[idx]={...måljaktenAllTips[idx],picks:[...måljaktenDraft]};
+    else måljaktenAllTips=[...måljaktenAllTips,{user_id:currentUser.id,round_num:cfg.omg,picks:[...måljaktenDraft]}];
+    if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
+  }catch(e){
+    if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
+  }
+};
 function calcSnabbastPts(userPicks,actualResult){
   if(!userPicks||!actualResult||!actualResult.length)return 0;
   let pts=0;
@@ -445,6 +498,13 @@ function renderModeSelect(){
         <div>
           <div style="font-weight:500;font-size:16px">Snabbast vinner</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">Tippa vilka 7 lag som gör snabbast mål</div>
+        </div>
+      </button>
+      <button data-act="pick-mode" data-mode="måljakten" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🎯</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Måljakten</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 lag – tjäna poäng på deras mål</div>
         </div>
       </button>
     </div>
@@ -697,12 +757,15 @@ function renderMain(){
     ? [["ligatipp","📊","Tippa serien"],["adm","🔒","Admin"]]
     : appMode==="snabbast"
     ? [["snabbast","⚡","Snabbast"],["adm","🔒","Admin"]]
+    : appMode==="måljakten"
+    ? [["måljakten","🎯","Måljakten"],["adm","🔒","Admin"]]
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
   else if(mainTab==="tipp")body=renderTippTab();
   else if(mainTab==="ligatipp")body=renderLigatippTab();
   else if(mainTab==="snabbast")body=renderSnabbastTab();
+  else if(mainTab==="måljakten")body=renderMåljaktenTab();
   else if(mainTab==="liga")body=renderLigaTab(sorted);
   else if(mainTab==="omg")body=renderOmgTab();
   else body=renderAdminTab();
@@ -864,7 +927,88 @@ function renderTippTab(){
   </div>`;
 }
 
+function renderMåljaktenTab(){
+  const rd=rounds[String(cfg.omg)];
+  const locked=rd&&rd.locked;
+  const placed=måljaktenDraft.map(Number);
+  const unplaced=TEAMS.filter(t=>!placed.includes(t.id));
+
+  // Slots – 3 platser
+  const slots=Array.from({length:3}).map((_,i)=>{
+    const teamId=placed[i];
+    const team=teamId!==undefined?TEAMS.find(t=>t.id===teamId):null;
+    const calc=team&&rd?calcMåljaktenTeamPts(team.id,rd):{pts:0,goals:0,isHome:null};
+    const hasResult=rd&&rd.locked&&calc.isHome!==null;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <div style="width:28px;height:28px;border-radius:50%;background:${team?G_GREENL:'var(--color-background-secondary)'};color:${team?G_GREEN:'var(--color-text-secondary)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0">${i+1}</div>
+      ${team
+        ? `<span style="flex:1;font-size:14px">${esc(team.name)}</span>
+           ${hasResult?`<span style="font-size:11px;color:var(--color-text-secondary)">${calc.isHome?"H":"B"} ${calc.goals} m${calc.goals===1?"ål":"ål"}</span>`:""}
+           ${hasResult&&calc.pts>0?`<span style="background:#e8f5ee;color:#1a6b3c;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500;margin-left:4px">+${calc.pts}p</span>`:""}
+           ${locked?"":`<button data-act="maljakten-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px;padding:0 4px">x</button>`}`
+        : `<span style="flex:1;font-size:13px;color:var(--color-text-secondary);font-style:italic">— välj lag nedan —</span>`}
+    </div>`;
+  }).join("");
+
+  const availableHtml=locked?"":(placed.length>=3
+    ? `<div style="font-size:13px;color:${G_GREEN};font-weight:500">Alla 3 lag valda! Glöm inte spara.</div>`
+    : `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Klicka ett lag för att välja det:</div>
+       <div style="display:flex;flex-wrap:wrap;gap:6px">${unplaced.map(t=>`<button data-act="maljakten-place" data-id="${t.id}" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">${esc(t.name)}</button>`).join("")}</div>`);
+
+  // Ligatabell
+  const lb=[...users].sort((a,b)=>userMåljaktenTotalPts(b.id)-userMåljaktenTotalPts(a.id));
+  const lbRows=lb.map((u,i)=>{
+    const pts=userMåljaktenTotalPts(u.id);
+    const isMe=currentUser&&u.id===currentUser.id;
+    const medals=["\uD83E\uDD47","\uD83E\uDD48","\uD83E\uDD49"];
+    const hasTip=måljaktenAllTips.find(t=>t.user_id===u.id&&t.round_num===cfg.omg);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?'background:'+G_GREENL+';border-radius:6px;padding-left:6px;padding-right:6px':''}">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+      <span style="font-size:11px;color:var(--color-text-secondary)">${hasTip?"\u2713 tippad":""}</span>
+      <span style="font-weight:500">${pts} p</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">\uD83C\uDFAF Måljakten – Omgång ${cfg.omg}</div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:10px">Hur funkar Måljakten?</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.7;margin-bottom:12px">
+      Välj <b>3 lag</b> inför varje omgång. Du får poäng för varje mål ditt valda lag gör – med högre belöning för bortamål och bonus för riktigt målrika matcher!
+    </div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:12px">
+      <thead><tr style="font-size:11px;color:var(--color-text-secondary)"><td>Händelse</td><td style="text-align:right">Poäng</td></tr></thead>
+      <tbody>
+        <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:5px 0">Hemmamål</td><td style="text-align:right;font-weight:500">+2 p/mål</td></tr>
+        <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:5px 0">Bortamål</td><td style="text-align:right;font-weight:500">+3 p/mål</td></tr>
+        <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:5px 0">Laget gör 3+ mål</td><td style="text-align:right;font-weight:500">+5 p bonus</td></tr>
+      </tbody>
+    </table>
+    <div style="background:#fce8e8;border-radius:6px;padding:10px 12px;font-size:12px;line-height:1.6">
+      <b>Exempel:</b> Ditt lag vinner borta 3–1 → 3×3p + 5p bonus = <b>14p</b><br>
+      Ditt lag vinner hemma 2–0 → 2×2p = <b>4p</b><br>
+      <b>Strategi:</b> Vinner du på att välja säkra favoriter eller chansa på ett bortaformstarkt lag?
+    </div>
+  </div>
+
+  <div class="fg-card">
+    ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">\uD83D\uDD12 Omgången är låst – tippning stängd</div>`:""}
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Välj dina 3 lag för omgång ${cfg.omg}:</div>
+    ${slots}
+    ${!locked?`<div style="margin-top:12px">${availableHtml}</div>`:""}
+    <div id="måljakten-status" style="font-size:13px;min-height:20px;margin-top:10px"></div>
+    ${!locked?`<button class="fg-btn" style="margin-top:8px" onclick="window.saveMåljakten()">Spara mitt tips</button>`:""}
+  </div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Poängställning – totalt</div>
+    ${lbRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>'}
+  </div>`;
+}
 function renderSnabbastTab(){
+
   const rd=rounds[String(cfg.omg)];
   const locked=rd&&rd.locked;
   const result=rd&&rd.snabbast_result||[];
@@ -954,6 +1098,7 @@ function renderSnabbastTab(){
     ${lbRows}
   </div>`;
 }
+
 
 function renderLigatippTab(){
   const locked=cfg.ligatippLocked;
@@ -1447,10 +1592,27 @@ function attachHandlers(){
         snabbastAllTips=await fetchAllSnabbastTips(cfg.omg);
         snabbastDraft=[...(snabbastMyTips[cfg.omg]||[])].map(Number);
         screen="main"; mainTab="snabbast";
+      } else if(appMode==="måljakten"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Måljakten…</div>';
+        måljaktenMyTips=await fetchMyMåljaktenTips();
+        måljaktenAllTips=await fetchAllMåljaktenTips(cfg.omg);
+        måljaktenDraft=[...(måljaktenMyTips[cfg.omg]||[])].map(Number);
+        screen="main"; mainTab="måljakten";
       } else {
         screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
       }
       render();
+    }
+    else if(act==="maljakten-place"){
+      const id=Number(el.dataset.id);
+      if(måljaktenDraft.length<3&&!måljaktenDraft.map(Number).includes(id)){
+        måljaktenDraft=[...måljaktenDraft,id]; render();
+      }
+    }
+    else if(act==="maljakten-remove"){
+      const idx=Number(el.dataset.idx);
+      måljaktenDraft=måljaktenDraft.filter((_,i)=>i!==idx); render();
     }
     else if(act==="snabbast-place"){
       const id=Number(el.dataset.id);
