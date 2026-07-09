@@ -788,9 +788,23 @@ function renderMain(){
 
   const tabs=tabsDef.map(([id,ico,lbl])=>`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`).join("");
 
+  // Rundväljare – bara synlig i Fantasy-läget
+  const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  const roundStrip = (appMode==="fantasy"||appMode===null) && roundKeys.length ? `
+    <div style="background:#1a1a1a;padding:6px 12px 8px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
+      ${roundKeys.map(r=>{
+        const rd=rounds[String(r)];
+        const isActive=r===cfg.omg;
+        const bg=isActive?"#fff":rd.results_published?"#2d5a2d":rd.locked?"#5a1a1a":"#333";
+        const col=isActive?"#1a1a1a":rd.results_published?"#a8e6a8":rd.locked?"#ffaaaa":"#aaa";
+        return `<button data-act="user-jump-round" data-r="${r}" style="min-width:30px;height:26px;border-radius:5px;border:none;background:${bg};color:${col};font-size:11px;font-weight:${isActive?700:500};cursor:pointer;flex-shrink:0">${r}</button>`;
+      }).join("")}
+    </div>` : "";
+
   return `
   <div style="min-height:100vh;padding-bottom:72px">
     <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":""}</span><span style="font-size:12px;opacity:.85;margin-right:8px">Omg ${cfg.omg}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    ${roundStrip}
     <div style="padding:12px 16px">${body}</div>
     <div class="fg-bottombar">${tabs}</div>
   </div>`;
@@ -1802,6 +1816,13 @@ function attachHandlers(){
       mainTab=tab;errMsg="";
       if(tab==="tipp"){ tipDraft={}; }
       if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
+      render();
+    }
+    else if(act==="user-jump-round"){
+      const r=Number(el.dataset.r);
+      cfg={...cfg,omg:r};
+      openRounds=new Set([r]);
+      mainTab="omg";
       render();
     }
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
