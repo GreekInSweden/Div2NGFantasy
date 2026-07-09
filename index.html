@@ -1220,90 +1220,90 @@ function renderLigaTab(sorted){
 
 function renderOmgTab(){
   const keys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
-  if(!keys.length) return `
-    <div style="font-weight:500;font-size:16px;margin-bottom:12px">📅 Säsongsöversikt</div>
-    <div class="fg-card" style="text-align:center;color:var(--color-text-secondary);font-size:13px">
-      Inga omgångar inlagda ännu.
-    </div>`;
 
-  const mySnabbastTips=snabbastMyTips||{};
-  const myMåljaktenTips=måljaktenMyTips||{};
+  // Grid – samma stil som admin men med användarinfo
+  const gridBtns=Array.from({length:26},(_,i)=>i+1).map(n=>{
+    const rd=rounds[String(n)];
+    const isActive=openRounds.has(n);
 
-  const items=keys.map(r=>{
-    const rd=rounds[String(r)];
-    const isPublished=rd.results_published;
-    const isLocked=rd.locked;
-    const isOpen=openRounds.has(r);
-    const matchCount=rd.matches?rd.matches.length:0;
+    // Kolla om användaren tippar på denna omgång
+    const hasTipp = currentUser && currentUser.tips && currentUser.tips[String(n)] && currentUser.tips[String(n)].length>0;
+    const hasSnabbast = snabbastMyTips && snabbastMyTips[n] && snabbastMyTips[n].length>0;
+    const hasMåljakten = måljaktenMyTips && måljaktenMyTips[n] && måljaktenMyTips[n].length>0;
+    const hasAnyTip = hasTipp||hasSnabbast||hasMåljakten;
 
-    // Status badges
-    const badges=[];
-    if(isPublished) badges.push(`<span style="background:${S_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">✅ Resultat klara</span>`);
-    else if(isLocked) badges.push(`<span style="background:#fce8e8;color:#c1272d;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Tippning stängd</span>`);
-    else badges.push(`<span style="background:${S_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🟢 Öppen för tippning</span>`);
-
-    // User's own points for this round
-    const myPts=userRoundPts(currentUser,r);
-    const hasTipped=mySnabbastTips[r]||myMåljaktenTips[r];
-
-    let inner="";
-    if(isOpen){
-      // Match results
-      const matchRows=(rd.matches||[]).map(m=>{
-        const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
-        return `<div style="display:flex;gap:6px;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)">
-          <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
-          <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:500;min-width:40px;text-align:center">${isPublished?m.hMål+"–"+m.aMål:"–"}</span>
-          <span style="flex:1">${esc(a?a.name:"")}</span>
-        </div>`;
-      }).join("");
-
-      // Poängraderna om publicerat
-      const ptsRows=isPublished?[...users].sort((a,b)=>userRoundPts(b,r)-userRoundPts(a,r)).map(u=>{
-        const pts=userRoundPts(u,r);
-        const isMe=u.id===currentUser.id;
-        return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;${isMe?"font-weight:500":""}">
-          <span>${esc(u.namn)}${isMe?" (du)":""}</span>
-          <span>${pts} p</span>
-        </div>`;
-      }).join(""):"";
-
-      inner=`<div style="margin-top:10px">
-        ${matchRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Matcher ej inlagda.</div>'}
-        ${isPublished?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
-          <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px">Fantasy-poäng denna omgång</div>
-          ${ptsRows}
-        </div>`:""}
-      </div>`;
+    let bg,col,border;
+    if(!rd){
+      bg="var(--color-background-secondary)"; col="var(--color-text-secondary)"; border="transparent";
+    } else if(rd.results_published){
+      bg=S_GREENL; col=S_GREEN; border=S_GREEN;
+    } else if(rd.locked){
+      bg="#fce8e8"; col="#c1272d"; border="#c1272d";
+    } else {
+      bg=hasAnyTip?"#fff3e0":"var(--color-background-primary)";
+      col=hasAnyTip?"#e65100":"var(--color-text-secondary)";
+      border=isActive?"#1a1a1a":(hasAnyTip?"#e65100":"var(--color-border-secondary)");
     }
 
-    return `<div class="fg-card" style="padding:12px 16px">
-      <button data-act="toggle-round" data-r="${r}" style="display:flex;width:100%;background:none;border:none;cursor:pointer;padding:0;align-items:center;gap:10px;text-align:left">
-        <div style="width:36px;height:36px;border-radius:8px;background:${isPublished?S_GREENL:isLocked?"#fce8e8":S_GREENL};color:${isPublished?S_GREEN:isLocked?"#c1272d":S_GREEN};display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0">${r}</div>
-        <div style="flex:1">
-          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:2px">
-            <span style="font-weight:500;font-size:14px">Omgång ${r}</span>
-            ${badges.join("")}
-          </div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">${matchCount} matcher${isPublished&&myPts>0?` · Du fick ${myPts} p`:""}</div>
-        </div>
-        <span style="transform:${isOpen?"rotate(90deg)":"none"};transition:.2s;color:var(--color-text-secondary);font-size:18px">›</span>
-      </button>
-      ${inner}
+    return `<button data-act="toggle-round" data-r="${n}" style="aspect-ratio:1;border-radius:8px;border:1.5px solid ${border};background:${bg};color:${col};font-size:13px;font-weight:${isActive?700:500};cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center">
+      ${n}
+      ${hasAnyTip&&!rd?.results_published?`<span style="position:absolute;top:2px;right:3px;font-size:7px;color:#e65100">✓</span>`:""}
+    </button>`;
+  }).join("");
+
+  // Förklaring
+  const legend=`<div style="display:flex;gap:10px;flex-wrap:wrap;font-size:11px;margin-top:10px">
+    <span style="color:${S_GREEN}">■ Resultat klara</span>
+    <span style="color:#c1272d">■ Tippning stängd</span>
+    <span style="color:#e65100">■ Du har tippar</span>
+    <span style="color:var(--color-text-secondary)">□ Ej inlagd</span>
+  </div>`;
+
+  // Detaljvy per öppen omgång
+  const details=keys.filter(r=>openRounds.has(r)).map(r=>{
+    const rd=rounds[String(r)];
+    const matchRows=(rd.matches||[]).map(m=>{
+      const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
+      return `<div style="display:flex;gap:6px;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
+        <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:500;min-width:44px;text-align:center">${rd.results_published?m.hMål+"–"+m.aMål:"vs"}</span>
+        <span style="flex:1">${esc(a?a.name:"")}</span>
+      </div>`;
+    }).join("");
+
+    const ptsRows=rd.results_published?[...users].sort((a,b)=>userRoundPts(b,r)-userRoundPts(a,r)).map(u=>{
+      const pts=userRoundPts(u,r);
+      const isMe=u.id===currentUser.id;
+      return `<div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0;${isMe?"font-weight:500":""}">
+        <span>${esc(u.namn)}${isMe?" (du)":""}</span><span>${pts} p</span>
+      </div>`;
+    }).join(""):"";
+
+    return `<div class="fg-card" style="margin-top:10px">
+      <div style="font-weight:500;margin-bottom:8px;display:flex;justify-content:space-between">
+        <span>Omgång ${r}</span>
+        ${rd.results_published?`<span style="font-size:12px;color:${S_GREEN}">✅ Resultat klara</span>`:rd.locked?`<span style="font-size:12px;color:#c1272d">🔒 Stängd</span>`:`<span style="font-size:12px;color:${S_GREEN}">🟢 Öppen</span>`}
+      </div>
+      ${matchRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Matcher ej inlagda.</div>'}
+      ${rd.results_published?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:4px">Fantasy-poäng</div>${ptsRows}
+      </div>`:""}
     </div>`;
   }).join("");
 
-  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">📅 Säsongsöversikt</div>
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-    <span style="font-size:12px;background:${S_GREENL};color:${S_GREEN};border-radius:20px;padding:3px 10px">${keys.filter(r=>rounds[String(r)].results_published).length} klara</span>
-    <span style="font-size:12px;background:#fce8e8;color:#c1272d;border-radius:20px;padding:3px 10px">${keys.filter(r=>rounds[String(r)].locked&&!rounds[String(r)].results_published).length} stängda</span>
-    <span style="font-size:12px;background:${S_GREENL};color:${S_GREEN};border-radius:20px;padding:3px 10px">${keys.filter(r=>!rounds[String(r)].locked).length} öppna</span>
-    <span style="font-size:12px;background:var(--color-background-secondary);color:var(--color-text-secondary);border-radius:20px;padding:3px 10px">${keys.length}/26 omgångar inlagda</span>
+  if(!keys.length) return `
+    <div style="font-weight:500;font-size:16px;margin-bottom:12px">📅 Omgångar</div>
+    <div class="fg-card" style="text-align:center;color:var(--color-text-secondary);font-size:13px">Inga omgångar inlagda ännu.</div>`;
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">📅 Omgångar</div>
+  <div class="fg-card">
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">${gridBtns}</div>
+    ${legend}
   </div>
-  ${items}`;
+  ${details}`;
 }
 
-// ── Bulk round entry helpers ──────────────────────────────────────────────
 function defaultBulkRows(rndKey){
   const existing = rounds[rndKey];
   if(existing && existing.matches.length){
