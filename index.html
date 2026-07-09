@@ -1668,8 +1668,11 @@ function parseScheduleText(text){
 
   const findTeam=raw=>{
     const r=raw.toLowerCase().replace(/\s+/g," ").trim();
-    // Exact match first
+    // Exact match
     let t=TEAMS.find(t=>t.name.toLowerCase().trim()===r);
+    if(t)return t;
+    // Starts-with match (handles "TeamName TeamName" duplicate format)
+    t=TEAMS.find(t=>r.startsWith(t.name.toLowerCase().trim()));
     if(t)return t;
     // Contains match
     t=TEAMS.find(t=>r.includes(t.name.toLowerCase().trim())||t.name.toLowerCase().trim().includes(r));
