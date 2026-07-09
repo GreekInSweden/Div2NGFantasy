@@ -1648,13 +1648,22 @@ function parseScheduleText(text){
 
   const findTeamFromLine=line=>{
     const lower=normalizeStr(line);
-    // Sortera lag efter namnlängd (längst först) för att undvika delmatchningar
     const sorted=[...TEAMS].sort((a,b)=>b.name.length-a.name.length);
     for(const t of sorted){
       const tn=normalizeStr(t.name);
-      if(lower===tn||lower.startsWith(tn+" ")||lower.startsWith(tn+tn.slice(-1))){
-        return t;
-      }
+      // Exakt match
+      if(lower===tn)return t;
+      // Raden börjar med lagnamnet följt av mellanslag
+      if(lower.startsWith(tn+" "))return t;
+      // Raden börjar med lagnamnet följt av lagnamnet igen (duplikat utan mellanslag)
+      if(lower.startsWith(tn+tn.slice(-1)))return t;
+      // Lagnamnet innehåller radens text (om raden är förkortad)
+      if(tn.startsWith(lower+" ")||tn===lower)return t;
+    }
+    // Sista utväg: fuzzy contains
+    for(const t of sorted){
+      const tn=normalizeStr(t.name);
+      if(lower.includes(tn)||tn.includes(lower))return t;
     }
     return null;
   };
@@ -1674,6 +1683,8 @@ function parseScheduleText(text){
     for(const line of lines){
       if(/^Omgång\s+\d+/.test(line))continue;
       if(/^\d{1,2}:\d{2}/.test(line))continue;
+      if(/^Publik:/i.test(line))continue;
+      if(/^\d+$/.test(line))continue; // skippa rena siffror
       const t=findTeamFromLine(line);
       if(t){
         foundTeams.push(t);
