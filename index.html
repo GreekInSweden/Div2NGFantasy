@@ -159,29 +159,36 @@ async function fetchRounds(){
   const {data,error}=await sb.from("rounds").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return {};}
   const out={};
-  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[],picks_snapshot:r.picks_snapshot||{}}; });
+  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[],picks_snapshot:r.picks_snapshot||{},results_published:!!r.results_published}; });
   return out;
 }
 async function saveRoundMatches(rnd,matches){
-  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches,goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},results_published:cur.results_published||false,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function saveRoundGoals(rnd,goals){
-  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},league_id:currentLeague.id});
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},results_published:cur.results_published||false,league_id:currentLeague.id});
   if(error)console.error(error);
 }
 async function toggleRoundLock(rnd,locked){
-  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{}};
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
   const locked_at=locked?new Date().toISOString():null;
-  // Ta en ögonblicksbild av alla spelares lag när omgången låses
   const picks_snapshot=locked
     ? users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten};return acc;},{})
     : (cur.picks_snapshot||{});
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,locked_at,snabbast_result:cur.snabbast_result||[],picks_snapshot,league_id:currentLeague.id});
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,locked_at,snabbast_result:cur.snabbast_result||[],picks_snapshot,results_published:cur.results_published||false,league_id:currentLeague.id});
   if(error)console.error(error);
   return {locked_at,picks_snapshot};
+}
+async function publishRoundResults(rnd,published=true){
+  const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
+  const picks_snapshot=published
+    ? users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten};return acc;},{})
+    : cur.picks_snapshot||{};
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot,results_published:published,league_id:currentLeague.id});
+  return {error,picks_snapshot};
 }
 async function deleteRound(rnd){
   const {error}=await sb.from("rounds").delete().eq("round_num",Number(rnd)).eq("league_id",currentLeague.id);
@@ -288,7 +295,7 @@ function calcMåljaktenTeamPts(teamId,rd){
 }
 function userMåljaktenRoundPts(userId,roundNum){
   const rd=rounds[String(roundNum)];
-  if(!rd||!rd.locked)return 0;
+  if(!rd||!rd.results_published)return 0;
   const tip=måljaktenAllTips.find(t=>t.user_id===userId&&t.round_num===roundNum);
   if(!tip)return 0;
   return (tip.picks||[]).reduce((s,teamId)=>s+calcMåljaktenTeamPts(teamId,rd).pts,0);
@@ -322,7 +329,7 @@ function calcSnabbastPts(userPicks,actualResult){
 }
 function userSnabbastRoundPts(userId,roundNum){
   const rd=rounds[String(roundNum)];
-  if(!rd||!rd.locked||!rd.snabbast_result||!rd.snabbast_result.length)return 0;
+  if(!rd||!rd.results_published||!rd.snabbast_result||!rd.snabbast_result.length)return 0;
   const tip=snabbastAllTips.find(t=>t.user_id===userId&&t.round_num===roundNum);
   if(!tip)return 0;
   return calcSnabbastPts(tip.picks||[],rd.snabbast_result);
@@ -360,7 +367,7 @@ function plPts(player,rd){
 function userRoundPts(u,r){
   if(!u)return 0;
   const rd=rounds[String(r)];
-  if(!rd||!rd.locked)return 0;
+  if(!rd||!rd.results_published)return 0;
   if(rd.locked_at&&u.created_at&&new Date(rd.locked_at)<new Date(u.created_at))return 0;
   // Använd ögonblicksbilden om den finns, annars nuvarande lag
   const snapshot=rd.picks_snapshot&&rd.picks_snapshot[u.id];
@@ -439,7 +446,7 @@ function tipMatchPts(pred,actualH,actualA){
 }
 function userTipRoundPts(u,r){
   const rd=rounds[String(r)];
-  if(!rd||!rd.locked||!rd.matches.length)return 0;
+  if(!rd||!rd.results_published||!rd.matches.length)return 0;
   if(rd.locked_at && u.created_at && new Date(rd.locked_at) < new Date(u.created_at)) return 0;
   const tipsForRound = (u.tips&&u.tips[String(r)])||[];
   let tot=0;
@@ -818,7 +825,7 @@ function renderHemTab(sorted){
             <div class="fg-posbadge" style="width:30px;height:30px;background:${c.bg};color:${c.fc};font-size:9px">${pos}</div>
             <div style="flex:1"><div style="font-size:14px">${esc(pl.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")}</div></div>
             ${isCap?`<span style="background:${G_GOLDL};color:${G_GOLD};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">★</span>`:""}
-            <div style="font-weight:500;font-size:14px">${(rd&&rd.locked)?(isCap?pts*2:pts):"–"} p</div>
+            <div style="font-weight:500;font-size:14px">${(rd&&rd.results_published)?(isCap?pts*2:pts):"–"} p</div>
           </div>`;
         }).join("");
       }).join("")}
@@ -1263,6 +1270,7 @@ function renderAdminTab(){
     const teamOpts=t=>TEAMS.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${esc(x.name)}</option>`).join("");
     const curRoundData = rounds[String(cfg.omg)];
     const isLocked = curRoundData && curRoundData.locked;
+    const isPublished = curRoundData && curRoundData.results_published;
     const rowsHtml = isLocked
       ? bulkRows.map(r=>{
           const h=TEAMS.find(t=>t.id===r.hId), a=TEAMS.find(t=>t.id===r.aId);
@@ -1289,17 +1297,26 @@ function renderAdminTab(){
         </div>
         <button class="fg-outbtn" data-act="bulk-load" style="padding:9px 14px">Hämta</button>
       </div>
-      <div style="background:${isLocked?'#FCEBEB':G_GREENL};border-radius:6px;padding:10px 12px;margin-bottom:12px;display:flex;align-items:center;gap:8px">
-        <span style="font-size:18px">${isLocked?'🔒':'🔓'}</span>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:500;color:${isLocked?'#A32D2D':G_GREEN}">${isLocked?'Omgången är låst':'Omgången är olåst'}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">${isLocked?'Facit är satt. Resultat går inte att ändra förrän du låser upp.':'Tips är öppna. Fantasy-poäng räknas INTE än.'}</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <div style="flex:1;background:${isLocked?'#FCEBEB':G_GREENL};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">${isLocked?'🔒':'🔓'}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:${isLocked?'#A32D2D':G_GREEN}">${isLocked?'Tippning stängd':'Tippning öppen'}</div>
+          </div>
+          <button data-act="toggle-lock" data-locked="${isLocked?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isLocked?'Öppna':'Stäng'}</button>
         </div>
-        <button data-act="toggle-lock" data-locked="${isLocked?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;font-weight:500;white-space:nowrap">${isLocked?'Lås upp':'Lås omgång'}</button>
+        <div style="flex:1;background:${isPublished?'#e8f5ee':'var(--color-background-secondary)'};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:16px">${isPublished?'✅':'⏳'}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:500;color:${isPublished?'#1a6b3c':'var(--color-text-secondary)'}">${isPublished?'Poäng räknas':'Resultat ej klara'}</div>
+          </div>
+          <button data-act="publish-results" style="background:${isPublished?'#fff':'#1a1a1a'};color:${isPublished?'#1a6b3c':'#fff'};border:${isPublished?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isPublished?'Ångra':'Resultat klara'}</button>
+        </div>
       </div>
       ${isLocked
-        ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Resultaten nedan är facit och kan inte redigeras. Lås upp omgången ovan om du behöver rätta något.</div>
-           ${rowsHtml}`
+        ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Tippning är stängd. Du kan fortfarande ändra resultat och klicka "Resultat klara".</div>
+           ${rowsHtml}
+           <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara resultat</button>`
         : `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
            <div style="display:grid;grid-template-columns:1fr 56px 14px 56px 1fr 28px;gap:8px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
              <span>Hemmalag</span><span style="text-align:center">Mål</span><span></span><span style="text-align:center">Mål</span><span>Bortalag</span><span></span>
@@ -1769,6 +1786,15 @@ function attachHandlers(){
       await toggleRegistration(open);
       cfg={...cfg,registrationOpen:open};
       flash(open?"✓ Registrering är nu öppen.":"✓ Registrering är nu stängd.");
+    }
+    else if(act==="publish-results"){
+      const rnd=String(cfg.omg);
+      const cur=rounds[rnd]||{};
+      const nowPublished=!cur.results_published;
+      const result=await publishRoundResults(rnd,nowPublished);
+      if(result.error){flash("Fel: "+result.error.message);return;}
+      rounds={...rounds,[rnd]:{...cur,results_published:nowPublished,picks_snapshot:nowPublished?result.picks_snapshot:cur.picks_snapshot}};
+      flash(nowPublished?"✅ Resultat publicerade – poäng räknas nu!":"⏳ Resultat återkallades.");
     }
     else if(act==="toggle-lock"){
       const rnd=String(cfg.omg);
