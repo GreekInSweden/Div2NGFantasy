@@ -209,7 +209,13 @@ async function fetchConfig(){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
     return {omg:1,registrationOpen:true};
   }
-  return {omg:data.active_round,registrationOpen:data.registration_open!==false,ligatippLocked:!!data.ligatipp_locked};
+  return {
+    omg:data.active_round,
+    registrationOpen:data.registration_open!==false,
+    ligatippLocked:!!data.ligatipp_locked,
+    superAdminPwd:data.super_admin_pwd||SUPER_ADMIN_PWD,
+    adminPwd:data.admin_pwd||ADMIN_PWD
+  };
 }
 async function setConfig(omg){
   const {error}=await sb.from("app_config").update({active_round:omg}).eq("league_id",currentLeague.id);
@@ -1346,7 +1352,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"]];
+  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"],["passwords","Lösenord"]];
   const adminSections=adminLevel==="super"?allSections:[["round","Omgång"],["goals","Mål"],["snabbast","Snabbast"]];
   const sectionTabs=adminSections.map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
@@ -1559,6 +1565,19 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
     </div>
     ${rowsHtml}`;
+  } else if(adminSection==="passwords"){
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
+        Här byter du lösenorden för admin-inloggningen. Ändringar sparas direkt i databasen.
+      </div>
+      <label class="fg-label">Nytt superadmin-lösenord (ditt eget)</label>
+      <input class="fg-input" id="new-super-pwd" type="password" placeholder="Skriv nytt lösenord" style="margin-bottom:14px"/>
+      <label class="fg-label">Nytt admin-lösenord (hjälparens)</label>
+      <input class="fg-input" id="new-admin-pwd" type="password" placeholder="Skriv nytt lösenord" style="margin-bottom:14px"/>
+      <div style="font-size:12px;color:#c1272d;margin-bottom:10px">Lämna ett fält tomt om du inte vill ändra det lösenordet.</div>
+      <button class="fg-btn" data-act="save-passwords">Spara lösenord</button>
+    </div>`;
   } else if(adminSection==="import"){
     const importVal=document.getElementById("import-text")?document.getElementById("import-text").value:"";
     body=`<div class="fg-card">
@@ -1941,8 +1960,8 @@ function attachHandlers(){
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
     else if(act==="admin-login"){
       const pwd=document.getElementById("admin-pwd").value;
-      if(pwd===SUPER_ADMIN_PWD){adminOk=true;adminLevel="super";errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}
-      else if(pwd===ADMIN_PWD){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";bulkRows=defaultBulkRows(String(cfg.omg));}
+      if(pwd===(cfg.superAdminPwd||SUPER_ADMIN_PWD)){adminOk=true;adminLevel="super";errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}
+      else if(pwd===(cfg.adminPwd||ADMIN_PWD)){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";bulkRows=defaultBulkRows(String(cfg.omg));}
       else{errMsg="Fel lösenord.";}
       render();
     }
@@ -2018,6 +2037,19 @@ function attachHandlers(){
         }
       }
       flash(`✓ ${saved} omgångar sparade!`);
+    }
+    else if(act==="save-passwords"){
+      const newSuper=document.getElementById("new-super-pwd").value.trim();
+      const newAdmin=document.getElementById("new-admin-pwd").value.trim();
+      if(!newSuper&&!newAdmin){flash("Ange minst ett nytt lösenord.");return;}
+      const updates={};
+      if(newSuper) updates.super_admin_pwd=newSuper;
+      if(newAdmin) updates.admin_pwd=newAdmin;
+      const {error}=await sb.from("app_config").update(updates).eq("league_id",currentLeague.id);
+      if(error){flash("Fel: "+error.message);return;}
+      if(newSuper) cfg={...cfg,superAdminPwd:newSuper};
+      if(newAdmin) cfg={...cfg,adminPwd:newAdmin};
+      flash("✓ Lösenord uppdaterade!");
     }
     else if(act==="toggle-ligatipp-lock"){
       await toggleLigatippLock(newLocked);
