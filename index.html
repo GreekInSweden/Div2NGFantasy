@@ -2025,7 +2025,7 @@ function attachHandlers(){
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
       const u=users.find(x=>x.id===el.dataset.id);
-      currentUser=u; screen="mode"; render();
+      currentUser=u; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
     }
     else if(act==="ask-pin"){
       pendingLoginUser=users.find(x=>x.id===el.dataset.id);
@@ -2037,7 +2037,7 @@ function attachHandlers(){
       const inputHash=await hashPin(val,u.id);
       if(inputHash===u.pin){
         currentUser=u; pendingLoginUser=null; loginErr="";
-        screen="mode"; render();
+        screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
       } else {
         loginErr="Fel PIN-kod."; render();
       }
@@ -2059,7 +2059,7 @@ function attachHandlers(){
         return;
       }
       users=[...users,ny];
-      currentUser=ny; errMsg=""; screen="mode"; render();
+      currentUser=ny; errMsg=""; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
     }
     else if(act==="pick-mode"){
       appMode=el.dataset.mode;
@@ -2092,6 +2092,7 @@ function attachHandlers(){
       } else if(appMode==="statistik"){
         screen="main"; mainTab="statistik";
       } else {
+        screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
       }
       // Ladda privata ligor
       try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
