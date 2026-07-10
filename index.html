@@ -2094,7 +2094,7 @@ function attachHandlers(){
       } else {
       }
       // Ladda privata ligor
-      allPrivateLeagues=await fetchPrivateLeagues();
+      try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
       render();
     }
     else if(act==="pl-view"){
@@ -2107,7 +2107,7 @@ function attachHandlers(){
       if(!name||!name.trim())return;
       const error=await createPrivateLeague(name.trim(),mode);
       if(error){flash("Fel: "+error.message);return;}
-      allPrivateLeagues=await fetchPrivateLeagues();
+      try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
       flash("✓ Ansökan skickad! Admin godkänner och du får en inbjudningskod.");
     }
     else if(act==="pl-join-open"){
@@ -2115,21 +2115,21 @@ function attachHandlers(){
       if(!code)return;
       const {error,league}=await joinPrivateLeague(code);
       if(error){flash("Fel: "+error.message);return;}
-      allPrivateLeagues=await fetchPrivateLeagues();
+      try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
       flash("✓ Du är nu med i "+league.name+"!");
     }
     else if(act==="pl-approve"){
       const id=el.dataset.id;
       const {error,code}=await approvePrivateLeague(id);
       if(error){flash("Fel: "+error.message);return;}
-      allPrivateLeagues=await fetchPrivateLeagues();
+      try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
       flash("✓ Liga godkänd! Inbjudningskod: "+code);
     }
     else if(act==="pl-delete-admin"){
       if(!confirm("Ta bort denna liga permanent?"))return;
       const error=await deletePrivateLeague(el.dataset.id);
       if(error){flash("Fel: "+error.message);return;}
-      allPrivateLeagues=await fetchPrivateLeagues();
+      try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
       flash("✓ Liga borttagen.");
     }
     else if(act==="maljakten-place"){
