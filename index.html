@@ -55,7 +55,8 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 // ───────────────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://vsxqcdsmkozxefyrialf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzeHFjZHNta296eGVmeXJpYWxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NzE2NjIsImV4cCI6MjA5NzQ0NzY2Mn0.QctNW47LierdfZNaK5bCBwIxXUbIguBUgSsMP0o1wuY";
-const ADMIN_PWD = "div2ng25"; // byt gärna till ditt eget lösenord
+const SUPER_ADMIN_PWD = "div2ng25"; // superadmin – full tillgång
+const ADMIN_PWD = "div2ng_resultat"; // admin – endast resultat
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -77,7 +78,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[],
-    userSelectedRound=null;
+    userSelectedRound=null, adminLevel=null;
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -588,7 +589,7 @@ function renderHome(){
       <div style="width:56px;height:56px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:22px;margin-bottom:12px">${esc(u.namn[0])}</div>
       <div style="font-size:18px;font-weight:500;margin-bottom:4px">${esc(u.namn)}</div>
       <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">Ange din PIN-kod</div>
-      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="4" placeholder="••••" style="max-width:160px;text-align:center;font-size:20px;letter-spacing:6px;margin-bottom:8px" autofocus/>
+      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" style="max-width:160px;text-align:center;font-size:20px;letter-spacing:6px;margin-bottom:8px" autofocus/>
       ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:8px">${esc(loginErr)}</div>`:""}
       <button class="fg-btn" data-act="submit-pin" style="max-width:200px;margin-top:8px">Logga in →</button>
     </div>`;
@@ -607,8 +608,8 @@ function renderReg(){
     <div style="font-size:18px;font-weight:500;margin-bottom:16px">Ny spelare</div>
     <label class="fg-label">Ditt namn</label>
     <input class="fg-input" id="reg-namn" placeholder="T.ex. Marcus N" autofocus style="margin-bottom:14px"/>
-    <label class="fg-label">Välj en 4-siffrig PIN-kod</label>
-    <input class="fg-input" id="reg-pin" placeholder="T.ex. 4821" inputmode="numeric" maxlength="4" pattern="[0-9]*"/>
+    <label class="fg-label">Välj en 5-siffrig PIN-kod</label>
+    <input class="fg-input" id="reg-pin" placeholder="T.ex. 48215" inputmode="numeric" maxlength="5" pattern="[0-9]*"/>
     <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Du behöver PIN-koden varje gång du loggar in – kom ihåg den!</div>
     ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:6px">${esc(errMsg)}</div>`:""}
     <button class="fg-btn" data-act="submit-reg" style="margin-top:14px">Registrera →</button>
@@ -1345,7 +1346,9 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const sectionTabs=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"]].map(([id,l])=>
+  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"]];
+  const adminSections=adminLevel==="super"?allSections:[["round","Omgång"],["goals","Mål"],["snabbast","Snabbast"]];
+  const sectionTabs=adminSections.map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
   ).join("");
 
@@ -1641,7 +1644,7 @@ function renderAdminTab(){
       ${goalsHtml || '<div style="font-size:13px;color:var(--color-text-secondary)">Lägg in matcher för denna omgång först (under "Omgång").</div>'}
     </div>`;
   }
-  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Admin</div>
+  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Admin <span style="font-size:11px;font-weight:400;background:${adminLevel==="super"?G_GREEN:"#555"};color:#fff;border-radius:20px;padding:2px 8px">${adminLevel==="super"?"Superadmin":"Admin"}</span></div>
     <div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${sectionTabs}</div>
     ${errMsg?`<div style="color:${errMsg.indexOf('✓')===0?G_GREEN:'#A32D2D'};font-size:13px;margin-bottom:10px;font-weight:500">${esc(errMsg)}</div>`:""}
     ${body}`;
@@ -1774,7 +1777,7 @@ function attachHandlers(){
       const namn=document.getElementById("reg-namn").value.trim();
       const pin=document.getElementById("reg-pin").value.trim();
       if(!namn){errMsg="Ange ett namn.";render();return;}
-      if(!/^[0-9]{4}$/.test(pin)){errMsg="PIN-koden måste vara exakt 4 siffror.";render();return;}
+      if(!/^[0-9]{5}$/.test(pin)){errMsg="PIN-koden måste vara exakt 5 siffror.";render();return;}
       if(users.find(u=>u.namn.toLowerCase()===namn.toLowerCase())){errMsg="Namnet finns redan.";render();return;}
       const ny={id:Math.random().toString(36).slice(2,10),namn,picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null,pin};
       errMsg="Registrerar…";render();
@@ -1938,7 +1941,9 @@ function attachHandlers(){
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
     else if(act==="admin-login"){
       const pwd=document.getElementById("admin-pwd").value;
-      if(pwd===ADMIN_PWD){adminOk=true;errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}else{errMsg="Fel lösenord.";}
+      if(pwd===SUPER_ADMIN_PWD){adminOk=true;adminLevel="super";errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}
+      else if(pwd===ADMIN_PWD){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";bulkRows=defaultBulkRows(String(cfg.omg));}
+      else{errMsg="Fel lösenord.";}
       render();
     }
     else if(act==="admin-section"){
