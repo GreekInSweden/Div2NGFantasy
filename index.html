@@ -570,6 +570,13 @@ function renderModeSelect(){
         </div>
       </button>
     </div>
+      <button data-act="pick-mode" data-mode="statistik" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
+        <span style="font-size:28px">📈</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Min statistik</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
+        </div>
+      </button>
     <button data-act="logout" style="margin-top:12px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
   </div>`;
 }
@@ -821,6 +828,8 @@ function renderMain(){
     ? [["snabbast","⚡","Snabbast"],["adm","🔒","Admin"]]
     : appMode==="måljakten"
     ? [["måljakten","🎯","Måljakten"],["adm","🔒","Admin"]]
+    : appMode==="statistik"
+    ? [["statistik","📈","Statistik"],["adm","🔒","Admin"]]
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
@@ -828,6 +837,7 @@ function renderMain(){
   else if(mainTab==="ligatipp")body=renderLigatippTab();
   else if(mainTab==="snabbast")body=renderSnabbastTab();
   else if(mainTab==="måljakten")body=renderMåljaktenTab();
+  else if(mainTab==="statistik")body=renderStatistikTab();
   else if(mainTab==="liga")body=renderLigaTab(sorted);
   else if(mainTab==="omg")body=renderOmgTab();
   else body=renderAdminTab();
@@ -1330,6 +1340,108 @@ function renderPrivateLeagueSection(gameMode){
       <button data-act="pl-join-open" class="fg-outbtn" style="flex:1;padding:8px">Gå med med kod</button>
     </div>
     <div id="pl-join-area-${gameMode}"></div>
+  </div>`;
+}
+
+function renderStatistikTab(){
+  const u=currentUser;
+  const lockedRounds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number).sort((a,b)=>a-b);
+  const season="2027"; // kan utökas framöver
+
+  // ── Per spelform ──────────────────────────────────────────────────────────
+  const fantasyPts=lockedRounds.map(r=>userRoundPts(u,r));
+  const fantasyTotal=fantasyPts.reduce((s,p)=>s+p,0);
+  const fantasyBest=lockedRounds.length?Math.max(...fantasyPts):0;
+  const fantasyBestRnd=lockedRounds[fantasyPts.indexOf(fantasyBest)];
+  const fantasyAvg=lockedRounds.length?(fantasyTotal/lockedRounds.length).toFixed(1):0;
+  const fantasyRank=[...users].sort((a,b)=>userTotPts(b)-userTotPts(a)).findIndex(x=>x.id===u.id)+1;
+
+  const tippPts=lockedRounds.map(r=>userTipRoundPts(u,r));
+  const tippTotal=tippPts.reduce((s,p)=>s+p,0);
+  const tippBest=lockedRounds.length?Math.max(...tippPts):0;
+  const tippBestRnd=lockedRounds[tippPts.indexOf(tippBest)];
+  const tippRank=[...users].sort((a,b)=>userTipTotalPts(b)-userTipTotalPts(a)).findIndex(x=>x.id===u.id)+1;
+
+  const snabbPts=lockedRounds.map(r=>userSnabbastRoundPts(u.id,r));
+  const snabbTotal=snabbPts.reduce((s,p)=>s+p,0);
+  const snabbBest=lockedRounds.length?Math.max(...snabbPts):0;
+  const snabbRank=[...users].sort((a,b)=>userSnabbastTotalPts(b.id)-userSnabbastTotalPts(a.id)).findIndex(x=>x.id===u.id)+1;
+
+  const malPts=lockedRounds.map(r=>userMåljaktenRoundPts(u.id,r));
+  const malTotal=malPts.reduce((s,p)=>s+p,0);
+  const malBest=lockedRounds.length?Math.max(...malPts):0;
+  const malRank=[...users].sort((a,b)=>userMåljaktenTotalPts(b.id)-userMåljaktenTotalPts(a.id)).findIndex(x=>x.id===u.id)+1;
+
+  // Gruppsnitt
+  const groupAvg=(arr)=>users.length?(arr.reduce((s,uu)=>s+arr[0],0)/users.length).toFixed(1):0;
+  const fantasyGroupAvg=users.length?(users.reduce((s,uu)=>s+userTotPts(uu),0)/users.length).toFixed(1):0;
+  const tippGroupAvg=users.length?(users.reduce((s,uu)=>s+userTipTotalPts(uu),0)/users.length).toFixed(1):0;
+
+  // ── Spelform-kort ──────────────────────────────────────────────────────────
+  const modeCard=(ico,name,total,best,bestRnd,avg,rank,groupAvgVal)=>`
+    <div class="fg-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:22px">${ico}</span>
+        <span style="font-weight:500;font-size:15px">${name}</span>
+        <span style="margin-left:auto;background:${G_GREENL};color:${G_GREEN};border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500">#${rank>0?rank:"–"}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+        <div style="background:var(--color-background-secondary);border-radius:8px;padding:10px 6px">
+          <div style="font-size:22px;font-weight:700;color:${G_GREEN}">${total}</div>
+          <div style="font-size:10px;color:var(--color-text-secondary)">Totalpoäng</div>
+        </div>
+        <div style="background:var(--color-background-secondary);border-radius:8px;padding:10px 6px">
+          <div style="font-size:22px;font-weight:700">${best}</div>
+          <div style="font-size:10px;color:var(--color-text-secondary)">Bästa omg${bestRnd?" "+bestRnd:""}</div>
+        </div>
+        <div style="background:var(--color-background-secondary);border-radius:8px;padding:10px 6px">
+          <div style="font-size:22px;font-weight:700">${avg}</div>
+          <div style="font-size:10px;color:var(--color-text-secondary)">Snitt/omg</div>
+        </div>
+      </div>
+      ${groupAvgVal?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px;text-align:center">Gruppsnitt: <b>${groupAvgVal} p</b> · Du: <b>${total} p</b> ${Number(total)>=Number(groupAvgVal)?"✅":"📉"}</div>`:""}
+    </div>`;
+
+  // ── Poängkurva Fantasy ─────────────────────────────────────────────────────
+  const maxPts=Math.max(...fantasyPts,1);
+  const barW=Math.max(8,Math.floor(280/Math.max(lockedRounds.length,1)));
+  const bars=lockedRounds.map((r,i)=>{
+    const h=Math.round((fantasyPts[i]/maxPts)*60);
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="font-size:8px;color:${G_GREEN};font-weight:500">${fantasyPts[i]||""}</div>
+      <div style="width:${barW}px;height:${h||2}px;background:${G_GREEN};border-radius:2px 2px 0 0;min-height:2px"></div>
+      <div style="font-size:8px;color:var(--color-text-secondary)">${r}</div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">📈 Min statistik</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Säsong ${season} · ${lockedRounds.length} omgångar spelade</div>
+
+  ${modeCard("⚽","Fantasy",fantasyTotal,fantasyBest,fantasyBestRnd,fantasyAvg,fantasyRank,fantasyGroupAvg)}
+  ${modeCard("🎯","Tippa resultat",tippTotal,tippBest,tippBestRnd,(lockedRounds.length?(tippTotal/lockedRounds.length).toFixed(1):0),tippRank,tippGroupAvg)}
+  ${modeCard("⚡","Snabbast vinner",snabbTotal,snabbBest,lockedRounds[snabbPts.indexOf(snabbBest)],(lockedRounds.length?(snabbTotal/lockedRounds.length).toFixed(1):0),snabbRank,"")}
+  ${modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),malRank,"")}
+
+  ${lockedRounds.length?`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:10px">Fantasy – poäng per omgång</div>
+    <div style="display:flex;align-items:flex-end;gap:2px;height:80px;overflow-x:auto;padding-bottom:4px">
+      ${bars}
+    </div>
+  </div>`:""}
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
+    ${[["⚽ Fantasy",fantasyTotal,fantasyRank],["🎯 Tippa",tippTotal,tippRank],["⚡ Snabbast",snabbTotal,snabbRank],["🎯 Måljakten",malTotal,malRank]].map(([n,p,r])=>`
+      <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1">${n}</span>
+        <span style="color:var(--color-text-secondary);margin-right:12px">#${r>0?r:"–"}</span>
+        <span style="font-weight:500">${p} p</span>
+      </div>`).join("")}
+    <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:600">
+      <span>Grand total</span>
+      <span style="color:${G_GREEN}">${fantasyTotal+tippTotal+snabbTotal+malTotal} p</span>
+    </div>
   </div>`;
 }
 
@@ -1963,8 +2075,9 @@ function attachHandlers(){
         måljaktenAllTips=await fetchAllMåljaktenTips(cfg.omg);
         måljaktenDraft=[...(måljaktenMyTips[cfg.omg]||[])].map(Number);
         screen="main"; mainTab="måljakten";
+      } else if(appMode==="statistik"){
+        screen="main"; mainTab="statistik";
       } else {
-        screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
       }
       // Ladda privata ligor
       allPrivateLeagues=await fetchPrivateLeagues();
