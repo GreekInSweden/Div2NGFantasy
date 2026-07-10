@@ -78,7 +78,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[],
-    userSelectedRound=null, adminLevel=null;
+    userSelectedRound=null, adminLevel=null,
+    allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="";
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -333,6 +334,37 @@ window.saveMåljakten=async function(){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
 };
+async function fetchPrivateLeagues(){
+  const {data,error}=await sb.from("private_leagues").select("*, private_league_members(user_id)").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+async function createPrivateLeague(name,gameMode){
+  const id=Math.random().toString(36).slice(2,10);
+  const {error}=await sb.from("private_leagues").insert({id,name,game_mode:gameMode,league_id:currentLeague.id,created_by:currentUser.id,approved:false,invite_code:null});
+  return error;
+}
+async function joinPrivateLeague(code){
+  const {data,error}=await sb.from("private_leagues").select("*").eq("invite_code",code.toUpperCase()).eq("approved",true).maybeSingle();
+  if(error||!data)return{error:error||{message:"Ogiltig kod."}};
+  const {error:e2}=await sb.from("private_league_members").upsert({private_league_id:data.id,user_id:currentUser.id});
+  return{error:e2,league:data};
+}
+async function approvePrivateLeague(id){
+  const code=Math.random().toString(36).slice(2,8).toUpperCase();
+  const {error}=await sb.from("private_leagues").update({approved:true,invite_code:code}).eq("id",id);
+  if(!error){
+    const league=allPrivateLeagues.find(l=>l.id===id);
+    if(league) await sb.from("private_league_members").upsert({private_league_id:id,user_id:league.created_by});
+    allPrivateLeagues=allPrivateLeagues.map(l=>l.id===id?{...l,approved:true,invite_code:code}:l);
+  }
+  return{error,code};
+}
+async function deletePrivateLeague(id){
+  const {error}=await sb.from("private_leagues").delete().eq("id",id);
+  return error;
+}
+
 function calcSnabbastPts(userPicks,actualResult){
   if(!userPicks||!actualResult||!actualResult.length)return 0;
   let pts=0;
@@ -891,7 +923,8 @@ function renderHemTab(sorted){
       <tbody>${rulesRows}</tbody>
     </table>
     <div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px">Kapten: dubbla alla poäng · Max en spelare per lag</div>
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("fantasy")}`;
 }
 
 function renderTippTab(){
@@ -980,7 +1013,8 @@ function renderTippTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Tipsligan – totalt</div>
     ${lbRows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>'}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("tipp")}`;
 }
 
 function renderMåljaktenTab(){
@@ -1152,7 +1186,8 @@ function renderSnabbastTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Poängställning – totalt</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("snabbast")}`;
 }
 
 
@@ -1225,6 +1260,76 @@ function renderLigatippTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Tippa serienen – poängställning</div>
     ${lbRows}
+  </div>`;
+}
+
+function renderPrivateLeagueSection(gameMode){
+  const gameModeLabel={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien"}[gameMode]||gameMode;
+  const myLeagues=allPrivateLeagues.filter(l=>l.game_mode===gameMode&&l.private_league_members&&l.private_league_members.some(m=>m.user_id===currentUser.id));
+  const pending=allPrivateLeagues.filter(l=>l.game_mode===gameMode&&!l.approved&&l.created_by===currentUser.id);
+
+  // Get points function for this game mode
+  const getPts=(u)=>{
+    if(gameMode==="fantasy") return userTotPts(u);
+    if(gameMode==="tipp") return userTipTotalPts(u);
+    if(gameMode==="snabbast") return userSnabbastTotalPts(u.id);
+    if(gameMode==="måljakten") return userMåljaktenTotalPts(u.id);
+    if(gameMode==="ligatipp") return userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});
+    return 0;
+  };
+
+  // Standings for selected private league
+  let standingsHtml="";
+  if(privateLeagueView){
+    const pl=allPrivateLeagues.find(l=>l.id===privateLeagueView);
+    if(pl&&pl.private_league_members){
+      const memberIds=pl.private_league_members.map(m=>m.user_id);
+      const memberUsers=users.filter(u=>memberIds.includes(u.id)).sort((a,b)=>getPts(b)-getPts(a));
+      const medals=["🥇","🥈","🥉"];
+      standingsHtml=`<div class="fg-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-weight:500">${esc(pl.name)}</div>
+          <button data-act="pl-close" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:13px">✕ Stäng</button>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Inbjudningskod: <b style="color:${G_GREEN};letter-spacing:2px">${pl.invite_code}</b> · Dela med vänner!</div>
+        ${memberUsers.map((u,i)=>{
+          const pts=getPts(u);
+          const isMe=u.id===currentUser.id;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?"background:"+G_GREENL+";border-radius:6px;padding-left:6px;padding-right:6px":""}">
+            <span style="width:22px;text-align:center">${i<3?medals[i]:i+1}</span>
+            <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+            <span style="font-weight:500">${pts} p</span>
+          </div>`;
+        }).join("")}
+      </div>`;
+    }
+  }
+
+  const ligaList=myLeagues.map(pl=>`
+    <button data-act="pl-view" data-id="${pl.id}" style="display:flex;align-items:center;gap:10px;width:100%;background:${privateLeagueView===pl.id?G_GREENL:"var(--color-background-secondary)"};border:1px solid ${privateLeagueView===pl.id?G_GREEN:"var(--color-border-secondary)"};border-radius:8px;padding:10px 12px;cursor:pointer;text-align:left;margin-bottom:6px">
+      <span style="font-size:18px">👥</span>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:500">${esc(pl.name)}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${(pl.private_league_members||[]).length} deltagare · Kod: ${pl.invite_code}</div>
+      </div>
+      <span style="color:var(--color-text-secondary)">›</span>
+    </button>`).join("");
+
+  const pendingHtml=pending.map(pl=>`
+    <div style="background:#fffbeb;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px">
+      ⏳ <b>${esc(pl.name)}</b> väntar på godkännande av admin
+    </div>`).join("");
+
+  return `<div class="fg-card" style="margin-top:10px">
+    <div style="font-weight:500;margin-bottom:10px">👥 Mina privata ligor – ${gameModeLabel}</div>
+    ${standingsHtml}
+    ${ligaList}
+    ${pendingHtml}
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button data-act="pl-create" data-mode="${gameMode}" class="fg-outbtn" style="flex:1;padding:8px">+ Skapa liga</button>
+      <button data-act="pl-join-open" class="fg-outbtn" style="flex:1;padding:8px">Gå med med kod</button>
+    </div>
+    <div id="pl-join-area-${gameMode}"></div>
   </div>`;
 }
 
@@ -1352,7 +1457,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"],["passwords","Lösenord"]];
+  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"],["passwords","Lösenord"],["privliga","Privata ligor"]];
   const adminSections=adminLevel==="super"?allSections:[["round","Omgång"],["goals","Mål"],["snabbast","Snabbast"]];
   const sectionTabs=adminSections.map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
@@ -1565,6 +1670,27 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
     </div>
     ${rowsHtml}`;
+  } else if(adminSection==="privliga"){
+    const pending=allPrivateLeagues.filter(l=>!l.approved);
+    const approved=allPrivateLeagues.filter(l=>l.approved);
+    const modeLabel={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien"};
+    const renderLeagueRow=(l,showApprove)=>`
+      <div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:8px">
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${modeLabel[l.game_mode]||l.game_mode} · ${(l.private_league_members||[]).length} medlemmar${l.invite_code?` · Kod: <b>${l.invite_code}</b>`:""}</div>
+        </div>
+        ${showApprove?`<button data-act="pl-approve" data-id="${l.id}" style="background:${G_GREEN};color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">Godkänn</button>`:""}
+        <button data-act="pl-delete-admin" data-id="${l.id}" style="background:none;border:0.5px solid #c1272d;color:#c1272d;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer">Ta bort</button>
+      </div>`;
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">⏳ Väntar på godkännande (${pending.length})</div>
+      ${pending.length?pending.map(l=>renderLeagueRow(l,true)).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Inga väntande ansökningar.</div>'}
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">✅ Godkända ligor (${approved.length})</div>
+      ${approved.length?approved.map(l=>renderLeagueRow(l,false)).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Inga godkända ligor ännu.</div>'}
+    </div>`;
   } else if(adminSection==="passwords"){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
@@ -1840,7 +1966,44 @@ function attachHandlers(){
       } else {
         screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
       }
+      // Ladda privata ligor
+      allPrivateLeagues=await fetchPrivateLeagues();
       render();
+    }
+    else if(act==="pl-view"){
+      privateLeagueView=privateLeagueView===el.dataset.id?null:el.dataset.id; render();
+    }
+    else if(act==="pl-close"){ privateLeagueView=null; render(); }
+    else if(act==="pl-create"){
+      const mode=el.dataset.mode;
+      const name=prompt("Vad vill du kalla din liga?");
+      if(!name||!name.trim())return;
+      const error=await createPrivateLeague(name.trim(),mode);
+      if(error){flash("Fel: "+error.message);return;}
+      allPrivateLeagues=await fetchPrivateLeagues();
+      flash("✓ Ansökan skickad! Admin godkänner och du får en inbjudningskod.");
+    }
+    else if(act==="pl-join-open"){
+      const code=prompt("Ange inbjudningskoden:");
+      if(!code)return;
+      const {error,league}=await joinPrivateLeague(code);
+      if(error){flash("Fel: "+error.message);return;}
+      allPrivateLeagues=await fetchPrivateLeagues();
+      flash("✓ Du är nu med i "+league.name+"!");
+    }
+    else if(act==="pl-approve"){
+      const id=el.dataset.id;
+      const {error,code}=await approvePrivateLeague(id);
+      if(error){flash("Fel: "+error.message);return;}
+      allPrivateLeagues=await fetchPrivateLeagues();
+      flash("✓ Liga godkänd! Inbjudningskod: "+code);
+    }
+    else if(act==="pl-delete-admin"){
+      if(!confirm("Ta bort denna liga permanent?"))return;
+      const error=await deletePrivateLeague(el.dataset.id);
+      if(error){flash("Fel: "+error.message);return;}
+      allPrivateLeagues=await fetchPrivateLeagues();
+      flash("✓ Liga borttagen.");
     }
     else if(act==="maljakten-place"){
       const id=Number(el.dataset.id);
