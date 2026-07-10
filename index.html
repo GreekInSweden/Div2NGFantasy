@@ -399,6 +399,26 @@ async function deletePrivateLeague(id){
   const {error}=await sb.from("private_leagues").delete().eq("id",id);
   return error;
 }
+async function updatePrivateLeagueSnapshots(){
+  for(const pl of allPrivateLeagues){
+    if(!pl.approved||!pl.private_league_members)continue;
+    const memberIds=(pl.private_league_members||[]).map(m=>m.user_id);
+    const memberUsers=users.filter(u=>memberIds.includes(u.id));
+    const gm=pl.game_mode;
+    const getPts=u=>{
+      if(gm==="fantasy")return userTotPts(u);
+      if(gm==="tipp")return userTipTotalPts(u);
+      if(gm==="snabbast")return userSnabbastTotalPts(u.id);
+      if(gm==="måljakten")return userMåljaktenTotalPts(u.id);
+      if(gm==="ligatipp")return userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});
+      return userTotPts(u)+userTipTotalPts(u)+userSnabbastTotalPts(u.id)+userMåljaktenTotalPts(u.id);
+    };
+    const sorted=[...memberUsers].sort((a,b)=>getPts(b)-getPts(a));
+    const snapshot={};
+    sorted.forEach((u,i)=>{snapshot[u.id]=i+1;});
+    await sb.from("private_leagues").update({standings_snapshot:snapshot}).eq("id",pl.id);
+  }
+}
 
 function calcSnabbastPts(userPicks,actualResult){
   if(!userPicks||!actualResult||!actualResult.length)return 0;
@@ -1330,6 +1350,7 @@ function renderPrivateLeagueSection(gameMode){
     const pl=allPrivateLeagues.find(l=>l.id===privateLeagueView);
     if(pl&&pl.private_league_members){
       const memberIds=pl.private_league_members.map(m=>m.user_id);
+      const snapshot=pl.standings_snapshot||{};
       const memberUsers=users.filter(u=>memberIds.includes(u.id)).sort((a,b)=>getPts(b)-getPts(a));
       const medals=["🥇","🥈","🥉"];
       standingsHtml=`<div class="fg-card">
@@ -1339,12 +1360,15 @@ function renderPrivateLeagueSection(gameMode){
         </div>
         <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${pl.game_mode==="alla"?"🏆 Alla spel – totalpoäng":"Inbjudningskod:"} <b style="color:${G_GREEN};letter-spacing:2px">${pl.invite_code}</b> · Dela med vänner!</div>
         ${memberUsers.map((u,i)=>{
-          const pts=getPts(u);
+          const rank=i+1;
           const isMe=u.id===currentUser.id;
+          const prevRank=snapshot[u.id];
+          const trend=prevRank===undefined?"":rank<prevRank?`<span style="color:#16a34a;font-size:14px">▲</span>`:rank>prevRank?`<span style="color:#c1272d;font-size:14px">▼</span>`:`<span style="color:var(--color-text-secondary);font-size:14px">–</span>`;
           return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?"background:"+G_GREENL+";border-radius:6px;padding-left:6px;padding-right:6px":""}">
-            <span style="width:22px;text-align:center">${i<3?medals[i]:i+1}</span>
+            <span style="width:22px;text-align:center">${rank<=3?medals[rank-1]:rank}</span>
             <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
-            <span style="font-weight:500">${pts} p</span>
+            ${trend}
+            <span style="font-weight:500">${getPts(u)} p</span>
           </div>`;
         }).join("")}
       </div>`;
@@ -2444,9 +2468,13 @@ function attachHandlers(){
       const rnd=String(cfg.omg);
       const cur=rounds[rnd]||{};
       const nowPublished=!cur.results_published;
+      // Spara snapshot av nuvarande ställning INNAN vi publicerar (dvs föregående ställning)
+      if(nowPublished&&allPrivateLeagues.length) await updatePrivateLeagueSnapshots();
       const result=await publishRoundResults(rnd,nowPublished);
       if(result.error){flash("Fel: "+result.error.message);return;}
       rounds={...rounds,[rnd]:{...cur,results_published:nowPublished,picks_snapshot:nowPublished?result.picks_snapshot:cur.picks_snapshot}};
+      // Uppdatera lokalt
+      try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){}
       flash(nowPublished?"✅ Resultat publicerade – poäng räknas nu!":"⏳ Resultat återkallades.");
     }
     else if(act==="toggle-lock"){
