@@ -345,6 +345,26 @@ window.saveMåljakten=async function(){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
 };
+async function fetchAllQuizAnswersAll(){
+  const {data,error}=await sb.from("quiz_answers").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+function userQuizTotalPts(userId,allAnswers,allQuestions){
+  const myAnswers=allAnswers.filter(a=>a.user_id===userId);
+  return myAnswers.reduce((s,a)=>{
+    const q=allQuestions.find(q=>q.id===a.question_id);
+    return s+(q&&q.correct===a.answer?1:0);
+  },0);
+}
+function userQuizRoundPts(userId,roundNum,allAnswers,allQuestions){
+  const rndQs=allQuestions.filter(q=>q.round_num===roundNum);
+  const myAnswers=allAnswers.filter(a=>a.user_id===userId);
+  return rndQs.reduce((s,q)=>{
+    const a=myAnswers.find(a=>a.question_id===q.id);
+    return s+(a&&a.answer===q.correct?1:0);
+  },0);
+}
 async function fetchQuizBank(){
   const {data,error}=await sb.from("quiz_questions").select("*").eq("league_id",currentLeague.id).is("round_num",null).order("created_at");
   if(error){console.error(error);return[];}
@@ -1032,6 +1052,24 @@ function renderRulesScreen(){
         ${tip("💡 En inbjudningskod gäller per spelform. Vill du tävla mot samma grupp i alla spel behöver du en kod per spelform.")}
       `)}
 
+      ${section("🧠","Div2NG Quiz",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Testa dina kunskaper om Div2 Norra Götaland! Varje omgång finns det <b>5 frågor</b> om seriens historia, lag och händelser. Du har <b>5 minuter</b> på dig att svara.
+        </div>
+        ${table([
+          ["Rätt svar","1 p"],
+          ["Fel svar / ej besvarad","0 p"],
+          ["Max per omgång","5 p"],
+          ["Max totalt (26 omgångar)","130 p"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Format:</b> Tre alternativ – <b>1</b>, <b>X</b> eller <b>2</b> – med valfri text bakom.<br>
+          <b>Låsta svar:</b> Klickar du ett alternativ låses svaret permanent.<br>
+          <b>Timer:</b> Börjar när du öppnar quizen. Fortsätter även om du lämnar sidan.
+        </div>
+        ${tip("💡 Det finns en gemensam topplista – ingen privat liga behövs. Alla tävlar mot alla!")}
+      `)}
+
     </div>
   </div>`;
 }
@@ -1570,13 +1608,15 @@ function renderPrivateLeagueSection(gameMode){
 
 function renderQuizTab(){
   const rnd=cfg.omg;
-  const qs=quizQuestions;
+  const qs=quizQuestions.filter(q=>q.round_num===rnd); // bara denna omgångs frågor
   const answers=quizMyAnswers;
   const answeredAll=qs.length>0&&qs.every(q=>answers[q.id]);
   const timeLeft=qs.length>0?getQuizTimeLeft(rnd):300;
   const timedOut=timeLeft<=0;
   const done=answeredAll||timedOut;
   const pts=calcQuizPts(qs,answers);
+  const allAnswers=window._quizAllAnswers||[];
+  const allQs=quizQuestions;
 
   // Start timer if quiz is open and not done
   if(qs.length>0&&!done){
@@ -1633,26 +1673,53 @@ function renderQuizTab(){
     </div>`;
   }).join("");
 
+  // Topplista
+  const medals=["🥇","🥈","🥉"];
+  const quizSorted=[...users].sort((a,b)=>userQuizTotalPts(b.id,allAnswers,allQs)-userQuizTotalPts(a.id,allAnswers,allQs));
+  const quizLeaderboard=`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:10px">🏆 Topplista – Div2NG Quiz</div>
+    ${quizSorted.map((u,i)=>{
+      const p=userQuizTotalPts(u.id,allAnswers,allQs);
+      const isMe=u.id===currentUser.id;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?"background:"+G_GREENL+";border-radius:6px;padding-left:6px;padding-right:6px":""}">
+        <span style="width:22px;text-align:center">${i<3?medals[i]:i+1}</span>
+        <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+        <span style="font-weight:500">${p} p</span>
+      </div>`;
+    }).join("")}
+  </div>`;
+
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🧠 Div2NG Quiz – Omgång ${rnd}</div>
-
-  ${!done?`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:10px;padding:10px 16px;margin-bottom:12px">
+  ${!qs.length?`<div class="fg-card" style="text-align:center;padding:24px"><div style="font-size:36px;margin-bottom:8px">🧠</div><div style="font-weight:500">Inga frågor den här omgången ännu</div></div>`:""}
+  ${qs.length&&!done?`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:10px;padding:10px 16px;margin-bottom:12px">
     <div style="font-size:13px;color:var(--color-text-secondary)">⏱ Tid kvar</div>
-    <div id="quiz-timer" style="font-size:28px;font-weight:700;font-family:monospace;color:${timerColor}">${m}:${s.toString().padStart(2,"0")}</div>
+    <div id="quiz-timer" style="font-size:28px;font-weight:700;font-family:monospace;color:${timeLeft<=30?"#c1272d":timeLeft<=60?"#e65100":"var(--color-text-primary)"}">${Math.floor(timeLeft/60)}:${(timeLeft%60).toString().padStart(2,"0")}</div>
     <div style="font-size:13px;color:var(--color-text-secondary)">${Object.keys(answers).length}/${qs.length} svarade</div>
-  </div>`:`<div class="fg-card" style="text-align:center;background:${pts===qs.length?"#e8f5ee":"var(--color-background-primary)"}">
+  </div>`:""}
+  ${qs.length&&done?`<div class="fg-card" style="text-align:center;background:${pts===qs.length?"#e8f5ee":"var(--color-background-primary)"}">
     <div style="font-size:36px;margin-bottom:6px">${pts===qs.length?"🏆":pts>=3?"🎯":"📚"}</div>
     <div style="font-size:22px;font-weight:700;color:${G_GREEN}">${pts} / ${qs.length} rätt</div>
     <div style="font-size:13px;color:var(--color-text-secondary);margin-top:4px">${timedOut&&!answeredAll?"Tiden tog slut!":"Quiz klar!"}</div>
-  </div>`}
-
-  ${questionCards}`;
+  </div>`:""}
+  ${questionCards}
+  ${quizLeaderboard}`;
 }
 
 function renderStatistikTab(){
   const u=currentUser;
   const lockedRounds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number).sort((a,b)=>a-b);
   const season="2027"; // kan utökas framöver
+
+  // Quiz-statistik
+  const allQsForStats=quizQuestions; // redan laddade om quiz-läget besökts
+  const allAnswersForStats=window._quizAllAnswers||[];
+  const myQuizAnswers=allAnswersForStats.filter(a=>a.user_id===u.id);
+  const quizTotal=userQuizTotalPts(u.id,allAnswersForStats,allQsForStats);
+  const quizRoundPts=lockedRounds.map(r=>userQuizRoundPts(u.id,r,allAnswersForStats,allQsForStats));
+  const quizBest=quizRoundPts.length?Math.max(...quizRoundPts):0;
+  const quizBestRnd=lockedRounds[quizRoundPts.indexOf(quizBest)];
+  const quizAvg=lockedRounds.length?(quizTotal/lockedRounds.length).toFixed(1):0;
 
   // ── Per spelform ──────────────────────────────────────────────────────────
   const fantasyPts=lockedRounds.map(r=>userRoundPts(u,r));
@@ -1737,16 +1804,18 @@ function renderStatistikTab(){
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
-    ${[["⚽ Fantasy",fantasyTotal],["🎯 Tippa",tippTotal],["⚡ Snabbast",snabbTotal],["🎯 Måljakten",malTotal]].map(([n,p])=>`
+    ${[["⚽ Fantasy",fantasyTotal],["🎯 Tippa",tippTotal],["⚡ Snabbast",snabbTotal],["🎯 Måljakten",malTotal],["🧠 Quiz",quizTotal]].map(([n,p])=>`
       <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${n}</span>
         <span style="font-weight:500">${p} p</span>
       </div>`).join("")}
     <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:600">
       <span>Grand total</span>
-      <span style="color:${G_GREEN}">${fantasyTotal+tippTotal+snabbTotal+malTotal} p</span>
+      <span style="color:${G_GREEN}">${fantasyTotal+tippTotal+snabbTotal+malTotal+quizTotal} p</span>
     </div>
-  </div>`;
+  </div>
+
+  ${modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,"")}`;
 }
 
 function renderLigaTab(sorted){
@@ -2481,8 +2550,9 @@ function attachHandlers(){
       } else if(appMode==="quiz"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar Quiz…</div>';
-        quizQuestions=await fetchQuizQuestions(cfg.omg);
+        quizQuestions=await fetchAllQuizAdmin();
         quizMyAnswers=await fetchMyQuizAnswers(cfg.omg);
+        try{window._quizAllAnswers=await fetchAllQuizAnswersAll();}catch(e){window._quizAllAnswers=[];}
         screen="main"; mainTab="quiz";      } else if(appMode==="statistik"){
         screen="main"; mainTab="statistik";
       } else {
