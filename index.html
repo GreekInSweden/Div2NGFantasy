@@ -1500,12 +1500,11 @@ function renderStatistikTab(){
   const tippGroupAvg=users.length?(users.reduce((s,uu)=>s+userTipTotalPts(uu),0)/users.length).toFixed(1):0;
 
   // ── Spelform-kort ──────────────────────────────────────────────────────────
-  const modeCard=(ico,name,total,best,bestRnd,avg,rank,groupAvgVal)=>`
+  const modeCard=(ico,name,total,best,bestRnd,avg,groupAvgVal)=>`
     <div class="fg-card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-size:22px">${ico}</span>
         <span style="font-weight:500;font-size:15px">${name}</span>
-        <span style="margin-left:auto;background:${G_GREENL};color:${G_GREEN};border-radius:20px;padding:2px 10px;font-size:12px;font-weight:500">#${rank>0?rank:"–"}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
         <div style="background:var(--color-background-secondary);border-radius:8px;padding:10px 6px">
@@ -1540,10 +1539,10 @@ function renderStatistikTab(){
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">📈 Min statistik</div>
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Säsong ${season} · ${lockedRounds.length} omgångar spelade</div>
 
-  ${modeCard("⚽","Fantasy",fantasyTotal,fantasyBest,fantasyBestRnd,fantasyAvg,fantasyRank,fantasyGroupAvg)}
-  ${modeCard("🎯","Tippa resultat",tippTotal,tippBest,tippBestRnd,(lockedRounds.length?(tippTotal/lockedRounds.length).toFixed(1):0),tippRank,tippGroupAvg)}
-  ${modeCard("⚡","Snabbast vinner",snabbTotal,snabbBest,lockedRounds[snabbPts.indexOf(snabbBest)],(lockedRounds.length?(snabbTotal/lockedRounds.length).toFixed(1):0),snabbRank,"")}
-  ${modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),malRank,"")}
+  ${modeCard("⚽","Fantasy",fantasyTotal,fantasyBest,fantasyBestRnd,fantasyAvg,fantasyGroupAvg)}
+  ${modeCard("🎯","Tippa resultat",tippTotal,tippBest,tippBestRnd,(lockedRounds.length?(tippTotal/lockedRounds.length).toFixed(1):0),tippGroupAvg)}
+  ${modeCard("⚡","Snabbast vinner",snabbTotal,snabbBest,lockedRounds[snabbPts.indexOf(snabbBest)],(lockedRounds.length?(snabbTotal/lockedRounds.length).toFixed(1):0),"")}
+  ${modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),"")}
 
   ${lockedRounds.length?`<div class="fg-card">
     <div style="font-weight:500;margin-bottom:10px">Fantasy – poäng per omgång</div>
@@ -1554,10 +1553,9 @@ function renderStatistikTab(){
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
-    ${[["⚽ Fantasy",fantasyTotal,fantasyRank],["🎯 Tippa",tippTotal,tippRank],["⚡ Snabbast",snabbTotal,snabbRank],["🎯 Måljakten",malTotal,malRank]].map(([n,p,r])=>`
+    ${[["⚽ Fantasy",fantasyTotal],["🎯 Tippa",tippTotal],["⚡ Snabbast",snabbTotal],["🎯 Måljakten",malTotal]].map(([n,p])=>`
       <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${n}</span>
-        <span style="color:var(--color-text-secondary);margin-right:12px">#${r>0?r:"–"}</span>
         <span style="font-weight:500">${p} p</span>
       </div>`).join("")}
     <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:600">
