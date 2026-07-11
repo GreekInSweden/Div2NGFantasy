@@ -2354,8 +2354,14 @@ function attachHandlers(){
     else if(act==="submit-pin"){
       const val=document.getElementById("login-pin").value.trim();
       const u=pendingLoginUser;
-      const inputHash=await hashPin(val,u.id);
-      if(inputHash===u.pin){
+      let match=false;
+      try{
+        const inputHash=await hashPin(val,u.id);
+        match=inputHash===u.pin;
+      }catch(e){console.error("Hash error:",e);}
+      // Fallback för klartext-PINs
+      if(!match && u.pin && u.pin.length<20) match=val===u.pin;
+      if(match){
         currentUser=u; pendingLoginUser=null; loginErr="";
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
       } else {
@@ -2630,9 +2636,11 @@ function attachHandlers(){
       const pwdHash=await hashAdminPwd(pwd);
       const storedSuper=cfg.superAdminPwd||"";
       const storedAdmin=cfg.adminPwd||"";
-      // Stöder både hash (64 tecken) och klartext (äldre lösenord)
-      const matchSuper=storedSuper.length===64?pwdHash===storedSuper:pwd===storedSuper||pwd===SUPER_ADMIN_PWD;
-      const matchAdmin=storedAdmin.length===64?pwdHash===storedAdmin:pwd===storedAdmin||pwd===ADMIN_PWD;
+      // Hårdkodade lösenord fungerar alltid som nödutgång
+      const matchSuper=pwd===SUPER_ADMIN_PWD||
+        (storedSuper.length===64?pwdHash===storedSuper:pwd===storedSuper);
+      const matchAdmin=pwd===ADMIN_PWD||
+        (storedAdmin.length===64?pwdHash===storedAdmin:pwd===storedAdmin);
       if(matchSuper){adminOk=true;adminLevel="super";errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}
       else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";bulkRows=defaultBulkRows(String(cfg.omg));}
       else{errMsg="Fel lösenord.";}
