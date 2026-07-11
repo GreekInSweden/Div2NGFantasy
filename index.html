@@ -89,7 +89,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[],
     userSelectedRound=null, adminLevel=null,
-    allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="";
+    allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
+    quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null;
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -344,6 +345,67 @@ window.saveMåljakten=async function(){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
 };
+async function fetchQuizQuestions(roundNum){
+  const {data,error}=await sb.from("quiz_questions").select("*").eq("league_id",currentLeague.id).eq("round_num",roundNum).order("created_at");
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+async function fetchMyQuizAnswers(roundNum){
+  const {data,error}=await sb.from("quiz_answers").select("*").eq("user_id",currentUser.id).eq("league_id",currentLeague.id).eq("round_num",roundNum);
+  if(error){console.error(error);return{};}
+  const out={};
+  (data||[]).forEach(a=>{out[a.question_id]=a.answer;});
+  return out;
+}
+async function submitQuizAnswer(questionId,answer,roundNum){
+  const {error}=await sb.from("quiz_answers").upsert({
+    id:currentUser.id+"-"+questionId,
+    user_id:currentUser.id,league_id:currentLeague.id,
+    round_num:roundNum,question_id:questionId,answer
+  });
+  return error;
+}
+async function saveQuizQuestion(q){
+  const {error}=await sb.from("quiz_questions").insert(q);
+  return error;
+}
+async function deleteQuizQuestion(id){
+  const {error}=await sb.from("quiz_questions").delete().eq("id",id);
+  return error;
+}
+async function fetchAllQuizAnswers(roundNum){
+  const {data,error}=await sb.from("quiz_answers").select("*").eq("league_id",currentLeague.id).eq("round_num",roundNum);
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+
+// Timer – sparas i localStorage så det håller vid sidladdning
+function quizTimerKey(roundNum){ return `quiz_start_${currentLeague.id}_${roundNum}_${currentUser.id}`; }
+function getQuizTimeLeft(roundNum){
+  const s=localStorage.getItem(quizTimerKey(roundNum));
+  if(!s)return 300;
+  return Math.max(0,300-Math.floor((Date.now()-parseInt(s))/1000));
+}
+function startQuizTimer(roundNum){
+  if(!localStorage.getItem(quizTimerKey(roundNum))){
+    localStorage.setItem(quizTimerKey(roundNum),Date.now().toString());
+  }
+  if(quizTimerInterval)clearInterval(quizTimerInterval);
+  quizTimerInterval=setInterval(()=>{
+    const left=getQuizTimeLeft(roundNum);
+    const el=document.getElementById("quiz-timer");
+    if(el){
+      const m=Math.floor(left/60),s=left%60;
+      el.textContent=`${m}:${s.toString().padStart(2,"0")}`;
+      el.style.color=left<=30?"#c1272d":left<=60?"#e65100":"var(--color-text-primary)";
+    }
+    if(left<=0){ clearInterval(quizTimerInterval); render(); }
+  },1000);
+}
+function stopQuizTimer(){ if(quizTimerInterval){clearInterval(quizTimerInterval);quizTimerInterval=null;} }
+function calcQuizPts(questions,answers){
+  return questions.reduce((s,q)=>s+(answers[q.id]===q.correct?1:0),0);
+}
 async function fetchPrivateLeagues(){
   const {data,error}=await sb.from("private_leagues").select("*, private_league_members(user_id)").eq("league_id",currentLeague.id);
   if(error){console.error(error);return[];}
@@ -630,6 +692,13 @@ function renderModeSelect(){
         <div>
           <div style="font-weight:500;font-size:16px">Min statistik</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
+        </div>
+      </button>
+      <button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
+        <span style="font-size:28px">🧠</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Div2NG Quiz</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">5 frågor per omgång · 5 minuter på dig</div>
         </div>
       </button>
     <button data-act="logout" style="margin-top:12px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
@@ -947,6 +1016,8 @@ function renderMain(){
     ? [["måljakten","🎯","Måljakten"],["adm","🔒","Admin"]]
     : appMode==="statistik"
     ? [["statistik","📈","Statistik"],["adm","🔒","Admin"]]
+    : appMode==="quiz"
+    ? [["quiz","🧠","Quiz"],["adm","🔒","Admin"]]
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
   let body="";
   if(mainTab==="hem")body=renderHemTab(sorted);
@@ -955,6 +1026,7 @@ function renderMain(){
   else if(mainTab==="snabbast")body=renderSnabbastTab();
   else if(mainTab==="måljakten")body=renderMåljaktenTab();
   else if(mainTab==="statistik")body=renderStatistikTab();
+  else if(mainTab==="quiz")body=renderQuizTab();
   else if(mainTab==="liga")body=renderLigaTab(sorted);
   else if(mainTab==="omg")body=renderOmgTab();
   else body=renderAdminTab();
@@ -1465,6 +1537,87 @@ function renderPrivateLeagueSection(gameMode){
   </div>`;
 }
 
+function renderQuizTab(){
+  const rnd=cfg.omg;
+  const qs=quizQuestions;
+  const answers=quizMyAnswers;
+  const answeredAll=qs.length>0&&qs.every(q=>answers[q.id]);
+  const timeLeft=qs.length>0?getQuizTimeLeft(rnd):300;
+  const timedOut=timeLeft<=0;
+  const done=answeredAll||timedOut;
+  const pts=calcQuizPts(qs,answers);
+
+  // Start timer if quiz is open and not done
+  if(qs.length>0&&!done){
+    startQuizTimer(rnd);
+  } else {
+    stopQuizTimer();
+  }
+
+  if(!qs.length) return `
+    <div style="font-weight:500;font-size:16px;margin-bottom:12px">🧠 Div2NG Quiz</div>
+    <div class="fg-card" style="text-align:center;padding:30px 16px">
+      <div style="font-size:40px;margin-bottom:12px">🧠</div>
+      <div style="font-weight:500;margin-bottom:8px">Inga frågor den här omgången ännu</div>
+      <div style="font-size:13px;color:var(--color-text-secondary)">Admin lägger in frågor inför varje omgång.</div>
+    </div>`;
+
+  const m=Math.floor(timeLeft/60),s=timeLeft%60;
+  const timerColor=timeLeft<=30?"#c1272d":timeLeft<=60?"#e65100":"var(--color-text-primary)";
+
+  const questionCards=qs.map((q,i)=>{
+    const myAns=answers[q.id];
+    const locked=!!myAns||done;
+    const isCorrect=myAns===q.correct;
+
+    const altBtn=(val,label)=>{
+      const chosen=myAns===val;
+      const correct=done&&q.correct===val;
+      const wrong=done&&chosen&&!isCorrect&&val===myAns;
+      let bg="var(--color-background-secondary)";
+      let border="var(--color-border-secondary)";
+      let col="var(--color-text-primary)";
+      if(correct){bg="#e8f5ee";border="#1a6b3c";col="#1a6b3c";}
+      else if(wrong){bg="#fce8e8";border="#c1272d";col="#c1272d";}
+      else if(chosen&&!done){bg=G_GREENL;border=G_GREEN;col=G_GREEN;}
+      return `<button data-act="quiz-answer" data-qid="${q.id}" data-ans="${val}" data-rnd="${rnd}" ${locked?"disabled":""} style="flex:1;padding:10px 6px;border-radius:8px;border:1.5px solid ${border};background:${bg};color:${col};font-size:13px;font-weight:500;cursor:${locked?"default":"pointer"};transition:.15s">
+        <div style="font-weight:700;font-size:11px;margin-bottom:2px">${val}</div>
+        <div style="font-size:12px">${esc(label)}</div>
+      </button>`;
+    };
+
+    const statusBadge=myAns?(isCorrect?`<span style="color:#1a6b3c;font-size:12px;font-weight:500">✓ Rätt! +1p</span>`:`<span style="color:#c1272d;font-size:12px;font-weight:500">✗ Fel (rätt: ${q.correct})</span>`):(done?`<span style="color:var(--color-text-secondary);font-size:12px">Ej besvarad – 0p</span>`:"");
+
+    return `<div class="fg-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div style="font-size:11px;color:var(--color-text-secondary)">Fråga ${i+1} av ${qs.length}</div>
+        ${statusBadge}
+      </div>
+      <div style="font-size:15px;font-weight:500;margin-bottom:14px;line-height:1.4">${esc(q.question)}</div>
+      <div style="display:flex;gap:8px">
+        ${altBtn("1",q.alt1)}
+        ${altBtn("X",q.altx)}
+        ${altBtn("2",q.alt2)}
+      </div>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🧠 Div2NG Quiz – Omgång ${rnd}</div>
+
+  ${!done?`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:10px;padding:10px 16px;margin-bottom:12px">
+    <div style="font-size:13px;color:var(--color-text-secondary)">⏱ Tid kvar</div>
+    <div id="quiz-timer" style="font-size:28px;font-weight:700;font-family:monospace;color:${timerColor}">${m}:${s.toString().padStart(2,"0")}</div>
+    <div style="font-size:13px;color:var(--color-text-secondary)">${Object.keys(answers).length}/${qs.length} svarade</div>
+  </div>`:`<div class="fg-card" style="text-align:center;background:${pts===qs.length?"#e8f5ee":"var(--color-background-primary)"}">
+    <div style="font-size:36px;margin-bottom:6px">${pts===qs.length?"🏆":pts>=3?"🎯":"📚"}</div>
+    <div style="font-size:22px;font-weight:700;color:${G_GREEN}">${pts} / ${qs.length} rätt</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-top:4px">${timedOut&&!answeredAll?"Tiden tog slut!":"Quiz klar!"}</div>
+  </div>`}
+
+  ${questionCards}`;
+}
+
 function renderStatistikTab(){
   const u=currentUser;
   const lockedRounds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number).sort((a,b)=>a-b);
@@ -1689,7 +1842,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"],["passwords","Lösenord"],["privliga","Privata ligor"]];
+  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"],["passwords","Lösenord"],["privliga","Privata ligor"],["quiz","Quiz"]];
   const adminSections=adminLevel==="super"?allSections:[["round","Omgång"],["goals","Mål"],["snabbast","Snabbast"]];
   const sectionTabs=adminSections.map(([id,l])=>
     `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
@@ -1948,6 +2101,38 @@ function renderAdminTab(){
       <div style="font-weight:500;margin-bottom:8px">✅ Aktiva grupper (${Object.keys(groupedApproved).length})</div>
       ${Object.keys(groupedApproved).length?approvedHtml:'<div style="font-size:13px;color:var(--color-text-secondary)">Inga ligor skapade ännu.</div>'}
     </div>`;
+  } else if(adminSection==="quiz"){
+    const rndVal=cfg.omg;
+    const qList=quizQuestions.filter(q=>q.round_num===rndVal);
+    const altOpts=["1","X","2"].map(v=>`<option value="${v}">${v}</option>`).join("");
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">🧠 Quiz – Omgång ${rndVal}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${qList.length}/5 frågor inlagda</div>
+      ${qList.length<5?`
+      <label class="fg-label">Fråga</label>
+      <textarea id="quiz-q" rows="2" placeholder="Skriv din fråga här..." style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:13px;resize:vertical;margin-bottom:8px;background:var(--color-background-primary)"></textarea>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+        <div><label class="fg-label">Alternativ 1</label><input class="fg-input" id="quiz-a1" placeholder="T.ex. 18 lag"/></div>
+        <div><label class="fg-label">Alternativ X</label><input class="fg-input" id="quiz-ax" placeholder="T.ex. 22 lag"/></div>
+        <div><label class="fg-label">Alternativ 2</label><input class="fg-input" id="quiz-a2" placeholder="T.ex. 27 lag"/></div>
+      </div>
+      <label class="fg-label">Rätt svar</label>
+      <select class="fg-input" id="quiz-correct" style="margin-bottom:12px">${altOpts}</select>
+      <button class="fg-btn" data-act="quiz-add" data-rnd="${rndVal}">Lägg till fråga</button>
+      `:`<div style="font-size:13px;color:#1a6b3c;font-weight:500">✓ Alla 5 frågor är inlagda!</div>`}
+    </div>
+    ${qList.length?`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Inlagda frågor</div>
+      ${qList.map((q,i)=>`<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="font-size:13px;font-weight:500;flex:1;margin-right:8px">${i+1}. ${esc(q.question)}</div>
+          <button data-act="quiz-delete" data-id="${q.id}" style="background:none;border:none;color:#c1272d;cursor:pointer;font-size:18px;flex-shrink:0">×</button>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">
+          1: ${esc(q.alt1)} · X: ${esc(q.altx)} · 2: ${esc(q.alt2)} · <b>Rätt: ${q.correct}</b>
+        </div>
+      </div>`).join("")}
+    </div>`:""}`;
   } else if(adminSection==="passwords"){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
@@ -2224,6 +2409,12 @@ function attachHandlers(){
         måljaktenAllTips=await fetchAllMåljaktenTips(cfg.omg);
         måljaktenDraft=[...(måljaktenMyTips[cfg.omg]||[])].map(Number);
         screen="main"; mainTab="måljakten";
+      } else if(appMode==="quiz"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Quiz…</div>';
+        quizQuestions=await fetchQuizQuestions(cfg.omg);
+        quizMyAnswers=await fetchMyQuizAnswers(cfg.omg);
+        screen="main"; mainTab="quiz";
       } else if(appMode==="statistik"){
         screen="main"; mainTab="statistik";
       } else {
@@ -2253,6 +2444,39 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
       flash("✓ Du är nu med i "+(leagues.length>1?leagues.length+" ligor ("+leagues[0].name+")":leagues[0].name)+"!");
+    }
+    else if(act==="quiz-answer"){
+      const qid=el.dataset.qid;
+      const ans=el.dataset.ans;
+      const rnd=Number(el.dataset.rnd);
+      if(quizMyAnswers[qid])return; // redan svarad
+      const timeLeft=getQuizTimeLeft(rnd);
+      if(timeLeft<=0)return; // tid ute
+      const error=await submitQuizAnswer(qid,ans,rnd);
+      if(error){flash("Fel: "+error.message);return;}
+      quizMyAnswers={...quizMyAnswers,[qid]:ans};
+      render();
+    }
+    else if(act==="quiz-add"){
+      const rnd=Number(el.dataset.rnd);
+      const q=document.getElementById("quiz-q").value.trim();
+      const a1=document.getElementById("quiz-a1").value.trim();
+      const ax=document.getElementById("quiz-ax").value.trim();
+      const a2=document.getElementById("quiz-a2").value.trim();
+      const correct=document.getElementById("quiz-correct").value;
+      if(!q||!a1||!ax||!a2){flash("Fyll i alla fält.");return;}
+      const id=Math.random().toString(36).slice(2,10);
+      const error=await saveQuizQuestion({id,league_id:currentLeague.id,round_num:rnd,question:q,alt1:a1,altx:ax,alt2:a2,correct});
+      if(error){flash("Fel: "+error.message);return;}
+      quizQuestions=await fetchQuizQuestions(rnd);
+      flash("✓ Fråga sparad!");
+    }
+    else if(act==="quiz-delete"){
+      if(!confirm("Ta bort denna fråga?"))return;
+      const error=await deleteQuizQuestion(el.dataset.id);
+      if(error){flash("Fel: "+error.message);return;}
+      quizQuestions=await fetchQuizQuestions(cfg.omg);
+      flash("✓ Fråga borttagen.");
     }
     else if(act==="admin-create-group"){
       const name=document.getElementById("admin-pl-group-name").value.trim();
@@ -2345,7 +2569,7 @@ function attachHandlers(){
       const arr=[...ligatippDraft[key]]; arr.splice(idx,1);
       ligatippDraft[key]=arr; render();
     }
-    else if(act==="switch-mode"){ screen="mode"; render(); }
+    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; render(); }
     else if(act==="back-to-main"){screen="main";render();}
     else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
     else if(act==="pick-player"){
