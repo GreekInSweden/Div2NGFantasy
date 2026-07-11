@@ -807,72 +807,134 @@ function renderRulesScreen(){
       <td style="text-align:center;font-weight:500">+${POS_PTS[pos].goal}</td>
     </tr>`).join("");
   const backAct = rulesFrom==="main" ? "rules-back-main" : "rules-back-home";
+
+  const section=(ico,title,content)=>`
+    <div class="fg-card">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <span style="font-size:22px">${ico}</span>
+        <span style="font-weight:600;font-size:16px">${title}</span>
+      </div>
+      ${content}
+    </div>`;
+
+  const table=(rows)=>`<table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:8px">
+    <tbody>${rows.map((r,i)=>`<tr style="${i>0?'border-top:0.5px solid var(--color-border-tertiary)':''}">
+      <td style="padding:5px 0;color:var(--color-text-secondary)">${r[0]}</td>
+      <td style="text-align:right;font-weight:500;white-space:nowrap">${r[1]}</td>
+    </tr>`).join("")}</tbody>
+  </table>`;
+
+  const tip=(text)=>`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:8px;line-height:1.5">${text}</div>`;
+
   return `
-  <div style="min-height:100vh;padding-bottom:20px">
+  <div style="min-height:100vh;padding-bottom:24px">
     <div class="fg-top">
       <button data-act="${backAct}" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0">←</button>
-      <span style="font-weight:500;font-size:16px">Regler</span>
+      <span style="font-weight:500;font-size:16px">Regler & spelformer</span>
     </div>
-    <div style="padding:16px">
-      <div class="fg-card">
-        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Så funkar det</div>
+    <div style="padding:14px">
+
+      <div class="fg-card" style="background:var(--color-background-secondary)">
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Du bygger ett 4-3-3-lag: 1 målvakt, 4 försvarare, 3 mittfältare och 3 forwards –
-          totalt 11 spelare från Div2 Norra Götaland. <b>Du får bara välja en spelare per lag</b>,
-          så du måste sprida ut dina val över minst 11 olika lag.
+          Div2NG Play har fem spelformer. Du väljer själv vilka du vill delta i – varje spelform har sin egen ligatabell och poängräkning. Du kan också gå med i <b>privata ligor</b> och tävla mot kompisar.
         </div>
       </div>
 
-      <div class="fg-card">
-        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Kapten</div>
+      ${section("⚽","Fantasy",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Du utser en av dina 11 spelare till kapten. Kaptenens poäng räknas dubbelt varje omgång.
-          Välj klokt!
+          Sätt ihop ett drömlag med 11 spelare från Div2 Norra Götaland i formationen 4-3-3.
+          <b>Max en spelare per lag</b> – du måste sprida dina val.
+          Du utser även en <b>kapten</b> vars poäng räknas dubbelt.
+          Laget kan bytas fritt fram till att omgångens tippning stänger.
         </div>
-      </div>
-
-      <div class="fg-card">
-        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Poäng per omgång</div>
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">
-          Varje spelare i ditt lag får poäng baserat på sitt riktiga lags resultat den omgången:
-        </div>
-        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:10px">
-          <tbody>
-            <tr><td style="padding:4px 0">Laget vinner</td><td style="text-align:right;font-weight:500">+5 p</td></tr>
-            <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">Laget spelar oavgjort</td><td style="text-align:right;font-weight:500">+2 p</td></tr>
-            <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">Laget förlorar</td><td style="text-align:right;font-weight:500">0 p</td></tr>
-          </tbody>
-        </table>
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:8px;line-height:1.6">
-          Utöver det får varje spelare extra poäng beroende på sin egen position –
-          ju längre bak på planen, desto mer värd är en nollmatch eller ett mål:
-        </div>
-        <table style="width:100%;font-size:13px;border-collapse:collapse">
-          <thead><tr style="color:var(--color-text-secondary);font-size:11px"><td>Position</td><td style="text-align:center">Nollmatch</td><td style="text-align:center">Eget mål</td></tr></thead>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px">Poäng per omgång:</div>
+        ${table([
+          ["Laget vinner","5 p"],["Laget oavgjort","2 p"],["Laget förlorar","0 p"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px">Bonuspoäng per position:</div>
+        <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:6px">
+          <thead><tr style="font-size:11px;color:var(--color-text-secondary)">
+            <td>Position</td><td style="text-align:center">Nollmatch</td><td style="text-align:center">Mål</td>
+          </tr></thead>
           <tbody>${rulesRows}</tbody>
         </table>
-      </div>
+        ${tip("💡 Exempel: Din försvarare vinner 2–0 och gör ett mål → 5p (vinst) + 4p (nollmatch) + 6p (mål) = <b>15p</b>. Som kapten: <b>30p</b>.")}
+      `)}
 
-      <div class="fg-card">
-        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Exempel</div>
+      ${section("🎯","Tippa resultat",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Din försvarare spelar för ett lag som vinner 2–0 och själv gör han ett mål:<br>
-          5 p (vinst) + 4 p (nollmatch som försvarare) + 6 p (mål som försvarare) = <b>15 p</b>.
-          Är han din kapten blir det <b>30 p</b>.
+          Gissa exakt resultat på varje match i omgången. Ju mer rätt du har, desto mer poäng.
+          Tips stänger när omgångens tippning stängs av admin.
         </div>
-      </div>
+        ${table([
+          ["Exakt rätt resultat","10 p"],
+          ["Rätt antal mål för ena laget","4 p/lag"],
+          ["Rätt tecken (1/X/2) men fel mål","2 p"]
+        ])}
+        ${tip("💡 Exempel: Matchen slutar 2–1, du tippar 2–1 → <b>10p</b>. Du tippar 2–0 → bara hemmalaget stämmer → <b>4p</b>. Du tippar 1–0 → rätt tecken → <b>2p</b>.")}
+      `)}
 
-      <div class="fg-card">
-        <div style="font-weight:500;margin-bottom:8px;font-size:16px">Övrigt</div>
+      ${section("⚡","Snabbast vinner",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Du kan byta hela ditt lag när som helst innan en omgångs matcher startar – gå till
-          Hem-fliken och klicka "Byt". Resultat matas in av admin efter varje spelad omgång.
+          Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
+          Poängen baseras på placeringen i facit – 7p för snabbast, 6p för näst snabbast, ner till 1p för sjunde snabbast.
         </div>
-      </div>
+        ${table([
+          ["Snabbaste målet (plats 1)","7 p"],
+          ["Plats 2","6 p"],
+          ["Plats 3","5 p"],
+          ["Plats 4–7","4–1 p"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px;line-height:1.5">
+          <b>Oavgjord minut:</b> Det lag som har bäst tabellplacering går före.<br>
+          <b>Lag utan mål:</b> Placeras efter alla målgörande lag, rangordnade efter tabellplacering.
+        </div>
+        ${tip("💡 Max möjlig poäng per omgång: 7+6+5+4+3+2+1 = <b>28p</b> (om alla 7 dina val finns i facit).")}
+      `)}
+
+      ${section("🎯","Måljakten",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Välj <b>3 lag</b> inför varje omgång. Du får poäng för varje mål dina valda lag gör –
+          med högre belöning för bortamål och bonus för riktigt målrika matcher.
+        </div>
+        ${table([
+          ["Hemmamål","2 p/mål"],
+          ["Bortamål","3 p/mål"],
+          ["Laget gör 3+ mål","+ 5 p bonus"]
+        ])}
+        ${tip("💡 Exempel: Ditt lag vinner borta 3–1 → 3×3p + 5p bonus = <b>14p</b>. Ditt lag vinner hemma 2–0 → 2×2p = <b>4p</b>.")}
+      `)}
+
+      ${section("📊","Tippa serien",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Rangordna <b>alla 14 lag</b> inför säsongsstart – vem vinner, vem slutar sist?
+          Poäng delas ut vid <b>två tillfällen</b>: efter omgång 13 (halvtid) och efter omgång 26 (slutet).
+          För varje lag du placerar på exakt rätt plats får du 3p.
+        </div>
+        ${table([
+          ["Exakt rätt placering","3 p"],
+          ["Max poäng per checkpoint","42 p (14×3p)"],
+          ["Max totalt (båda checkpoints)","84 p"]
+        ])}
+        ${tip("💡 Tippningen stänger innan säsongen startar – du kan inte ändra efteråt. Välj klokt!")}
+      `)}
+
+      ${section("👥","Privata ligor",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Tävla mot kompisar, kollegor eller supportrar från ditt lag i en privat liga!
+          Dina tips och poäng är desamma som i huvudligan – du behöver inte tippa om.
+        </div>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px;line-height:1.5">
+          <b>Gå med:</b> Klicka "Gå med med kod" i respektive spelform och ange koden du fått.<br>
+          <b>Skapa:</b> Klicka "+ Skapa liga" och skicka in en ansökan – admin godkänner och genererar en kod som du delar med dina vänner.<br>
+          <b>Placeringspilar:</b> ▲ grön pil = du klättrat, ▼ röd pil = du tappat, – = oförändrat.
+        </div>
+        ${tip("💡 En inbjudningskod gäller per spelform. Vill du tävla mot samma grupp i alla spel behöver du en kod per spelform.")}
+      `)}
+
     </div>
   </div>`;
 }
-
 function renderMain(){
   const sorted=sortedUsers();
   const tabsDef = appMode==="tipp"
