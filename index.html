@@ -345,6 +345,37 @@ window.saveMåljakten=async function(){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
 };
+async function fetchQuizBank(){
+  const {data,error}=await sb.from("quiz_questions").select("*").eq("league_id",currentLeague.id).is("round_num",null).order("created_at");
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+async function fetchAllQuizAdmin(){
+  const {data,error}=await sb.from("quiz_questions").select("*").eq("league_id",currentLeague.id).order("created_at");
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+async function distributeQuizQuestions(totalRounds=26){
+  // Hämta alla frågor i banken (round_num = null)
+  const bank=await fetchQuizBank();
+  if(!bank.length)return{error:{message:"Inga frågor i banken."},distributed:0};
+  // Blanda slumpmässigt
+  const shuffled=[...bank].sort(()=>Math.random()-0.5);
+  let distributed=0;
+  for(let round=1;round<=totalRounds;round++){
+    const slice=shuffled.slice((round-1)*5,round*5);
+    if(!slice.length)break;
+    for(const q of slice){
+      await sb.from("quiz_questions").update({round_num:round}).eq("id",q.id);
+      distributed++;
+    }
+  }
+  return{error:null,distributed};
+}
+async function resetQuizDistribution(){
+  const {error}=await sb.from("quiz_questions").update({round_num:null}).eq("league_id",currentLeague.id).not("round_num","is",null);
+  return error;
+}
 async function fetchQuizQuestions(roundNum){
   const {data,error}=await sb.from("quiz_questions").select("*").eq("league_id",currentLeague.id).eq("round_num",roundNum).order("created_at");
   if(error){console.error(error);return[];}
@@ -366,7 +397,7 @@ async function submitQuizAnswer(questionId,answer,roundNum){
   return error;
 }
 async function saveQuizQuestion(q){
-  const {error}=await sb.from("quiz_questions").insert(q);
+  const {error}=await sb.from("quiz_questions").insert({...q,round_num:null});
   return error;
 }
 async function deleteQuizQuestion(id){
@@ -2102,28 +2133,60 @@ function renderAdminTab(){
       ${Object.keys(groupedApproved).length?approvedHtml:'<div style="font-size:13px;color:var(--color-text-secondary)">Inga ligor skapade ännu.</div>'}
     </div>`;
   } else if(adminSection==="quiz"){
-    const rndVal=cfg.omg;
-    const qList=quizQuestions.filter(q=>q.round_num===rndVal);
     const altOpts=["1","X","2"].map(v=>`<option value="${v}">${v}</option>`).join("");
-    body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">🧠 Quiz – Omgång ${rndVal}</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${qList.length}/5 frågor inlagda</div>
-      ${qList.length<5?`
+    const bankList=quizQuestions.filter(q=>!q.round_num);
+    const distributedList=quizQuestions.filter(q=>q.round_num);
+    const totalTarget=130;
+    const pct=Math.min(100,Math.round(bankList.length/totalTarget*100));
+    const distributed=distributedList.length>0;
+
+    // Progress bar
+    const progressBar=`<div style="background:var(--color-background-secondary);border-radius:20px;height:8px;margin:8px 0">
+      <div style="background:${G_GREEN};border-radius:20px;height:8px;width:${pct}%;transition:.3s"></div>
+    </div>`;
+
+    body=`
+    <div class="fg-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <div style="font-weight:500">🧠 Frågebank</div>
+        <div style="font-size:13px;font-weight:500;color:${G_GREEN}">${bankList.length} / ${totalTarget} frågor</div>
+      </div>
+      ${progressBar}
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">
+        Lägg in alla frågor här. Du kan spara och återkomma när du vill. När du är klar klickar du "Allt klart".
+      </div>
       <label class="fg-label">Fråga</label>
-      <textarea id="quiz-q" rows="2" placeholder="Skriv din fråga här..." style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:13px;resize:vertical;margin-bottom:8px;background:var(--color-background-primary)"></textarea>
+      <textarea id="quiz-q" rows="2" placeholder="T.ex. Hur många lag har totalt spelat i serien sedan 2017?" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:13px;resize:vertical;margin-bottom:8px;background:var(--color-background-primary)"></textarea>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
         <div><label class="fg-label">Alternativ 1</label><input class="fg-input" id="quiz-a1" placeholder="T.ex. 18 lag"/></div>
         <div><label class="fg-label">Alternativ X</label><input class="fg-input" id="quiz-ax" placeholder="T.ex. 22 lag"/></div>
         <div><label class="fg-label">Alternativ 2</label><input class="fg-input" id="quiz-a2" placeholder="T.ex. 27 lag"/></div>
       </div>
-      <label class="fg-label">Rätt svar</label>
-      <select class="fg-input" id="quiz-correct" style="margin-bottom:12px">${altOpts}</select>
-      <button class="fg-btn" data-act="quiz-add" data-rnd="${rndVal}">Lägg till fråga</button>
-      `:`<div style="font-size:13px;color:#1a6b3c;font-weight:500">✓ Alla 5 frågor är inlagda!</div>`}
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <div style="flex:1"><label class="fg-label">Rätt svar</label>
+        <select class="fg-input" id="quiz-correct">${altOpts}</select></div>
+        <button class="fg-btn" data-act="quiz-add" style="white-space:nowrap;padding:10px 16px">Spara fråga</button>
+      </div>
     </div>
-    ${qList.length?`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">Inlagda frågor</div>
-      ${qList.map((q,i)=>`<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+
+    ${bankList.length>=5?`<div class="fg-card" style="background:${distributed?"#e8f5ee":"var(--color-background-primary)"}">
+      <div style="font-weight:500;margin-bottom:6px">${distributed?"✅ Frågor redan fördelade":"🎲 Fördela frågor automatiskt"}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.5">
+        ${distributed
+          ? `${distributedList.length} frågor är fördelade på ${Math.ceil(distributedList.length/5)} omgångar. Vill du ändra? Klicka "Återställ" för att lägga tillbaka alla i banken och fördela om.`
+          : `${bankList.length} frågor i banken. Appen slumpar ut 5 per omgång (räcker till ${Math.floor(bankList.length/5)} omgångar).`}
+      </div>
+      <div style="display:flex;gap:8px">
+        ${!distributed?`<button class="fg-btn" data-act="quiz-distribute">✅ Allt klart – Fördela frågor!</button>`:""}
+        ${distributed?`<button class="fg-outbtn" data-act="quiz-reset-dist" style="flex:1">↩ Återställ fördelning</button>`:""}
+      </div>
+    </div>`:`<div class="fg-card" style="background:#fffbeb">
+      <div style="font-size:13px;color:#92400e">Lägg in minst 5 frågor för att kunna fördela.</div>
+    </div>`}
+
+    ${bankList.length?`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Frågor i banken (${bankList.length} st)</div>
+      ${bankList.map((q,i)=>`<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;justify-content:space-between;align-items:flex-start">
           <div style="font-size:13px;font-weight:500;flex:1;margin-right:8px">${i+1}. ${esc(q.question)}</div>
           <button data-act="quiz-delete" data-id="${q.id}" style="background:none;border:none;color:#c1272d;cursor:pointer;font-size:18px;flex-shrink:0">×</button>
@@ -2420,8 +2483,7 @@ function attachHandlers(){
         root2.innerHTML='<div class="fg-loading">Laddar Quiz…</div>';
         quizQuestions=await fetchQuizQuestions(cfg.omg);
         quizMyAnswers=await fetchMyQuizAnswers(cfg.omg);
-        screen="main"; mainTab="quiz";
-      } else if(appMode==="statistik"){
+        screen="main"; mainTab="quiz";      } else if(appMode==="statistik"){
         screen="main"; mainTab="statistik";
       } else {
         screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
@@ -2464,7 +2526,6 @@ function attachHandlers(){
       render();
     }
     else if(act==="quiz-add"){
-      const rnd=Number(el.dataset.rnd);
       const q=document.getElementById("quiz-q").value.trim();
       const a1=document.getElementById("quiz-a1").value.trim();
       const ax=document.getElementById("quiz-ax").value.trim();
@@ -2472,17 +2533,32 @@ function attachHandlers(){
       const correct=document.getElementById("quiz-correct").value;
       if(!q||!a1||!ax||!a2){flash("Fyll i alla fält.");return;}
       const id=Math.random().toString(36).slice(2,10);
-      const error=await saveQuizQuestion({id,league_id:currentLeague.id,round_num:rnd,question:q,alt1:a1,altx:ax,alt2:a2,correct});
+      const error=await saveQuizQuestion({id,league_id:currentLeague.id,question:q,alt1:a1,altx:ax,alt2:a2,correct});
       if(error){flash("Fel: "+error.message);return;}
-      quizQuestions=await fetchQuizQuestions(rnd);
-      flash("✓ Fråga sparad!");
+      quizQuestions=await fetchAllQuizAdmin();
+      flash("✓ Fråga sparad! ("+quizQuestions.filter(q=>!q.round_num).length+" i banken)");
     }
     else if(act==="quiz-delete"){
       if(!confirm("Ta bort denna fråga?"))return;
       const error=await deleteQuizQuestion(el.dataset.id);
       if(error){flash("Fel: "+error.message);return;}
-      quizQuestions=await fetchQuizQuestions(cfg.omg);
+      quizQuestions=await fetchAllQuizAdmin();
       flash("✓ Fråga borttagen.");
+    }
+    else if(act==="quiz-distribute"){
+      if(!confirm("Fördela alla frågor slumpmässigt på omgångarna? Du kan återställa efteråt om du vill ändra."))return;
+      el.textContent="Fördelar…"; el.disabled=true;
+      const {error,distributed}=await distributeQuizQuestions(26);
+      if(error){flash("Fel: "+error.message);return;}
+      quizQuestions=await fetchAllQuizAdmin();
+      flash("✓ "+distributed+" frågor fördelade på "+Math.ceil(distributed/5)+" omgångar!");
+    }
+    else if(act==="quiz-reset-dist"){
+      if(!confirm("Återställ fördelningen? Alla frågor läggs tillbaka i banken."))return;
+      const error=await resetQuizDistribution();
+      if(error){flash("Fel: "+error.message);return;}
+      quizQuestions=await fetchAllQuizAdmin();
+      flash("✓ Fördelning återställd – alla frågor är nu i banken igen.");
     }
     else if(act==="admin-create-group"){
       const name=document.getElementById("admin-pl-group-name").value.trim();
@@ -2649,6 +2725,7 @@ function attachHandlers(){
     else if(act==="admin-section"){
       adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
+      if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
       render();
     }
     else if(act==="goals-search-update"){ render(); }
