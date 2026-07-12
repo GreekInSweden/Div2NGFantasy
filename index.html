@@ -3154,7 +3154,8 @@ function attachHandlers(){
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
     else if(act==="admin-login"){
       const pwd=document.getElementById("admin-pwd").value;
-      const pwdHash=await hashAdminPwd(pwd);
+      let pwdHash="";
+      try{pwdHash=await hashAdminPwd(pwd);}catch(e){console.error("Hash error:",e);}
       const storedSuper=cfg.superAdminPwd||"";
       const storedAdmin=cfg.adminPwd||"";
       // Hårdkodade lösenord fungerar alltid som nödutgång
