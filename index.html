@@ -1333,6 +1333,23 @@ function renderTippTab(){
   ${renderPrivateLeagueSection("tipp")}`;
 }
 
+function renderRoundMatches(rd){
+  if(!rd||!rd.matches||!rd.matches.length) return "";
+  const rows=rd.matches.map(m=>{
+    const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
+    const hasRes=rd.results_published&&(m.hMål>0||m.aMål>0||rd.locked);
+    return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px">
+      <span style="flex:1;text-align:right;color:var(--color-text-secondary)">${esc(h?h.name:"")}</span>
+      <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 7px;font-weight:500;font-size:11px;min-width:38px;text-align:center">${rd.results_published?m.hMål+"–"+m.aMål:"–"}</span>
+      <span style="flex:1;color:var(--color-text-secondary)">${esc(a?a.name:"")}</span>
+    </div>`;
+  }).join("");
+  return `<div class="fg-card" style="margin-bottom:10px">
+    <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--color-text-secondary)">📅 Omgång ${cfg.omg} – matcher</div>
+    ${rows}
+  </div>`;
+}
+
 function renderMåljaktenTab(){
   const rd=rounds[String(cfg.omg)];
   const locked=rd&&rd.locked;
@@ -1378,6 +1395,7 @@ function renderMåljaktenTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">\uD83C\uDFAF Måljakten – Omgång ${cfg.omg}</div>
+  ${renderRoundMatches(rd)}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:10px">Hur funkar Måljakten?</div>
@@ -1475,6 +1493,7 @@ function renderSnabbastTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">⚡ Snabbast vinner – Omgång ${cfg.omg}</div>
+  ${renderRoundMatches(rd)}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:10px">
