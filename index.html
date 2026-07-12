@@ -2218,10 +2218,18 @@ function renderAdminTab(){
     <div class="fg-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div style="font-weight:500">🧠 Frågebank – massimport</div>
-        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">Klistra in frågor i formatet nedan – en blank rad mellan varje fråga.</div>
-        <div style="background:var(--color-background-secondary);border-radius:6px;padding:8px 12px;font-size:11px;font-family:monospace;margin-bottom:10px;line-height:1.8;color:var(--color-text-secondary)">Q: Frågetext<br>1: Alternativ 1<br>X: Alternativ X<br>2: Alternativ 2<br>Rätt: X</div>
-        <textarea id="quiz-bulk-import" rows="10" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Klistra in dina frågor här..." style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);margin-bottom:10px"></textarea>
-        <button class="fg-btn" data-act="quiz-bulk-import">Importera alla frågor</button>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
+          Välj filen <b>quiz_import.txt</b> från din dator – alla frågor läggs in i banken automatiskt.
+        </div>
+        <label style="display:flex;align-items:center;gap:10px;background:var(--color-background-secondary);border:1.5px dashed var(--color-border-secondary);border-radius:8px;padding:14px;cursor:pointer">
+          <span style="font-size:24px">📂</span>
+          <div>
+            <div style="font-weight:500;font-size:13px">Välj quiz_import.txt</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)" id="quiz-file-label">Ingen fil vald</div>
+          </div>
+          <input type="file" id="quiz-import-file" accept=".txt" style="display:none" onchange="document.getElementById('quiz-file-label').textContent=this.files[0]?.name||'Ingen fil vald'">
+        </label>
+        <button class="fg-btn" data-act="quiz-bulk-import" style="margin-top:10px">Importera alla frågor</button>
         <div style="border-top:0.5px solid var(--color-border-tertiary);margin:16px 0"></div>
         <div style="font-weight:500">🧠 Frågebank</div>
         <div style="font-size:13px;font-weight:500;color:${G_GREEN}">${bankList.length} / ${totalTarget} frågor</div>
@@ -2602,25 +2610,26 @@ function attachHandlers(){
       render();
     }
     else if(act==="quiz-bulk-import"){
-      const raw=document.getElementById("quiz-bulk-import").value.trim();
-      if(!raw){flash("Klistra in frågor först.");return;}
-      // Parsa frågor
+      const fileInput=document.getElementById("quiz-import-file");
+      if(!fileInput||!fileInput.files||!fileInput.files[0]){flash("Välj en fil först.");return;}
+      el.textContent="Importerar…"; el.disabled=true;
+      const raw=await new Promise((res,rej)=>{
+        const reader=new FileReader();
+        reader.onload=e=>res(e.target.result);
+        reader.onerror=rej;
+        reader.readAsText(fileInput.files[0],'UTF-8');
+      });
       const blocks=raw.split(/\n\s*\n/).map(b=>b.trim()).filter(b=>b);
       let saved=0, errors=0;
-      el.textContent="Importerar…"; el.disabled=true;
       for(const block of blocks){
         const lines=block.split('\n').map(l=>l.trim());
-        const get=(prefix)=>{
-          const line=lines.find(l=>l.startsWith(prefix));
-          return line?line.slice(prefix.length).trim():"";
-        };
+        const get=(prefix)=>{const line=lines.find(l=>l.startsWith(prefix));return line?line.slice(prefix.length).trim():"";};
         const question=get("Q:");
         const alt1=get("1:");
         const altx=get("X:");
         const alt2=get("2:");
         const correct=get("Rätt:");
-        if(!question||!alt1||!altx||!alt2||!correct){errors++;continue;}
-        if(!['1','X','2'].includes(correct)){errors++;continue;}
+        if(!question||!alt1||!altx||!alt2||!['1','X','2'].includes(correct)){errors++;continue;}
         const id=Math.random().toString(36).slice(2,10);
         const error=await saveQuizQuestion({id,league_id:currentLeague.id,question,alt1,altx,alt2,correct});
         if(error) errors++;
