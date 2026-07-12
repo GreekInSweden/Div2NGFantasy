@@ -2938,17 +2938,22 @@ function attachHandlers(){
       const body=document.getElementById("push-body").value.trim();
       if(!title||!body){flash("Fyll i rubrik och meddelande.");return;}
       el.textContent="Skickar…"; el.disabled=true;
-      // Hämta alla prenumerationer
-      const {data:subs,error}=await sb.from("push_subscriptions").select("endpoint,keys");
-      if(error||!subs?.length){flash("Inga prenumeranter hittades.");el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
-      const resp=await fetch("/api/send-notification",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","x-api-key":window.PUSH_API_KEY||""},
-        body:JSON.stringify({subscriptions:subs,title,body,url:"/"})
-      });
-      const result=await resp.json();
+      try{
+        const {data:subs,error}=await sb.from("push_subscriptions").select("endpoint,keys");
+        if(error){flash("Databasfel: "+error.message);el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
+        if(!subs?.length){flash("Inga prenumeranter ännu – be användarna aktivera notiser.");el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
+        const resp=await fetch("/api/send-notification",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","x-api-key":window.PUSH_API_KEY||""},
+          body:JSON.stringify({subscriptions:subs,title,body,url:"/"})
+        });
+        if(!resp.ok){flash("API-fel: "+resp.status+" "+resp.statusText);el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
+        const result=await resp.json();
+        flash(`✓ Notis skickad till ${result.sent} användare!${result.failed?` (${result.failed} misslyckades)`:""}`);
+      }catch(e){
+        flash("Fel: "+e.message);
+      }
       el.textContent="Skicka till alla prenumeranter"; el.disabled=false;
-      flash(`✓ Notis skickad till ${result.sent} användare!${result.failed?` (${result.failed} misslyckades)`:""}`);
     }
     else if(act==="toggle-quiz"){
       const newVal=!cfg.quizEnabled;
