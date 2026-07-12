@@ -1128,36 +1128,13 @@ function renderRulesScreen(){
 }
 function renderMain(){
   const sorted=sortedUsers();
-  const tabsDef = appMode==="tipp"
-    ? [["tipp","🎯","Tippa"],["omg","📅","Omgångar"],["adm","🔒","Admin"]]
-    : appMode==="ligatipp"
-    ? [["ligatipp","📊","Tippa serien"],["adm","🔒","Admin"]]
-    : appMode==="snabbast"
-    ? [["snabbast","⚡","Snabbast"],["adm","🔒","Admin"]]
-    : appMode==="måljakten"
-    ? [["måljakten","🎯","Måljakten"],["adm","🔒","Admin"]]
-    : appMode==="statistik"
+  const tabsDef = appMode==="statistik"
     ? [["statistik","📈","Statistik"],["adm","🔒","Admin"]]
-    : appMode==="quiz"
-    ? [["quiz","🧠","Quiz"],["adm","🔒","Admin"]]
-    : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["omg","📅","Omgångar"],["adm","🔒","Admin"]];
-  let body="";
-  if(mainTab==="hem")body=renderHemTab(sorted);
-  else if(mainTab==="tipp")body=renderTippTab();
-  else if(mainTab==="ligatipp")body=renderLigatippTab();
-  else if(mainTab==="snabbast")body=renderSnabbastTab();
-  else if(mainTab==="måljakten")body=renderMåljaktenTab();
-  else if(mainTab==="statistik")body=renderStatistikTab();
-  else if(mainTab==="quiz")body=renderQuizTab();
-  else if(mainTab==="liga")body=renderLigaTab(sorted);
-  else if(mainTab==="omg")body=renderOmgTab();
-  else body=renderAdminTab();
-
-  const tabs=tabsDef.map(([id,ico,lbl])=>`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`).join("");
-
-  // Rundväljare – bara synlig i Fantasy-läget
-  const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
-  const roundStrip = (appMode==="fantasy"||appMode===null) && roundKeys.length ? `
+    : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
+  // Rundstripp för alla spelformer
+  const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&allRoundKeys.length>0;
+  const roundStrip=showRoundStrip?`
     <div style="background:#1a1a1a;padding:6px 12px 8px">
       <div style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px">
       ${Array.from({length:26},(_,i)=>i+1).map(r=>{
@@ -1169,7 +1146,28 @@ function renderMain(){
         return `<button data-act="user-jump-round" data-r="${r}" style="height:26px;border-radius:5px;border:none;background:${bg};color:${col};font-size:11px;font-weight:${isActive?700:500};cursor:pointer;width:100%">${r}</button>`;
       }).join("")}
       </div>
-    </div>` : "";
+    </div>`:"";
+
+  let body="";
+  if(mainTab==="hem"){
+    if(appMode==="fantasy"||appMode===null) body=renderHemTab(sorted);
+    else if(appMode==="tipp") body=renderTippTab();
+    else if(appMode==="ligatipp") body=renderLigatippTab();
+    else if(appMode==="snabbast") body=renderSnabbastTab();
+    else if(appMode==="måljakten") body=renderMåljaktenTab();
+    else if(appMode==="quiz") body=renderQuizTab();
+    else body=renderHemTab(sorted);
+  }
+  else if(mainTab==="regler") body=renderRegler();
+  else if(mainTab==="liga") body=renderLigaTab(sorted);
+  else if(mainTab==="statistik") body=renderStatistikTab();
+  else if(mainTab==="omg") body=renderOmgTab();
+  else body=renderAdminTab();
+
+  const tabs=tabsDef.map(([id,ico,lbl])=>`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`).join("");
+
+  // Rundväljare – bara synlig i Fantasy-läget
+  const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
 
   return `
   <div style="min-height:100vh">
@@ -1874,20 +1872,43 @@ function renderStatistikTab(){
   ${modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,"")}`;
 }
 
+function renderRegler(){
+  // Redirect to rules screen
+  rulesFrom="main";
+  screen="rules";
+  return renderRulesScreen();
+}
+
 function renderLigaTab(sorted){
   const medals=["🥇","🥈","🥉"];
-  const rows=sorted.map((u,i)=>{
-    const pts=userTotPts(u);
+
+  // Välj rätt poängfunktion och titel baserat på spelform
+  let title="📊 Liga", getPts, subText;
+  if(appMode==="tipp"||appMode===null&&mainTab==="liga"){
+    if(appMode==="tipp"){title="📊 Tippligan";getPts=u=>userTipTotalPts(u);subText=u=>`${Object.values(u.tips||{}).filter(t=>t&&t.length>0).length} omgångar tippade`;}
+    else{title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
+  }
+  if(appMode==="fantasy"||appMode===null){title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
+  else if(appMode==="tipp"){title="📊 Tippligan";getPts=u=>userTipTotalPts(u);subText=u=>`${Object.keys(u.tips||{}).filter(k=>(u.tips[k]||[]).length>0).length} omgångar tippade`;}
+  else if(appMode==="snabbast"){title="📊 Snabbast-ligan";getPts=u=>userSnabbastTotalPts(u.id);subText=u=>`${userSnabbastTotalPts(u.id)} p totalt`;}
+  else if(appMode==="måljakten"){title="📊 Målligan";getPts=u=>userMåljaktenTotalPts(u.id);subText=u=>`${userMåljaktenTotalPts(u.id)} p totalt`;}
+  else if(appMode==="ligatipp"){title="📊 Serietipps-ligan";getPts=u=>userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});subText=u=>`${getPts(u)} p totalt`;}
+  else if(appMode==="quiz"){title="📊 Quiz-ligan";getPts=u=>userQuizTotalPts(u.id,window._quizAllAnswers||[],quizQuestions);subText=u=>`${getPts(u)} p totalt`;}
+  else{title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
+
+  const ligaSorted=[...users].sort((a,b)=>getPts(b)-getPts(a));
+
+  const rows=ligaSorted.map((u,i)=>{
+    const pts=getPts(u);
     const isMe=currentUser&&u.id===currentUser.id;
-    const cnt=pickCount(u);
     return `<div class="fg-card" style="display:flex;align-items:center;gap:10px;background:${isMe?G_GREENL:"var(--color-background-primary)"};border:${isMe?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"}">
       <div style="width:26px;text-align:center">${i<3?medals[i]:i+1}</div>
       <div style="width:38px;height:38px;border-radius:50%;background:${isMe?G_GREEN:"var(--color-background-secondary)"};color:${isMe?"#fff":"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
-      <div style="flex:1"><div style="font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?`<span style="font-size:11px;color:${G_GREEN}"> (du)</span>`:""}</div><div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare valda</div></div>
+      <div style="flex:1"><div style="font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?`<span style="font-size:11px;color:${G_GREEN}"> (du)</span>`:""}</div><div style="font-size:12px;color:var(--color-text-secondary)">${subText(u)}</div></div>
       <div style="font-weight:500;font-size:18px">${pts}</div>
     </div>`;
   }).join("");
-  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Ligatbell</div>${rows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare ännu.</div>'}`;
+  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">${title}</div>${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare ännu.</div>'}`;
 }
 
 function renderOmgTab(){
@@ -2624,21 +2645,21 @@ function attachHandlers(){
           full:ligatipp?[...(ligatipp.fullTip||[])].map(Number):[]
         };
         ligatippCheckpoint=1;
-        screen="main"; mainTab="ligatipp";
+        screen="main"; mainTab="hem";
       } else if(appMode==="snabbast"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar Snabbast vinner…</div>';
         snabbastMyTips=await fetchMySnabbastTips();
         snabbastAllTips=await fetchAllSnabbastTips(cfg.omg);
         snabbastDraft=[...(snabbastMyTips[cfg.omg]||[])].map(Number);
-        screen="main"; mainTab="snabbast";
+        screen="main"; mainTab="hem";
       } else if(appMode==="måljakten"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar Måljakten…</div>';
         måljaktenMyTips=await fetchMyMåljaktenTips();
         måljaktenAllTips=await fetchAllMåljaktenTips(cfg.omg);
         måljaktenDraft=[...(måljaktenMyTips[cfg.omg]||[])].map(Number);
-        screen="main"; mainTab="måljakten";
+        screen="main"; mainTab="hem";
       } else if(appMode==="quiz"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar Quiz…</div>';
@@ -2648,7 +2669,7 @@ function attachHandlers(){
         screen="main"; mainTab="quiz";      } else if(appMode==="statistik"){
         screen="main"; mainTab="statistik";
       } else {
-        screen="main"; mainTab=appMode==="tipp"?"tipp":"hem";
+        screen="main"; mainTab="hem";
       }
       // Ladda privata ligor
       try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
