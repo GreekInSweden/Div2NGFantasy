@@ -1925,6 +1925,15 @@ function renderOmgTab(){
   ${details}`;
 }
 
+function adminDefaultRound(){
+  // Hitta första öppna (ej låsta) omgången, annars senaste inlagda
+  const keys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  const firstOpen=keys.find(r=>!rounds[String(r)].locked);
+  if(firstOpen) return String(firstOpen);
+  if(keys.length) return String(keys[keys.length-1]);
+  return String(cfg.omg);
+}
+
 function defaultBulkRows(rndKey){
   const existing = rounds[rndKey];
   if(existing && existing.matches.length){
@@ -2855,8 +2864,8 @@ function attachHandlers(){
         (storedSuper.length===64?pwdHash===storedSuper:pwd===storedSuper);
       const matchAdmin=pwd===ADMIN_PWD||
         (storedAdmin.length===64?pwdHash===storedAdmin:pwd===storedAdmin);
-      if(matchSuper){adminOk=true;adminLevel="super";errMsg="";bulkRows=defaultBulkRows(String(cfg.omg));}
-      else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";bulkRows=defaultBulkRows(String(cfg.omg));}
+      if(matchSuper){adminOk=true;adminLevel="super";errMsg="";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
+      else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
       else{errMsg="Fel lösenord.";}
       render();
     }
