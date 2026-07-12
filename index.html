@@ -78,7 +78,51 @@ const TOTAL_PICKS=11;
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:7},MID:{clean:2,goal:5},FW:{clean:1,goal:5}};
 const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
-const TOPBAR="#1a1a1a",S_GREEN="#1a6b3c",S_GREENL="#e8f5ee",S_AMBER="#92400e",S_AMBERL="#fffbeb";
+const VAPID_PUBLIC_KEY='BLgYpjU9Sl63NQ7NmIEi0iWU6cbZnanerYsiJQqGxXFMud8Z5SQx3fIpI3OuwBuspCCvZVjlVMPc63y57EkXpEM';
+
+async function subscribeToPush(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)) return null;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    const sub=await reg.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+    // Spara prenumeration i Supabase
+    const subJson=sub.toJSON();
+    await sb.from("push_subscriptions").upsert({
+      id:currentUser.id+"-"+btoa(subJson.endpoint).slice(0,20),
+      user_id:currentUser.id,
+      endpoint:subJson.endpoint,
+      keys:subJson.keys
+    });
+    return sub;
+  }catch(e){console.error("Push subscribe failed:",e);return null;}
+}
+
+async function unsubscribeFromPush(){
+  if(!('serviceWorker' in navigator)) return;
+  const reg=await navigator.serviceWorker.ready;
+  const sub=await reg.pushManager.getSubscription();
+  if(sub){
+    await sub.unsubscribe();
+    await sb.from("push_subscriptions").delete().eq("user_id",currentUser.id);
+  }
+}
+
+async function getPushSubscriptionStatus(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)) return false;
+  const reg=await navigator.serviceWorker.ready;
+  const sub=await reg.pushManager.getSubscription();
+  return !!sub;
+}
+
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=window.atob(base64);
+  return Uint8Array.from([...raw].map(c=>c.charCodeAt(0)));
+}
 
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
@@ -728,6 +772,13 @@ function render(){
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
+  // Uppdatera push-knapp asynkront när mode-skärmen visas
+  if(screen==="mode"){
+    getPushSubscriptionStatus().then(isSubbed=>{
+      const btn=document.getElementById("push-btn");
+      if(btn) btn.textContent=isSubbed?"🔕 Stäng av notiser":"🔔 Aktivera notiser";
+    }).catch(()=>{});
+  }
 }
 
 function renderModeSelect(){
@@ -786,7 +837,8 @@ function renderModeSelect(){
         </div>
       </button>`:""}
 
-    <button data-act="logout" style="margin-top:12px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
+    <button data-act="toggle-push" id="push-btn" style="margin-top:8px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:7px 14px;color:var(--color-text-secondary);font-size:12px;cursor:pointer">🔔 Aktivera notiser</button>
+    <button data-act="logout" style="margin-top:6px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
   </div>`;
 }
 
@@ -2108,7 +2160,7 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"]];
+  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"]];
   const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
@@ -2473,6 +2525,18 @@ function renderAdminTab(){
         </div>
       </div>`).join("")}
     </div>`:""}`;
+  } else if(adminSection==="push"){
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">🔔 Skicka push-notis</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
+        Skickar en notis till alla användare som aktiverat notiser.
+      </div>
+      <label class="fg-label">Rubrik</label>
+      <input class="fg-input" id="push-title" placeholder="T.ex. Omgång 5 öppnar nu!" style="margin-bottom:10px"/>
+      <label class="fg-label">Meddelande</label>
+      <input class="fg-input" id="push-body" placeholder="T.ex. Du har 48h på dig att tippa!" style="margin-bottom:14px"/>
+      <button class="fg-btn" data-act="send-push">Skicka till alla prenumeranter</button>
+    </div>`;
   } else if(adminSection==="spelformer"){
     const modes=[
       ["fantasy","⚽","Fantasy","fantasyEnabled","fantasy_enabled"],
@@ -2835,6 +2899,40 @@ function attachHandlers(){
       await sb.from("app_config").update({[dbKey]:newVal}).eq("league_id",currentLeague.id);
       cfg={...cfg,[cfgKey]:newVal};
       flash(`✓ ${cfgKey.replace("Enabled","")} ${newVal?"aktiverat":"dolt"}!`);
+    }
+    else if(act==="toggle-push"){
+      const isSubbed=await getPushSubscriptionStatus();
+      if(isSubbed){
+        await unsubscribeFromPush();
+        el.textContent="🔔 Aktivera notiser";
+        flash("Notiser avstängda.");
+      } else {
+        const perm=await Notification.requestPermission();
+        if(perm==="granted"){
+          const sub=await subscribeToPush();
+          if(sub){el.textContent="🔕 Stäng av notiser";flash("✓ Notiser aktiverade!");}
+          else flash("Kunde inte aktivera notiser.");
+        } else {
+          flash("Du behöver tillåta notiser i webbläsaren.");
+        }
+      }
+    }
+    else if(act==="send-push"){
+      const title=document.getElementById("push-title").value.trim();
+      const body=document.getElementById("push-body").value.trim();
+      if(!title||!body){flash("Fyll i rubrik och meddelande.");return;}
+      el.textContent="Skickar…"; el.disabled=true;
+      // Hämta alla prenumerationer
+      const {data:subs,error}=await sb.from("push_subscriptions").select("endpoint,keys");
+      if(error||!subs?.length){flash("Inga prenumeranter hittades.");el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
+      const resp=await fetch("/api/send-notification",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","x-api-key":window.PUSH_API_KEY||""},
+        body:JSON.stringify({subscriptions:subs,title,body,url:"/"})
+      });
+      const result=await resp.json();
+      el.textContent="Skicka till alla prenumeranter"; el.disabled=false;
+      flash(`✓ Notis skickad till ${result.sent} användare!${result.failed?` (${result.failed} misslyckades)`:""}`);
     }
     else if(act==="toggle-quiz"){
       const newVal=!cfg.quizEnabled;
