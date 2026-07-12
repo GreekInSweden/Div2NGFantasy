@@ -226,7 +226,8 @@ async function fetchConfig(){
     registrationOpen:data.registration_open!==false,
     ligatippLocked:!!data.ligatipp_locked,
     superAdminPwd:data.super_admin_pwd||SUPER_ADMIN_PWD,
-    adminPwd:data.admin_pwd||ADMIN_PWD
+    adminPwd:data.admin_pwd||ADMIN_PWD,
+    quizEnabled:!!data.quiz_enabled
   };
 }
 async function setConfig(omg){
@@ -745,13 +746,14 @@ function renderModeSelect(){
           <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
         </div>
       </button>
-      <button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
+      ${cfg.quizEnabled?`<button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🧠</span>
         <div>
           <div style="font-weight:500;font-size:16px">Div2NG Quiz</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">5 frågor per omgång · 5 minuter på dig</div>
         </div>
-      </button>
+      </button>`:""}
+
     <button data-act="logout" style="margin-top:12px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
   </div>`;
 }
@@ -2209,12 +2211,25 @@ function renderAdminTab(){
     const pct=Math.min(100,Math.round(bankList.length/totalTarget*100));
     const distributed=distributedList.length>0;
 
+    // Quiz enable/disable toggle
+    const quizToggleCard=`<div class="fg-card" style="background:${cfg.quizEnabled?'#e8f5ee':'var(--color-background-primary)'}">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-weight:500">${cfg.quizEnabled?'✅ Quiz är aktiverat':'⏸ Quiz är dolt för användare'}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${cfg.quizEnabled?'Syns på väljarskärmen':'Syns bara för dig som admin'}</div>
+        </div>
+        <button data-act="toggle-quiz" style="background:${cfg.quizEnabled?'#fff':'#1a1a1a'};color:${cfg.quizEnabled?'#1a6b3c':'#fff'};border:${cfg.quizEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
+          ${cfg.quizEnabled?'Dölj quiz':'Aktivera quiz'}
+        </button>
+      </div>
+    </div>`;
+
     // Progress bar
     const progressBar=`<div style="background:var(--color-background-secondary);border-radius:20px;height:8px;margin:8px 0">
       <div style="background:${G_GREEN};border-radius:20px;height:8px;width:${pct}%;transition:.3s"></div>
     </div>`;
 
-    body=`
+    body=quizToggleCard+`
     <div class="fg-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <div style="font-weight:500">🧠 Frågebank – massimport</div>
@@ -2608,6 +2623,12 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
       render();
+    }
+    else if(act==="toggle-quiz"){
+      const newVal=!cfg.quizEnabled;
+      await sb.from("app_config").update({quiz_enabled:newVal}).eq("league_id",currentLeague.id);
+      cfg={...cfg,quizEnabled:newVal};
+      flash(newVal?"✅ Quiz aktiverat – syns nu för användare!":"⏸ Quiz dolt – syns inte för användare.");
     }
     else if(act==="quiz-bulk-import"){
       const fileInput=document.getElementById("quiz-import-file");
