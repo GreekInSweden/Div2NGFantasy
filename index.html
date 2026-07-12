@@ -860,14 +860,14 @@ function renderHome(){
     {ico:"🧠",title:"Quiz",desc:"5 frågor om Div2 NG"},
   ];
   const modeCards=modes.map(m=>`
-    <div style="background:#222;border:0.5px solid #333;border-radius:10px;padding:14px 12px">
+    <div style="background:#2d2d2d;border:0.5px solid #444;border-radius:10px;padding:14px 12px">
       <div style="font-size:22px;margin-bottom:6px">${m.ico}</div>
       <div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:3px">${m.title}</div>
-      <div style="font-size:11px;color:#666;line-height:1.4">${m.desc}</div>
+      <div style="font-size:11px;color:#aaa;line-height:1.4">${m.desc}</div>
     </div>`).join("");
 
   return `
-  <div style="min-height:100vh;background:#1a1a1a;display:flex;flex-direction:column">
+  <div style="min-height:100vh;background:#1f1f1f;display:flex;flex-direction:column">
 
     <!-- Topbar -->
     <div style="background:#111;padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #2a2a2a">
@@ -876,30 +876,15 @@ function renderHome(){
       <span style="font-size:11px;letter-spacing:.25em;color:#c1272d;font-weight:600;margin-left:2px">PLAY</span>
     </div>
 
-    <!-- Ticker -->
-    <div style="background:#c1272d;overflow:hidden;padding:7px 0;border-bottom:2px solid #a01f25">
-      <style>
-        @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-        .ticker-inner{display:flex;animation:ticker 28s linear infinite;white-space:nowrap}
-        .ticker-inner:hover{animation-play-state:paused}
-      </style>
-      <div class="ticker-inner">
-        <div style="display:flex;font-size:12px;font-weight:500;color:#fff">${tickerHtml}${tickerHtml}</div>
-      </div>
-    </div>
-
     <!-- Hero -->
     <div style="padding:36px 24px 28px;text-align:center">
       <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:36px;line-height:1.15;color:#fff;margin-bottom:12px">
-        Tävla om äran i<br>Div2 Norra Götaland
+        Div2 Norra Götaland
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
         <div style="height:1px;width:50px;background:#c1272d"></div>
         <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
         <div style="height:1px;width:50px;background:#c1272d"></div>
-      </div>
-      <div style="font-size:14px;color:#888;line-height:1.6;max-width:280px;margin:0 auto">
-        Sex spelformer. En säsong. Vem kröns till vinnare av 2027?
       </div>
     </div>
 
@@ -920,14 +905,14 @@ function renderHome(){
             Ny spelare – Registrera dig
           </button>`
         : `<div style="background:#1f1515;border:0.5px solid #3a2020;border-radius:8px;padding:12px;text-align:center;font-size:12px;color:#c1272d">🔒 Registrering är stängd</div>`}
-      <button data-act="go-rules-home" style="background:none;border:none;color:#555;font-size:12px;cursor:pointer;padding:6px;text-decoration:underline">
+      <button data-act="go-rules-home" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline">
         Läs om spelformerna →
       </button>
     </div>
 
     <!-- Footer -->
     <div style="margin-top:auto;padding:20px;text-align:center;border-top:0.5px solid #222">
-      <div style="font-size:11px;color:#3a3a3a">Div2 Norra Götaland – Liverapportering · Säsong 2027</div>
+      <div style="font-size:11px;color:#666">Div2 Norra Götaland – Liverapportering · Säsong 2027</div>
     </div>
 
   </div>`;
