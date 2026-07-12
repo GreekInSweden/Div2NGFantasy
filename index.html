@@ -2156,7 +2156,7 @@ function renderAdminTab(){
     return `<div style="max-width:300px;margin:0 auto">
       <div style="font-weight:500;font-size:16px;margin-bottom:16px">🔒 Admin</div>
       <label class="fg-label">Lösenord</label>
-      <input class="fg-input" id="admin-pwd" type="password"/>
+      <input class="fg-input" id="admin-pwd" type="password" onkeydown="if(event.key==='Enter'){document.querySelector('[data-act=admin-login]').click();}"/>
       ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:4px">${esc(errMsg)}</div>`:""}
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
@@ -3165,7 +3165,7 @@ function attachHandlers(){
         (storedAdmin.length===64?pwdHash===storedAdmin:pwd===storedAdmin);
       if(matchSuper){adminOk=true;adminLevel="super";errMsg="";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
       else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
-      else{errMsg="Fel lösenord.";}
+      else{errMsg=`Fel lösenord. (Inmatat: ${pwd.length} tecken, Fallback: ${SUPER_ADMIN_PWD}, Hash: ${pwdHash.slice(0,8)||"misslyckades"})`;}
       render();
     }
     else if(act==="admin-section"){
