@@ -825,17 +825,26 @@ function renderHome(){
 
   // ── Spelarlista ─────────────────────────────────────────────────────────
   if(homeMode==="login"){
-    const list=users.map(u=>`
+    const searchQ=document.getElementById("user-search")?document.getElementById("user-search").value.toLowerCase():"";
+    const filteredUsers=searchQ?users.filter(u=>u.namn.toLowerCase().includes(searchQ)):users;
+    const makeList=us=>us.map(u=>`
       <button data-act="ask-pin" data-id="${u.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#222;border:0.5px solid #333;border-radius:10px;cursor:pointer;text-align:left;width:100%;margin-bottom:8px">
         <div style="width:40px;height:40px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(u.namn[0])}</div>
         <div style="flex:1;color:#fff;font-weight:500;font-size:15px">${esc(u.namn)}</div>
         <span style="color:#555;font-size:20px">›</span>
-      </button>`).join("");
+      </button>`).join("")||'<div style="font-size:13px;color:#666;text-align:center;padding:20px">Ingen spelare hittades.</div>';
+    window._refreshUserList=()=>{
+      const q=document.getElementById("user-search")?.value.toLowerCase()||"";
+      const el=document.getElementById("user-list-login");
+      if(el) el.innerHTML=makeList(q?users.filter(u=>u.namn.toLowerCase().includes(q)):users);
+      attachHandlers();
+    };
     return `
-    <div style="min-height:100vh;background:#1a1a1a;padding:24px">
+    <div style="min-height:100vh;background:#1f1f1f;padding:24px">
       <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">← Tillbaka</button>
-      <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:20px">Välj din spelare</div>
-      ${list||'<div style="font-size:13px;color:#666;text-align:center;padding:40px 0">Inga spelare registrerade ännu.</div>'}
+      <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:16px">Välj din spelare</div>
+      <input id="user-search" type="search" placeholder="🔍 Sök ditt namn..." oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#2a2a2a;border:0.5px solid #555;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
+      <div id="user-list-login">${makeList(filteredUsers)}</div>
     </div>`;
   }
 
