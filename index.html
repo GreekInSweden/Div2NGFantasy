@@ -682,7 +682,44 @@ function render(){
   else if(screen==="home")root.innerHTML=renderHome();
   else if(screen==="reg")root.innerHTML=renderReg();
   else if(screen==="mode")root.innerHTML=renderModeSelect();
-  else if(screen==="pick")root.innerHTML=renderPick();
+  else if(screen==="pick"){root.innerHTML=renderPick();
+    // Sök-hook: re-renderar bara spellistan utan att hoppa till toppen
+    window._playerSearchRender=()=>{
+      const list=document.getElementById("player-list");
+      if(list){
+        const searchVal=document.getElementById("player-search")?.value.toLowerCase()||"";
+        const teamFilter=document.getElementById("team-filter")?.value||"";
+        const usedTeams=usedTeamIds(null);
+        const filtered=players.filter(p=>{
+          if(p.pos!==pickPos)return false;
+          if(searchVal&&!p.namn.toLowerCase().includes(searchVal))return false;
+          if(teamFilter&&String(p.teamId)!==teamFilter)return false;
+          return true;
+        });
+        const picks=currentUser.picks||{GK:[],DEF:[],MID:[],FW:[]};
+        const kap=currentUser.kapten;
+        list.innerHTML=filtered.map(p=>{
+          const sel=(picks[p.pos]||[]).includes(p.id);
+          const isCap=kap===p.id;
+          const team=TEAMS.find(t=>t.id===p.teamId);
+          const c=POS_COLOR[p.pos];
+          const teamTaken=!sel&&usedTeams.includes(p.teamId);
+          const posFull=!sel&&(picks[p.pos]||[]).length>=POS_COUNT[p.pos];
+          const disabled=teamTaken||posFull;
+          return `<div class="fg-card" style="margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${disabled?0.45:1}">
+            <div class="fg-posbadge" style="width:34px;height:34px;background:${c.bg};color:${c.fc};font-size:11px">${p.pos}</div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:${sel?500:400}">${esc(p.namn)}</div>
+              <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?' · lag redan valt':''}</div>
+            </div>
+            ${sel?`<button data-act="toggle-cap" data-id="${p.id}" style="background:${isCap?G_GOLDL:"var(--color-background-secondary)"};border:0.5px solid ${isCap?G_GOLD:"#ccc"};color:${isCap?G_GOLD:"var(--color-text-secondary)"};border-radius:20px;padding:3px 10px;cursor:pointer;font-size:12px;font-weight:500">${isCap?"★ Kapten":"☆"}</button>`:""}
+            <button data-act="pick-player" data-id="${p.id}" ${disabled?"disabled":""} style="width:32px;height:32px;border-radius:50%;background:${sel?G_GREENL:"var(--color-background-secondary)"};border:0.5px solid ${sel?G_GREEN:"#ccc"};color:${sel?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;cursor:${disabled?"not-allowed":"pointer"};font-size:16px;flex-shrink:0">${sel?"✓":"+"}</button>
+          </div>`;
+        }).join("")||'<div style="text-align:center;color:var(--color-text-secondary);padding:20px;font-size:13px">Inga spelare hittades</div>';
+        attachHandlers();
+      }
+    };
+  }
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
@@ -857,7 +894,14 @@ function usedTeamIds(excludePid){
 function renderPick(){
   const picks=pickState.picks, kap=pickState.kapten;
   const totalPicked = POSITIONS.reduce((s,pos)=>s+(picks[pos]||[]).length,0);
-  const filtered=players.filter(p=>p.pos===pickPos);
+  const searchVal=document.getElementById("player-search")?document.getElementById("player-search").value.toLowerCase():"";
+  const teamFilter=document.getElementById("team-filter")?document.getElementById("team-filter").value:"";
+  const filtered=players.filter(p=>{
+    if(p.pos!==pickPos) return false;
+    if(searchVal && !p.namn.toLowerCase().includes(searchVal)) return false;
+    if(teamFilter && String(p.teamId)!==teamFilter) return false;
+    return true;
+  });
   const usedTeams = usedTeamIds(null);
 
   const posTabs=POSITIONS.map(pos=>{
@@ -898,6 +942,13 @@ function renderPick(){
       <span style="font-weight:500;font-size:16px">Bygg ditt 4-3-3-lag</span>
     </div>
     <div style="padding:12px 16px 0">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="player-search" type="search" placeholder="🔍 Sök spelare..." oninput="window._playerSearchRender&&window._playerSearchRender()" style="flex:1;padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:13px;background:var(--color-background-secondary)"/>
+        <select id="team-filter" onchange="window._playerSearchRender&&window._playerSearchRender()" style="padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:12px;background:var(--color-background-secondary);max-width:130px">
+          <option value="">Alla lag</option>
+          ${TEAMS.sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}
+        </select>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
         <div style="background:var(--color-background-secondary);border-radius:6px;padding:10px 8px;text-align:center">
           <div style="font-size:11px;color:var(--color-text-secondary)">Spelare valda</div>
@@ -913,7 +964,7 @@ function renderPick(){
       ${pickErr?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;font-weight:500">${esc(pickErr)}</div>`:""}
       <div style="font-size:13px;font-weight:500;margin-bottom:6px">${POS_LABEL[pickPos]}</div>
     </div>
-    <div style="padding:0 16px">${rows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare på denna position än.</div>'}</div>
+    <div id="player-list" style="padding:0 16px">${rows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare hittades.</div>'}</div>
     <div style="position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;padding:12px 16px;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary)">
       ${missing?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;text-align:center;font-weight:500">${esc(missing)}</div>`:""}
       <button class="fg-btn" data-act="save-team">Spara mitt lag →</button>
