@@ -2036,11 +2036,26 @@ function renderAdminTab(){
       <button class="fg-btn" data-act="admin-login" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const allSections=[["round","Omgång"],["goals","Mål"],["players","Spelare"],["teams","Lag"],["users","Användare"],["ligatipp","Tippa serien"],["snabbast","Snabbast"],["import","Importera"],["passwords","Lösenord"],["spelformer","Spelformer"],["privliga","Privata ligor"],["quiz","Quiz"]];
-  const adminSections=adminLevel==="super"?allSections:[["round","Omgång"],["goals","Mål"],["snabbast","Snabbast"]];
-  const sectionTabs=adminSections.map(([id,l])=>
-    `<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"}">${l}</button>`
-  ).join("");
+  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"]];
+  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"]];
+  const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
+
+  const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
+
+  const adminNavHtml = adminLevel==="super" ? `
+    <div class="fg-card" style="padding:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">SPELHANTERING</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${leftSections.map(tabBtn).join("")}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">ADMINISTRATION</div>
+          <div style="display:flex;flex-direction:column;gap:4px">${rightSections.map(tabBtn).join("")}</div>
+        </div>
+      </div>
+    </div>` :
+    `<div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${adminSections.map(tabBtn).join("")}</div>`;
 
   let body="";
   if(adminSection==="round"){
@@ -2510,7 +2525,7 @@ function renderAdminTab(){
     </div>`;
   }
   return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">Admin <span style="font-size:11px;font-weight:400;background:${adminLevel==="super"?G_GREEN:"#555"};color:#fff;border-radius:20px;padding:2px 8px">${adminLevel==="super"?"Superadmin":"Admin"}</span></div>
-    <div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${sectionTabs}</div>
+    ${adminNavHtml}
     ${errMsg?`<div style="color:${errMsg.indexOf('✓')===0?G_GREEN:'#A32D2D'};font-size:13px;margin-bottom:10px;font-weight:500">${esc(errMsg)}</div>`:""}
     ${body}`;
 }
