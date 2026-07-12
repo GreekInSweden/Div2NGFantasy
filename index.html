@@ -808,50 +808,128 @@ function renderLeagues(){
 }
 
 function renderHome(){
-  if(homeMode==="start"){
-    return `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#fff">
-      <div style="text-align:center;margin-bottom:36px">
-        <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:28px;color:#1a1a1a;letter-spacing:-0.3px;margin-bottom:8px;line-height:1.2">Div2 Norra Götaland</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px">
-          <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
-          <div style="height:1.5px;width:130px;background:#c1272d"></div>
-          <svg width="10" height="10" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
-        </div>
-        <div style="font-size:11px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
-      </div>
-      <div style="width:100%;max-width:300px;display:flex;flex-direction:column;gap:10px">
-        <button class="fg-btn" data-act="show-login">Logga in</button>
-        ${cfg.registrationOpen
-          ? `<button class="fg-outbtn" style="width:100%" data-act="go-reg">Ny spelare</button>`
-          : `<div style="background:#fce8e8;border-radius:6px;padding:10px;text-align:center;font-size:13px;color:#c1272d">🔒 Registrering är stängd</div>`}
-        <button data-act="go-rules-home" style="background:none;border:none;color:#c1272d;font-size:13px;cursor:pointer;text-decoration:underline;padding:6px">📋 Läs reglerna först</button>
-      </div>
-    </div>`;
-  }
-  let list = users.map(u=>`
-    <button class="fg-card" data-act="ask-pin" data-id="${u.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary)">
-      <div style="width:38px;height:38px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
-      <div style="flex:1"><div style="font-weight:500">${esc(u.namn)}</div></div>
-      <span style="color:var(--color-text-secondary)">›</span>
-    </button>`).join("");
+  // ── PIN-skärm ──────────────────────────────────────────────────────────
   if(homeMode==="pin"){
     const u=pendingLoginUser;
     return `
-    <div style="padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh">
-      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;margin-bottom:24px;padding:7px 14px">← Tillbaka</button>
-      <div style="width:56px;height:56px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:22px;margin-bottom:12px">${esc(u.namn[0])}</div>
-      <div style="font-size:18px;font-weight:500;margin-bottom:4px">${esc(u.namn)}</div>
-      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">Ange din PIN-kod</div>
-      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" style="max-width:160px;text-align:center;font-size:20px;letter-spacing:6px;margin-bottom:8px" autofocus/>
-      ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:8px">${esc(loginErr)}</div>`:""}
-      <button class="fg-btn" data-act="submit-pin" style="max-width:200px;margin-top:8px">Logga in →</button>
+    <div style="min-height:100vh;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;position:absolute;top:20px;left:20px;border-color:#444;color:#888;font-size:13px">← Tillbaka</button>
+      <div style="width:60px;height:60px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;margin-bottom:14px">${esc(u.namn[0])}</div>
+      <div style="font-size:20px;font-weight:600;color:#fff;margin-bottom:4px">${esc(u.namn)}</div>
+      <div style="font-size:13px;color:#888;margin-bottom:24px">Ange din 5-siffriga PIN</div>
+      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" style="max-width:180px;text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:8px;background:#2a2a2a;border-color:#444;color:#fff" autofocus/>
+      ${loginErr?`<div style="color:#ff6b6b;font-size:12px;margin-bottom:8px">${esc(loginErr)}</div>`:""}
+      <button class="fg-btn" data-act="submit-pin" style="max-width:220px;margin-top:10px">Logga in →</button>
     </div>`;
   }
+
+  // ── Spelarlista ─────────────────────────────────────────────────────────
+  if(homeMode==="login"){
+    const list=users.map(u=>`
+      <button data-act="ask-pin" data-id="${u.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#222;border:0.5px solid #333;border-radius:10px;cursor:pointer;text-align:left;width:100%;margin-bottom:8px">
+        <div style="width:40px;height:40px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(u.namn[0])}</div>
+        <div style="flex:1;color:#fff;font-weight:500;font-size:15px">${esc(u.namn)}</div>
+        <span style="color:#555;font-size:20px">›</span>
+      </button>`).join("");
+    return `
+    <div style="min-height:100vh;background:#1a1a1a;padding:24px">
+      <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">← Tillbaka</button>
+      <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:20px">Välj din spelare</div>
+      ${list||'<div style="font-size:13px;color:#666;text-align:center;padding:40px 0">Inga spelare registrerade ännu.</div>'}
+    </div>`;
+  }
+
+  // ── Välkomstsida ────────────────────────────────────────────────────────
+  // Skrollande tickerlag
+  const tickerTeams=["Grebbestads IF","IK Gauthiod","Stenungsunds IF","Lidköpings FK","Vänersborg FK","Ahlafors IF","IFK Skövde FK","Herrestads AIF","Skara FC","IFK Kumla","Vänersborgs IF","Motala AIF FK","IK Tord","Husqvarna FF"];
+  const matchups=[];
+  for(let i=0;i<tickerTeams.length;i+=2){
+    const a=tickerTeams[i],b=tickerTeams[(i+1)%tickerTeams.length];
+    const h=Math.floor(Math.random()*4),g=Math.floor(Math.random()*4);
+    matchups.push(`${a} <span style="color:#c1272d;font-weight:700;margin:0 6px">${h}–${g}</span> ${b}`);
+  }
+  const tickerHtml=matchups.map(m=>`<span style="padding:0 28px;white-space:nowrap">${m}</span>`).join("");
+
+  // Spelformskort
+  const modes=[
+    {ico:"⚽",title:"Fantasy",desc:"Bygg ditt lag, välj kapten"},
+    {ico:"🎯",title:"Tippa resultat",desc:"Exakt resultat ger 10p"},
+    {ico:"📊",title:"Tippa serien",desc:"Rangordna alla 14 lag"},
+    {ico:"⚡",title:"Snabbast vinner",desc:"Vilka 7 lag slår snabbast"},
+    {ico:"🎯",title:"Måljakten",desc:"Välj 3 lag, jaga mål"},
+    {ico:"🧠",title:"Quiz",desc:"5 frågor om Div2 NG"},
+  ];
+  const modeCards=modes.map(m=>`
+    <div style="background:#222;border:0.5px solid #333;border-radius:10px;padding:14px 12px">
+      <div style="font-size:22px;margin-bottom:6px">${m.ico}</div>
+      <div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:3px">${m.title}</div>
+      <div style="font-size:11px;color:#666;line-height:1.4">${m.desc}</div>
+    </div>`).join("");
+
   return `
-  <div style="padding:20px">
-    <button class="fg-outbtn" data-act="show-start" style="margin-bottom:16px;padding:7px 14px">← Tillbaka</button>
-    ${list || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare registrerade ännu.</div>'}
+  <div style="min-height:100vh;background:#1a1a1a;display:flex;flex-direction:column">
+
+    <!-- Topbar -->
+    <div style="background:#111;padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #2a2a2a">
+      <svg width="12" height="12" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+      <span style="font-family:Georgia,serif;font-style:italic;font-size:17px;color:#fff;letter-spacing:-0.2px">Div2 Norra Götaland</span>
+      <span style="font-size:11px;letter-spacing:.25em;color:#c1272d;font-weight:600;margin-left:2px">PLAY</span>
+    </div>
+
+    <!-- Ticker -->
+    <div style="background:#c1272d;overflow:hidden;padding:7px 0;border-bottom:2px solid #a01f25">
+      <style>
+        @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+        .ticker-inner{display:flex;animation:ticker 28s linear infinite;white-space:nowrap}
+        .ticker-inner:hover{animation-play-state:paused}
+      </style>
+      <div class="ticker-inner">
+        <div style="display:flex;font-size:12px;font-weight:500;color:#fff">${tickerHtml}${tickerHtml}</div>
+      </div>
+    </div>
+
+    <!-- Hero -->
+    <div style="padding:36px 24px 28px;text-align:center">
+      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:36px;line-height:1.15;color:#fff;margin-bottom:12px">
+        Tävla om äran i<br>Div2 Norra Götaland
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
+        <div style="height:1px;width:50px;background:#c1272d"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+        <div style="height:1px;width:50px;background:#c1272d"></div>
+      </div>
+      <div style="font-size:14px;color:#888;line-height:1.6;max-width:280px;margin:0 auto">
+        Sex spelformer. En säsong. Vem kröns till vinnare av 2027?
+      </div>
+    </div>
+
+    <!-- Spelformskort -->
+    <div style="padding:0 20px 28px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        ${modeCards}
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:10px;max-width:340px;margin:0 auto;width:100%">
+      <button class="fg-btn" data-act="show-login" style="padding:14px;font-size:15px;letter-spacing:.3px">
+        Logga in
+      </button>
+      ${cfg.registrationOpen
+        ? `<button data-act="go-reg" style="background:transparent;border:1px solid #c1272d;color:#c1272d;border-radius:8px;padding:13px;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:.3px">
+            Ny spelare – Registrera dig
+          </button>`
+        : `<div style="background:#1f1515;border:0.5px solid #3a2020;border-radius:8px;padding:12px;text-align:center;font-size:12px;color:#c1272d">🔒 Registrering är stängd</div>`}
+      <button data-act="go-rules-home" style="background:none;border:none;color:#555;font-size:12px;cursor:pointer;padding:6px;text-decoration:underline">
+        Läs om spelformerna →
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top:auto;padding:20px;text-align:center;border-top:0.5px solid #222">
+      <div style="font-size:11px;color:#3a3a3a">Div2 Norra Götaland – Liverapportering · Säsong 2027</div>
+    </div>
+
   </div>`;
 }
 
