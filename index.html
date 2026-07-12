@@ -839,7 +839,7 @@ function renderModeSelect(){
         </div>
       </button>`:""}
 
-    <button data-act="toggle-push" id="push-btn" style="margin-top:8px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:7px 14px;color:var(--color-text-secondary);font-size:12px;cursor:pointer">🔔 Aktivera notiser</button>
+    <button onclick="window._togglePush()" id="push-btn" style="margin-top:8px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:7px 14px;color:var(--color-text-secondary);font-size:12px;cursor:pointer">🔔 Aktivera notiser</button>
     <button data-act="logout" style="margin-top:6px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
   </div>`;
 }
@@ -2758,6 +2758,26 @@ function attachHandlers(){
     else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
     else{errMsg="Fel lösenord.";}
     render();
+  };
+
+  window._togglePush=async function(){
+    const btn=document.getElementById("push-btn");
+    if(!('Notification' in window)){alert("Din webbläsare stöder inte notiser.");return;}
+    const isSubbed=await getPushSubscriptionStatus();
+    if(isSubbed){
+      await unsubscribeFromPush();
+      if(btn) btn.textContent="🔔 Aktivera notiser";
+      flash("Notiser avstängda.");
+    } else {
+      const perm=await Notification.requestPermission();
+      if(perm==="granted"){
+        const sub=await subscribeToPush();
+        if(sub){if(btn) btn.textContent="🔕 Stäng av notiser"; flash("✓ Notiser aktiverade!");}
+        else flash("Kunde inte aktivera notiser. Kontrollera att sidan är installerad som app.");
+      } else {
+        alert("Du behöver tillåta notiser i webbläsarens inställningar.");
+      }
+    }
   };
   const root=document.getElementById("fg-root");
   root.onclick=async function(e){
