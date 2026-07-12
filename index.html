@@ -1107,14 +1107,17 @@ function renderMain(){
   // Rundväljare – bara synlig i Fantasy-läget
   const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
   const roundStrip = (appMode==="fantasy"||appMode===null) && roundKeys.length ? `
-    <div style="background:#1a1a1a;padding:6px 12px 8px;display:flex;gap:4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none">
-      ${roundKeys.map(r=>{
+    <div style="background:#1a1a1a;padding:6px 12px 8px">
+      <div style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px">
+      ${Array.from({length:26},(_,i)=>i+1).map(r=>{
         const rd=rounds[String(r)];
         const isActive=r===cfg.omg;
+        if(!rd) return `<div style="height:26px;border-radius:5px;background:#333;opacity:0.3"></div>`;
         const bg=isActive?"#fff":rd.results_published?"#2d5a2d":rd.locked?"#5a1a1a":"#333";
         const col=isActive?"#1a1a1a":rd.results_published?"#a8e6a8":rd.locked?"#ffaaaa":"#aaa";
-        return `<button data-act="user-jump-round" data-r="${r}" style="min-width:30px;height:26px;border-radius:5px;border:none;background:${bg};color:${col};font-size:11px;font-weight:${isActive?700:500};cursor:pointer;flex-shrink:0">${r}</button>`;
+        return `<button data-act="user-jump-round" data-r="${r}" style="height:26px;border-radius:5px;border:none;background:${bg};color:${col};font-size:11px;font-weight:${isActive?700:500};cursor:pointer;width:100%">${r}</button>`;
       }).join("")}
+      </div>
     </div>` : "";
 
   return `
