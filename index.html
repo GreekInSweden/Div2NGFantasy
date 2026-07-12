@@ -1257,13 +1257,7 @@ function renderTippTab(){
   const sortedTip=[...users].sort((a,b)=>userTipTotalPts(b)-userTipTotalPts(a));
 
   const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
-  const roundPicker=roundKeys.length>1?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px">
-    ${roundKeys.map(r=>{
-      const isActive=r===activeRound;
-      const rd2=rounds[String(r)];
-      return `<button data-act="user-pick-tipp-round" data-r="${r}" style="min-width:36px;height:32px;border-radius:6px;border:1.5px solid ${isActive?"#1a1a1a":"var(--color-border-secondary)"};background:${isActive?"#1a1a1a":rd2.results_published?S_AMBERL:rd2.locked?"#fce8e8":"var(--color-background-primary)"};color:${isActive?"#fff":rd2.results_published?S_AMBER:rd2.locked?"#c1272d":"var(--color-text-secondary)"};font-size:12px;font-weight:${isActive?700:500};cursor:pointer">${r}</button>`;
-    }).join("")}
-  </div>`:"";
+  const roundPicker=""; // rundväljare nu i topbaren
 
   let inputSection="";
   if(!rd || !rd.matches.length){
@@ -2922,7 +2916,6 @@ function attachHandlers(){
       cfg={...cfg,omg:r};
       userSelectedRound=r;
       openRounds=new Set([r]);
-      mainTab="omg";
       render();
     }
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
