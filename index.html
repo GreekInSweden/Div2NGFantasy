@@ -2418,10 +2418,48 @@ function renderAdminTab(){
     </div>
     ${rowsHtml}`;
   } else if(adminSection==="privliga"){
+    const showHistory=window._privligaTab==="history";
     const pending=allPrivateLeagues.filter(l=>!l.approved);
     const approved=allPrivateLeagues.filter(l=>l.approved);
     const modeLabel={fantasy:"⚽ Fantasy",tipp:"🎯 Tippa",snabbast:"⚡ Snabbast",måljakten:"🎯 Måljakten",ligatipp:"📊 Tippa serien"};
     const gameModes=Object.entries({fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien"}).map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+
+    // Sub-navigation
+    const subNav=`<div style="display:flex;gap:6px;margin-bottom:12px">
+      <button onclick="window._privligaTab='active';render()" style="background:${!showHistory?'#1a1a1a':'var(--color-background-secondary)'};color:${!showHistory?'#fff':'var(--color-text-secondary)'};border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">Aktiva ligor</button>
+      <button onclick="window._privligaTab='history';render()" style="background:${showHistory?'#1a1a1a':'var(--color-background-secondary)'};color:${showHistory?'#fff':'var(--color-text-secondary)'};border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">📚 Historik</button>
+    </div>`;
+
+    if(showHistory){
+      // Ladda historiska ligor från alla säsonger
+      const histData=window._privligaHistory;
+      if(!histData){
+        sb.from("private_leagues").select("*, private_league_members(user_id)").eq("approved",true).order("created_at",{ascending:false}).then(({data})=>{
+          window._privligaHistory=data||[];render();
+        });
+      }
+      const allLeaguesForHistory=window._allLeaguesCache||[];
+      if(!window._allLeaguesCache){fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});}
+      const leagueMap={};
+      allLeaguesForHistory.forEach(l=>{leagueMap[l.id]=l;});
+      const histRows=(histData||[]).map(l=>{
+        const league=leagueMap[l.league_id];
+        const season=league?.season||"?";
+        return `<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1">
+              <div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
+              <div style="font-size:11px;color:var(--color-text-secondary)">${modeLabel[l.game_mode]||l.game_mode} · ${(l.private_league_members||[]).length} med · Säsong ${season}</div>
+            </div>
+            <span style="font-family:monospace;font-size:11px;color:var(--color-text-secondary)">${l.invite_code}</span>
+          </div>
+        </div>`;
+      }).join("");
+      body=subNav+`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px">📚 Historik – alla säsonger</div>
+        ${histRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga historiska ligor ännu.</div>'}
+      </div>`;
+    }
     const renderPendingRow=l=>`
       <div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:8px">
         <div style="flex:1"><div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
@@ -2442,7 +2480,7 @@ function renderAdminTab(){
           <button data-act="pl-delete-admin" data-id="${l.id}" style="background:none;border:none;cursor:pointer;color:#c1272d;font-size:16px;padding:0;margin-left:auto">×</button>
         </div>`).join("")}
       </div>`).join("");
-    body=`<div class="fg-card">
+    body=subNav+`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">➕ Skapa grupp (ett lag)</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5">Skapar en liga per spelform för gruppen – var och en med sin <b>egen kod</b>. Dela bara de koder folk är intresserade av!</div>
       <label class="fg-label">Namn på gruppen (t.ex. lagets namn)</label>
