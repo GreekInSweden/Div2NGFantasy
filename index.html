@@ -2016,12 +2016,7 @@ function renderRegler(){
 function renderLigaTab(sorted){
   const medals=["🥇","🥈","🥉"];
 
-  // Välj rätt poängfunktion och titel baserat på spelform
   let title="📊 Liga", getPts, subText;
-  if(appMode==="tipp"||appMode===null&&mainTab==="liga"){
-    if(appMode==="tipp"){title="📊 Tippligan";getPts=u=>userTipTotalPts(u);subText=u=>`${Object.values(u.tips||{}).filter(t=>t&&t.length>0).length} omgångar tippade`;}
-    else{title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
-  }
   if(appMode==="fantasy"||appMode===null){title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
   else if(appMode==="tipp"){title="📊 Tippligan";getPts=u=>userTipTotalPts(u);subText=u=>`${Object.keys(u.tips||{}).filter(k=>(u.tips[k]||[]).length>0).length} omgångar tippade`;}
   else if(appMode==="snabbast"){title="📊 Snabbast-ligan";getPts=u=>userSnabbastTotalPts(u.id);subText=u=>`${userSnabbastTotalPts(u.id)} p totalt`;}
@@ -2042,7 +2037,14 @@ function renderLigaTab(sorted){
       <div style="font-weight:500;font-size:18px">${pts}</div>
     </div>`;
   }).join("");
-  return `<div style="font-weight:500;font-size:16px;margin-bottom:12px">${title}</div>${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare ännu.</div>'}`;
+
+  return `
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-weight:500;font-size:16px">${title}</div>
+    <button onclick="window._exportTable()" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">📸 Exportera</button>
+  </div>
+  ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare ännu.</div>'}
+  <canvas id="export-canvas" style="display:none"></canvas>`;
 }
 
 function renderOmgTab(){
@@ -2758,6 +2760,89 @@ function attachHandlers(){
     else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
     else{errMsg="Fel lösenord.";}
     render();
+  };
+
+  window._exportTable=function(){
+    // Samla ligadata
+    let getPts,title;
+    if(appMode==="fantasy"||!appMode){getPts=u=>userTotPts(u);title="Fantasy";}
+    else if(appMode==="tipp"){getPts=u=>userTipTotalPts(u);title="Tippa resultat";}
+    else if(appMode==="snabbast"){getPts=u=>userSnabbastTotalPts(u.id);title="Snabbast vinner";}
+    else if(appMode==="måljakten"){getPts=u=>userMåljaktenTotalPts(u.id);title="Måljakten";}
+    else if(appMode==="ligatipp"){getPts=u=>userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});title="Tippa serien";}
+    else if(appMode==="quiz"){getPts=u=>userQuizTotalPts(u.id,window._quizAllAnswers||[],quizQuestions);title="Quiz";}
+    else{getPts=u=>userTotPts(u);title="Fantasy";}
+
+    const sorted=[...users].sort((a,b)=>getPts(b)-getPts(a));
+    const rowH=44,padX=20,padY=20;
+    const headerH=80,footerH=40;
+    const W=400,H=headerH+sorted.length*rowH+footerH+padY*2;
+
+    const canvas=document.getElementById("export-canvas");
+    canvas.width=W; canvas.height=H;
+    const ctx=canvas.getContext("2d");
+
+    // Bakgrund
+    ctx.fillStyle="#1a1a1a";
+    ctx.fillRect(0,0,W,H);
+
+    // Header
+    ctx.fillStyle="#c1272d";
+    ctx.fillRect(0,0,W,headerH);
+    ctx.fillStyle="#fff";
+    ctx.font="bold 18px Georgia";
+    ctx.textAlign="center";
+    ctx.fillText("Div2 Norra Götaland",W/2,32);
+    ctx.font="14px Arial";
+    ctx.fillText(title+" – Ligatabell",W/2,56);
+    ctx.font="11px Arial";
+    ctx.fillStyle="rgba(255,255,255,0.7)";
+    ctx.fillText(new Date().toLocaleDateString("sv-SE"),W/2,74);
+
+    // Rader
+    const medals=["🥇","🥈","🥉"];
+    sorted.forEach((u,i)=>{
+      const y=headerH+padY+i*rowH;
+      // Alternerande bakgrund
+      ctx.fillStyle=i%2===0?"#222":"#1e1e1e";
+      ctx.fillRect(padX,y,W-padX*2,rowH-2);
+
+      // Placering
+      ctx.font="bold 14px Arial";
+      ctx.textAlign="center";
+      ctx.fillStyle=i===0?"#ffd700":i===1?"#c0c0c0":i===2?"#cd7f32":"#888";
+      ctx.fillText(i<3?["1","2","3"][i]:String(i+1),padX+16,y+27);
+
+      // Namn
+      ctx.font=i<3?"bold 14px Arial":"14px Arial";
+      ctx.fillStyle="#fff";
+      ctx.textAlign="left";
+      ctx.fillText(u.namn.slice(0,22),padX+36,y+27);
+
+      // Poäng
+      ctx.font="bold 16px Arial";
+      ctx.fillStyle="#c1272d";
+      ctx.textAlign="right";
+      ctx.fillText(String(getPts(u))+" p",W-padX-4,y+27);
+
+      // Separator
+      ctx.fillStyle="#333";
+      ctx.fillRect(padX,y+rowH-2,W-padX*2,1);
+    });
+
+    // Footer
+    ctx.fillStyle="#333";
+    ctx.fillRect(0,H-footerH,W,footerH);
+    ctx.font="11px Arial";
+    ctx.fillStyle="#888";
+    ctx.textAlign="center";
+    ctx.fillText("div2-ng-play.vercel.app",W/2,H-14);
+
+    // Ladda ner
+    const link=document.createElement("a");
+    link.download=`div2ng-${title.toLowerCase().replace(/ /g,"-")}-${new Date().toLocaleDateString("sv-SE")}.png`;
+    link.href=canvas.toDataURL("image/png");
+    link.click();
   };
 
   window._togglePush=async function(){
