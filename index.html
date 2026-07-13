@@ -166,9 +166,34 @@ window.saveTips = async function(){
 
 // ── Supabase data layer ─────────────────────────────────────────────────────
 async function fetchLeagues(){
-  const {data,error}=await sb.from("leagues").select("*").order("id");
+  const {data,error}=await sb.from("leagues").select("*").eq("is_current",true).order("id");
   if(error){console.error(error);return [];}
   return data;
+}
+async function fetchAllLeagues(){
+  const {data,error}=await sb.from("leagues").select("*").order("season",{ascending:false});
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function createNewSeason(newYear){
+  // Stäng av nuvarande säsong
+  await sb.from("leagues").update({is_current:false}).eq("id",currentLeague.id);
+  // Skapa ny liga med samma namn
+  const {data,error}=await sb.from("leagues").insert({
+    name:currentLeague.name,
+    slug:currentLeague.slug+"-"+newYear,
+    season:newYear,
+    is_current:true
+  }).select().single();
+  if(error)return{error};
+  // Kopiera lag till ny säsong
+  const {data:teamData}=await sb.from("teams").select("*").eq("league_id",currentLeague.id);
+  if(teamData?.length){
+    await sb.from("teams").insert(teamData.map(t=>({
+      name:t.name,league_id:data.id
+    })));
+  }
+  return{error:null,league:data};
 }
 async function fetchTeams(){
   const {data,error}=await sb.from("teams").select("*").eq("league_id",currentLeague.id).order("id");
@@ -1292,7 +1317,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh">
-    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":""}</span><button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${currentLeague.season}</span>`:""}<button data-act="switch-mode" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">Byt läge</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
     <div class="fg-topbar-tabs">${tabs}</div>
     ${roundStrip}
     <div style="padding:12px 16px 24px">${body}</div>
@@ -2165,7 +2190,7 @@ function renderAdminTab(){
     </div>`;
   }
   const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"]];
-  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"]];
+  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -2566,6 +2591,40 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Dölj eller aktivera spelformer för användarna.</div>
       ${rows}
     </div>`;
+  } else if(adminSection==="season"){
+    const curYear=currentLeague.season||2027;
+    const nextYear=curYear+1;
+    const allLeaguesData=window._allLeaguesCache||[];
+    // Ladda async i bakgrunden om inte caché finns
+    if(!window._allLeaguesCache){
+      fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});
+    }
+    const seasonRows=allLeaguesData.map(l=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:13px">Säsong ${l.season||"?"}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${l.name}</div>
+        </div>
+        ${l.is_current?`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Aktiv</span>`:`<span style="font-size:11px;color:var(--color-text-secondary)">Avslutad</span>`}
+      </div>`).join("");
+    body=`
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔄 Säsongsväxling</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
+        Aktuell säsong: <b>Säsong ${curYear}</b><br>
+        Att starta en ny säsong arkiverar ${curYear} och skapar ${nextYear}. All historik bevaras. Lagen kopieras automatiskt.
+      </div>
+      <div style="background:#fffbeb;border:0.5px solid #e65100;border-radius:8px;padding:12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6">
+        ⚠️ <b>Obs!</b> Användare, Fantasy-val, tips och poäng från ${curYear} sparas och kan ses i historiken. Användarna behåller sina konton men börjar om med 0 poäng i ${nextYear}.
+      </div>
+      <button class="fg-btn" data-act="start-new-season" data-year="${nextYear}" style="background:#e65100">
+        🚀 Starta säsong ${nextYear}
+      </button>
+    </div>
+    ${allLeaguesData.length>1?`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Säsongshistorik</div>
+      ${seasonRows}
+    </div>`:""}`;
   } else if(adminSection==="passwords"){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
@@ -3013,6 +3072,23 @@ function attachHandlers(){
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
       render();
     }
+    else if(act==="start-new-season"){
+      const newYear=Number(el.dataset.year);
+      if(!confirm(`Är du säker? Säsong ${currentLeague.season||2027} avslutas och säsong ${newYear} startar.`))return;
+      el.textContent="Startar…"; el.disabled=true;
+      const {error,league}=await createNewSeason(newYear);
+      if(error){flash("Fel: "+error.message);el.textContent=`🚀 Starta säsong ${newYear}`;el.disabled=false;return;}
+      // Byt till ny liga
+      currentLeague=league;
+      TEAMS=await fetchTeams();
+      players=await fetchPlayers();
+      users=await fetchUsers();
+      rounds={};
+      cfg={omg:1,registrationOpen:true,ligatippLocked:false,quizEnabled:false,fantasyEnabled:true,tippEnabled:true,snabbastEnabled:true,maljaktenEnabled:true,ligatippEnabled:true};
+      await sb.from("app_config").insert({league_id:league.id,active_round:1,registration_open:true});
+      adminOk=false; screen="home"; homeMode="start";
+      flash("✓ Säsong "+newYear+" startad! Välkommen till den nya säsongen.");
+    }
     else if(act==="toggle-mode"){
       const dbKey=el.dataset.key;
       const cfgKey=el.dataset.cfg;
@@ -3297,6 +3373,7 @@ function attachHandlers(){
       adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
+      if(adminSection==="season"){ window._allLeaguesCache=null; }
       render();
     }
     else if(act==="goals-search-update"){ render(); }
