@@ -857,13 +857,6 @@ function renderModeSelect(){
           <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
         </div>
       </button>
-      <button data-act="pick-mode" data-mode="profil" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
-        <span style="font-size:28px">👤</span>
-        <div>
-          <div style="font-weight:500;font-size:16px">Min profil</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Byt PIN och hantera ditt konto</div>
-        </div>
-      </button>
       ${cfg.quizEnabled?`<button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🧠</span>
         <div>
@@ -2085,7 +2078,26 @@ function renderStatistikTab(){
     </div>
   </div>
 
-  ${modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,"")}`;
+  ${modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,"")}
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:12px">👤 Min profil</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px">Inloggad som <b>${esc(u.namn)}</b></div>
+
+    <label class="fg-label">Byt PIN-kod</label>
+    <input id="new-pin-1" type="password" inputmode="numeric" maxlength="5" placeholder="Ny PIN (5 siffror)" class="fg-input" style="margin-bottom:8px"/>
+    <input id="new-pin-2" type="password" inputmode="numeric" maxlength="5" placeholder="Bekräfta ny PIN" class="fg-input" style="margin-bottom:10px"/>
+    <button class="fg-btn" data-act="change-pin" style="margin-bottom:16px">Byt PIN</button>
+
+    <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:14px">
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;line-height:1.5">
+        Radering av konto är endast möjligt efter säsongens slut (omgång 26 publicerad).
+      </div>
+      <button data-act="delete-account" style="background:none;border:0.5px solid #c1272d;color:#c1272d;border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;${Object.keys(rounds).length<26||!rounds["26"]?.results_published?"opacity:0.4;cursor:not-allowed":""}">
+        🗑 Radera mitt konto
+      </button>
+    </div>
+  </div>`;
 }
 
 function renderRegler(){
@@ -3205,14 +3217,6 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       currentUser=null; appMode=null; screen="home"; homeMode="start";
       render();
-    }
-    else if(act==="toggle-mode"){
-      const dbKey=el.dataset.key;
-      const cfgKey=el.dataset.cfg;
-      const newVal=!cfg[cfgKey];
-      await sb.from("app_config").update({[dbKey]:newVal}).eq("league_id",currentLeague.id);
-      cfg={...cfg,[cfgKey]:newVal};
-      flash(`✓ ${cfgKey.replace("Enabled","")} ${newVal?"aktiverat":"dolt"}!`);
     }
     else if(act==="toggle-push"){
       const isSubbed=await getPushSubscriptionStatus();
