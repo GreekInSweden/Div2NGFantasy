@@ -1,17 +1,24 @@
 {
-  "name": "Div2 Norra Götaland Play",
-  "short_name": "Div2NG Play",
-  "description": "Fantasy, tippning och mer för Div2 Norra Götaland",
+  "name": "Familjenotiser",
+  "short_name": "Familjen",
+  "description": "Skicka snabba notiser till familjen - t.ex. \"maten är klar\" eller \"jag handlar, säg till om du vill ha nåt\"",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1a1a1a",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

@@ -1,48 +1,57 @@
-const CACHE='div2ng-v2';
-
-self.addEventListener('install',e=>{
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/index.html'])));
-});
-
-self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(
-    keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))
-  )));
-});
-
-self.addEventListener('fetch',e=>{
-  if(e.request.url.includes('supabase')){
-    e.respondWith(fetch(e.request));
-    return;
+// ---- Web Push (bakgrundsnotiser) - ren webbstandard, inget SDK behövs ----
+self.addEventListener("push", (event) => {
+  let payload = { title: "Familjenotiser", body: "" };
+  try {
+    payload = event.data ? event.data.json() : payload;
+  } catch (e) {
+    payload.body = event.data ? event.data.text() : "";
   }
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+
+  const options = {
+    body: payload.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    data: payload.data || {}
+  };
+
+  event.waitUntil(self.registration.showNotification(payload.title || "Familjenotiser", options));
 });
 
-// ── Push-notiser ─────────────────────────────────────────────────────────
-self.addEventListener('push',e=>{
-  if(!e.data) return;
-  let data;
-  try { data=e.data.json(); } catch(err){ data={title:'Div2NG Play',body:e.data.text()}; }
-  e.waitUntil(
-    self.registration.showNotification(data.title||'Div2NG Play',{
-      body: data.body||'',
-      icon: '/icon.svg',
-      badge: '/icon.svg',
-      vibrate: [200,100,200],
-      data: { url: data.url||'/' },
-      actions: [{ action:'open', title:'Öppna appen' }]
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window" }).then((clientsArr) => {
+      const hadWindow = clientsArr.find((c) => "focus" in c);
+      if (hadWindow) return hadWindow.focus();
+      return clients.openWindow("/");
     })
   );
 });
 
-self.addEventListener('notificationclick',e=>{
-  e.notification.close();
-  const url=e.notification.data?.url||'/';
-  e.waitUntil(
-    clients.matchAll({type:'window'}).then(cs=>{
-      const c=cs.find(c=>c.url===url&&'focus' in c);
-      return c?c.focus():clients.openWindow(url);
-    })
+// ---- Enkel offline-cache så appen går att öppna även utan nät ----
+const CACHE_NAME = "familjenotiser-v2";
+const CORE_ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/config.js", "/manifest.json"];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)).catch(() => {})
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  if (event.request.url.includes("/api/")) return;
+  event.respondWith(
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });

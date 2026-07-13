@@ -1,7 +1,10 @@
 {
-  "name": "div2ng-play",
+  "name": "familj-notiser",
   "version": "1.0.0",
+  "private": true,
+  "description": "Privat familje-PWA för snabba notiser (t.ex. maten är klar, jag handlar)",
   "dependencies": {
-    "web-push": "^3.6.7"
+    "web-push": "^3.6.7",
+    "@supabase/supabase-js": "^2.45.0"
   }
 }
