@@ -29,7 +29,7 @@ self.addEventListener("notificationclick", (event) => {
 });
 
 // ---- Enkel offline-cache så appen går att öppna även utan nät ----
-const CACHE_NAME = "familjenotiser-v2";
+const CACHE_NAME = "familjenotiser-v3";
 const CORE_ASSETS = ["/", "/index.html", "/style.css", "/app.js", "/config.js", "/manifest.json"];
 
 self.addEventListener("install", (event) => {
