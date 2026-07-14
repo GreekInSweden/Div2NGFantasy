@@ -542,10 +542,10 @@ async function fetchHallOfFame(){
   if(error){console.error(error);return[];}
   return data||[];
 }
-async function saveHofEntry(season,game_mode,winner_name,winner_pts){
+async function saveHofEntry(season,game_mode,winner_name,winner_pts,place){
   const {error}=await sb.from("hall_of_fame").upsert({
-    id:`${currentLeague.id}-${season}-${game_mode}`,
-    league_id:currentLeague.id,season,game_mode,winner_name,winner_pts
+    id:`${currentLeague.id}-${season}-${game_mode}-${place}`,
+    league_id:currentLeague.id,season,game_mode,winner_name,winner_pts,place
   });
   return error;
 }
@@ -2006,21 +2006,28 @@ function renderHofTab(){
   ];
 
   const modeCards=modes.map(m=>{
-    const entries=hofData.filter(h=>h.game_mode===m.id).sort((a,b)=>b.season-a.season);
+    const entries=hofData.filter(h=>h.game_mode===m.id).sort((a,b)=>b.season-a.season||(a.place||1)-(b.place||1));
     if(!entries.length)return"";
+    const seasons=[...new Set(entries.map(e=>e.season))].sort((a,b)=>b-a);
+    const placeIco={1:"🥇",2:"🥈",3:"🥉"};
     return `<div class="fg-card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <span style="font-size:20px">${m.ico}</span>
         <span style="font-weight:600;font-size:15px">${m.label}</span>
       </div>
-      ${entries.map((e,i)=>`<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-        <span style="font-size:18px">${i===0?"🥇":i===1?"🥈":i===2?"🥉":"🏅"}</span>
-        <div style="flex:1">
-          <div style="font-weight:500;font-size:14px">${esc(e.winner_name)}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">Säsong ${e.season}</div>
-        </div>
-        ${e.winner_pts?`<span style="font-weight:500;color:${G_GREEN}">${e.winner_pts} p</span>`:""}
-      </div>`).join("")}
+      ${seasons.map(season=>{
+        const seasonEntries=entries.filter(e=>e.season===season).sort((a,b)=>(a.place||1)-(b.place||1));
+        return `<div style="margin-bottom:10px">
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.3px;margin-bottom:4px">SÄSONG ${season}</div>
+          ${seasonEntries.map(e=>`<div style="display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+            <span style="font-size:16px">${placeIco[e.place||1]||"🏅"}</span>
+            <div style="flex:1">
+              <div style="font-weight:${e.place===1?600:400};font-size:14px">${esc(e.winner_name)}</div>
+            </div>
+            ${e.winner_pts?`<span style="font-size:12px;color:${G_GREEN};font-weight:500">${e.winner_pts} p</span>`:""}
+          </div>`).join("")}
+        </div>`;
+      }).join("")}
     </div>`;
   }).filter(Boolean).join("");
 
@@ -2773,16 +2780,18 @@ function renderAdminTab(){
       {id:"ligatipp",label:"📊 Tippa serien"},{id:"quiz",label:"🧠 Quiz"},
     ];
     const modeOpts=modes.map(m=>`<option value="${m.id}">${m.label}</option>`).join("");
-    const hofRows=hofData.map(h=>`
+    const hofRows=hofData.sort((a,b)=>b.season-a.season||(a.game_mode>b.game_mode?1:-1)||(a.place||1)-(b.place||1)).map(h=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span>${{1:"🥇",2:"🥈",3:"🥉"}[h.place||1]||"🏅"}</span>
         <div style="flex:1"><b>${h.winner_name}</b> · ${h.game_mode} · Säsong ${h.season}${h.winner_pts?` · ${h.winner_pts}p`:""}</div>
         <button data-act="hof-delete" data-id="${h.id}" style="background:none;border:none;color:#c1272d;cursor:pointer;font-size:16px">×</button>
       </div>`).join("");
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:10px">🏆 Lägg till vinnare</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
         <div><label class="fg-label">Säsong</label><input class="fg-input" id="hof-season" type="number" value="${currentLeague.season||2027}"/></div>
         <div><label class="fg-label">Spelform</label><select class="fg-input" id="hof-mode">${modeOpts}</select></div>
+        <div><label class="fg-label">Plats</label><select class="fg-input" id="hof-place"><option value="1">🥇 1:a</option><option value="2">🥈 2:a</option><option value="3">🥉 3:a</option></select></div>
       </div>
       <label class="fg-label">Vinnarens namn</label>
       <input class="fg-input" id="hof-name" placeholder="T.ex. Lars Andersson" style="margin-bottom:8px"/>
@@ -3359,8 +3368,9 @@ function attachHandlers(){
       const mode=document.getElementById("hof-mode").value;
       const name=document.getElementById("hof-name").value.trim();
       const pts=document.getElementById("hof-pts").value?Number(document.getElementById("hof-pts").value):null;
+      const place=Number(document.getElementById("hof-place").value);
       if(!name){flash("Ange vinnarens namn.");return;}
-      const error=await saveHofEntry(season,mode,name,pts);
+      const error=await saveHofEntry(season,mode,name,pts,place);
       if(error){flash("Fel: "+error.message);return;}
       window._hofCache=null; render(); flash("✓ Vinnare sparad!");
     }
