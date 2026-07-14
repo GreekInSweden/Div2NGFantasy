@@ -137,7 +137,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[],
     userSelectedRound=null, adminLevel=null,
     allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
-    quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null;
+    quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
+    hofData=[];
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -1335,7 +1336,7 @@ function renderMain(){
   else if(mainTab==="regler") body=renderRegler();
   else if(mainTab==="liga") body=renderLigaTab(sorted);
   else if(mainTab==="statistik") body=renderStatistikTab();
-  else if(mainTab==="hof"){ renderHofTab().then(h=>{document.getElementById("fg-root").querySelector("[data-hof-content]").innerHTML=h;attachHandlers();}); body='<div data-hof-content style="padding:20px;color:var(--color-text-secondary)">Laddar...</div>'; }
+  else if(mainTab==="hof") body=renderHofTab();
   else if(mainTab==="profil") body=renderProfilTab();
   else if(mainTab==="omg") body=renderOmgTab();
   else body=renderAdminTab();
@@ -1995,8 +1996,7 @@ function renderProfilTab(){
   ${deleteSection}`;
 }
 
-async function renderHofTab(){
-  const hofData=await fetchHallOfFame();
+function renderHofTab(){
   const modes=[
     {id:"fantasy",ico:"⚽",label:"Fantasy"},
     {id:"tipp",ico:"🎯",label:"Tippa resultat"},
@@ -2005,7 +2005,6 @@ async function renderHofTab(){
     {id:"ligatipp",ico:"📊",label:"Tippa serien"},
     {id:"quiz",ico:"🧠",label:"Div2NG Quiz"},
   ];
-  const seasons=[...new Set(hofData.map(h=>h.season))].sort((a,b)=>b-a);
 
   const modeCards=modes.map(m=>{
     const entries=hofData.filter(h=>h.game_mode===m.id).sort((a,b)=>b.season-a.season);
@@ -3237,6 +3236,7 @@ function attachHandlers(){
         screen="main"; mainTab="quiz";      } else if(appMode==="profil"){
         screen="main"; mainTab="profil";
       } else if(appMode==="hof"){
+        hofData=await fetchHallOfFame();
         screen="main"; mainTab="hof";
         screen="main"; mainTab="statistik";
       } else {
