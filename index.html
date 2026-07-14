@@ -305,7 +305,8 @@ async function fetchConfig(){
     tippEnabled:data.tipp_enabled!==false,
     snabbastEnabled:data.snabbast_enabled!==false,
     maljaktenEnabled:data.maljakten_enabled!==false,
-    ligatippEnabled:data.ligatipp_enabled!==false
+    ligatippEnabled:data.ligatipp_enabled!==false,
+    hofEnabled:!!data.hof_enabled
   };
 }
 async function setConfig(omg){
@@ -874,13 +875,11 @@ function renderModeSelect(){
           <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
         </div>
       </button>
-      <button data-act="pick-mode" data-mode="hof" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px;width:100%">
+      ${cfg.hofEnabled?`<button data-act="pick-mode" data-mode="hof" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px;width:100%">
         <span style="font-size:28px">🏆</span>
-        <div>
-          <div style="font-weight:500;font-size:16px">Hall of Fame</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Säsongsvinnare per spelform</div>
-        </div>
-      </button>
+        <div><div style="font-weight:500;font-size:16px">Hall of Fame</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Säsongsvinnare per spelform</div></div>
+      </button>`:""}
       ${cfg.quizEnabled?`<button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🧠</span>
         <div>
@@ -2747,6 +2746,7 @@ function renderAdminTab(){
       ["snabbast","⚡","Snabbast vinner","snabbastEnabled","snabbast_enabled"],
       ["maljakten","🎯","Måljakten","maljaktenEnabled","maljakten_enabled"],
       ["quiz","🧠","Div2NG Quiz","quizEnabled","quiz_enabled"],
+      ["hof","🏆","Hall of Fame","hofEnabled","hof_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
