@@ -3405,14 +3405,14 @@ function attachHandlers(){
         screen="main"; mainTab="quiz";      } else if(appMode==="profil"){
         screen="main"; mainTab="profil";
       } else if(appMode==="streak"){
+        screen="main"; mainTab="hem";
         rounds=await fetchRounds();
         cfg=await fetchConfig();
         streakMyTips=await fetchStreakTips();
         streakAllTips=await fetchAllStreakTips();
         streakDraft={};
-        screen="main"; mainTab="hem";
-        hofData=await fetchHallOfFame();
         screen="main"; mainTab="hof";
+        hofData=await fetchHallOfFame();
       } else {
         screen="main"; mainTab="hem";
       }
