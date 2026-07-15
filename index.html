@@ -3557,6 +3557,15 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       window._hofCache=null; render(); flash("✓ Borttagen.");
     }
+    else if(act==="toggle-mode"){
+      const dbKey=el.dataset.key;
+      const cfgKey=el.dataset.cfg;
+      const newVal=!cfg[cfgKey];
+      const {error}=await sb.from("app_config").update({[dbKey]:newVal}).eq("league_id",currentLeague.id);
+      if(error){flash("Fel: "+error.message);return;}
+      cfg={...cfg,[cfgKey]:newVal};
+      flash(`✓ ${newVal?"Aktiverat":"Dolt"}!`);
+    }
     else if(act==="toggle-quiz"){
       const newVal=!cfg.quizEnabled;
       await sb.from("app_config").update({quiz_enabled:newVal}).eq("league_id",currentLeague.id);
