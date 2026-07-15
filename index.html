@@ -138,7 +138,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     userSelectedRound=null, adminLevel=null,
     allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
     quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
-    hofData=[];
+    hofData=[],
+    streakMyTips=[], streakAllTips=[], streakDraft={};
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -306,7 +307,8 @@ async function fetchConfig(){
     snabbastEnabled:data.snabbast_enabled!==false,
     maljaktenEnabled:data.maljakten_enabled!==false,
     ligatippEnabled:data.ligatipp_enabled!==false,
-    hofEnabled:!!data.hof_enabled
+    hofEnabled:!!data.hof_enabled,
+    streakEnabled:!!data.streak_enabled
   };
 }
 async function setConfig(omg){
@@ -536,6 +538,36 @@ function startQuizTimer(roundNum){
 function stopQuizTimer(){ if(quizTimerInterval){clearInterval(quizTimerInterval);quizTimerInterval=null;} }
 function calcQuizPts(questions,answers){
   return questions.reduce((s,q)=>s+(answers[q.id]===q.correct?1:0),0);
+}
+async function fetchStreakTips(){
+  const {data,error}=await sb.from("streak_tips").select("*").eq("league_id",currentLeague.id).eq("user_id",currentUser.id).order("round_num");
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+async function fetchAllStreakTips(){
+  const {data,error}=await sb.from("streak_tips").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return[];}
+  return data||[];
+}
+async function saveStreakTip(roundNum,picks){
+  const {error}=await sb.from("streak_tips").upsert({
+    id:`${currentUser.id}-${currentLeague.id}-${roundNum}`,
+    user_id:currentUser.id,league_id:currentLeague.id,
+    round_num:roundNum,picks,correct:null
+  });
+  return error;
+}
+function calcUserStreak(allTips,userId,publishedRounds){
+  const myTips=allTips.filter(t=>t.user_id===userId).sort((a,b)=>a.round_num-b.round_num);
+  const roundsSorted=[...publishedRounds].sort((a,b)=>a-b);
+  let current=0,best=0,streak=0;
+  for(const r of roundsSorted){
+    const tip=myTips.find(t=>t.round_num===r);
+    if(tip?.correct===true){streak++;best=Math.max(best,streak);}
+    else{streak=0;}
+  }
+  current=streak;
+  return{current,best};
 }
 async function fetchHallOfFame(){
   const {data,error}=await sb.from("hall_of_fame").select("*").order("season",{ascending:false}).order("game_mode");
@@ -866,6 +898,11 @@ function renderModeSelect(){
         <span style="font-size:28px">🎯</span>
         <div><div style="font-weight:500;font-size:16px">Måljakten</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 lag som du tror gör flest mål</div></div>
+      </button>`:""}
+      ${cfg.streakEnabled?`<button data-act="pick-mode" data-mode="streak" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🔥</span>
+        <div><div style="font-weight:500;font-size:16px">Streak</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 matcher – håll din vinstsvit levande!</div></div>
       </button>`:""}
     </div>
       <button data-act="pick-mode" data-mode="statistik" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
@@ -1300,6 +1337,8 @@ function renderMain(){
   const sorted=sortedUsers();
   const tabsDef = appMode==="statistik"
     ? [["statistik","📈","Statistik"],["adm","🔒","Admin"]]
+    : appMode==="streak"
+    ? [["hem","🏠","Hem"],["liga","📊","Liga"],["adm","🔒","Admin"]]
     : appMode==="hof"
     ? [["hof","🏆","Hall of Fame"],["adm","🔒","Admin"]]
     : appMode==="profil"
@@ -1330,6 +1369,7 @@ function renderMain(){
     else if(appMode==="snabbast") body=renderSnabbastTab();
     else if(appMode==="måljakten") body=renderMåljaktenTab();
     else if(appMode==="quiz") body=renderQuizTab();
+    else if(appMode==="streak") body=renderStreakTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -2041,6 +2081,116 @@ function renderHofTab(){
   </div>`}`;
 }
 
+function renderStreakTab(){
+  const rd=rounds[String(cfg.omg)];
+  const matches=rd?.matches||[];
+  const locked=rd?.locked||false;
+  const published=rd?.results_published||false;
+  const myTip=streakMyTips.find(t=>t.round_num===cfg.omg);
+  const publishedRounds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number);
+  const {current,best}=calcUserStreak(streakAllTips,currentUser.id,publishedRounds);
+
+  // Streak-status
+  const streakBar=`<div class="fg-card" style="display:flex;gap:0;padding:0;overflow:hidden">
+    <div style="flex:1;padding:14px;text-align:center;border-right:0.5px solid var(--color-border-tertiary)">
+      <div style="font-size:28px;font-weight:700;color:#e65100">${current}🔥</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">Aktiv streak</div>
+    </div>
+    <div style="flex:1;padding:14px;text-align:center">
+      <div style="font-size:28px;font-weight:700;color:${G_GREEN}">${best}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">Bästa streak</div>
+    </div>
+  </div>`;
+
+  // Visa resultatet om publicerat
+  if(published&&myTip){
+    const picks=myTip.picks||{};
+    const picksHtml=Object.entries(picks).map(([mIdx,sign])=>{
+      const m=matches[Number(mIdx)];
+      if(!m)return"";
+      const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
+      const hg=rd.goals?.[m.id]?.h??m.hMål;const ag=rd.goals?.[m.id]?.a??m.aMål;
+      const actual=hg>ag?"1":hg<ag?"2":"X";
+      const correct=sign===actual;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="font-size:18px">${correct?"✅":"❌"}</span>
+        <div style="flex:1;font-size:13px">${esc(h?.name||"")} – ${esc(a?.name||"")}</div>
+        <span style="font-weight:500">${sign}</span>
+        <span style="font-size:12px;color:var(--color-text-secondary)">(${actual})</span>
+      </div>`;
+    }).join("");
+    return `${streakBar}
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">🔥 Omgång ${cfg.omg} – ditt tips</div>
+      ${picksHtml}
+      <div style="padding-top:8px;font-weight:600;color:${myTip.correct?G_GREEN:"#c1272d"}">
+        ${myTip.correct?"✅ Alla 3 rätt – streak fortsätter!":"❌ Streak nollställd"}
+      </div>
+    </div>`;
+  }
+
+  // Välj matcher
+  if(myTip&&!published){
+    const picks=myTip.picks||{};
+    const picksHtml=Object.entries(picks).map(([mIdx,sign])=>{
+      const m=matches[Number(mIdx)];
+      const h=TEAMS.find(t=>t.id===m?.hId),a=TEAMS.find(t=>t.id===m?.aId);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <div style="flex:1">${esc(h?.name||"")} – ${esc(a?.name||"")}</div>
+        <span style="font-weight:600;background:#1a1a1a;color:#fff;border-radius:4px;padding:2px 8px">${sign}</span>
+      </div>`}).join("");
+    return `${streakBar}
+    <div class="fg-card" style="background:${S_GREENL};border:1px solid ${S_GREEN}">
+      <div style="font-weight:500;margin-bottom:8px;color:${S_GREEN}">✅ Tips inlämnat – Omgång ${cfg.omg}</div>
+      ${picksHtml}
+    </div>`;
+  }
+
+  if(locked&&!myTip){
+    return `${streakBar}
+    <div class="fg-card" style="text-align:center;padding:24px">
+      <div style="font-size:32px;margin-bottom:8px">🔒</div>
+      <div style="font-weight:500">Tippningen är stängd</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-top:4px">Streak nollställs om du inte tippat.</div>
+    </div>`;
+  }
+
+  if(!matches.length){
+    return `${streakBar}
+    <div class="fg-card" style="text-align:center;padding:24px">
+      <div style="font-size:32px">📅</div>
+      <div style="font-weight:500;margin-top:8px">Inga matcher inlagda än</div>
+    </div>`;
+  }
+
+  // Väljargränssnittet
+  const draft=streakDraft;
+  const selected=Object.keys(draft).length;
+  const matchCards=matches.map((m,i)=>{
+    const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
+    const picked=draft[i]!==undefined;
+    const signs=["1","X","2"];
+    return `<div class="fg-card" style="margin-bottom:8px;border:${picked?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"}">
+      <div style="font-size:13px;font-weight:500;margin-bottom:8px;text-align:center">${esc(h?.name||"")} – ${esc(a?.name||"")}</div>
+      <div style="display:flex;gap:6px">
+        ${signs.map(s=>`<button data-act="streak-pick" data-idx="${i}" data-sign="${s}"
+          style="flex:1;padding:8px;border-radius:6px;border:1.5px solid ${draft[i]===s?G_GREEN:"var(--color-border-secondary)"};
+          background:${draft[i]===s?G_GREENL:"var(--color-background-primary)"};
+          color:${draft[i]===s?G_GREEN:"var(--color-text-secondary)"};
+          font-weight:${draft[i]===s?700:400};cursor:pointer;font-size:14px">${s}</button>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+
+  return `${streakBar}
+  <div style="font-weight:500;font-size:15px;margin-bottom:4px">🔥 Streak – Omgång ${cfg.omg}</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Välj <b>3 matcher</b> och tippa 1, X eller 2. Alla 3 rätt = streak fortsätter!</div>
+  ${matchCards}
+  <button class="fg-btn" data-act="submit-streak" ${selected<3?"disabled":""} style="margin-top:4px;${selected<3?"opacity:0.5":""}">
+    ${selected<3?`Välj ${3-selected} match${3-selected===1?"":"er"} till`:"✅ Lämna in tips"}
+  </button>`;
+}
+
 function renderStatistikTab(){
   const u=currentUser;
   const lockedRounds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number).sort((a,b)=>a-b);
@@ -2188,7 +2338,12 @@ function renderLigaTab(sorted){
   else if(appMode==="snabbast"){title="📊 Snabbast-ligan";getPts=u=>userSnabbastTotalPts(u.id);subText=u=>`${userSnabbastTotalPts(u.id)} p totalt`;}
   else if(appMode==="måljakten"){title="📊 Målligan";getPts=u=>userMåljaktenTotalPts(u.id);subText=u=>`${userMåljaktenTotalPts(u.id)} p totalt`;}
   else if(appMode==="ligatipp"){title="📊 Serietipps-ligan";getPts=u=>userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});subText=u=>`${getPts(u)} p totalt`;}
-  else if(appMode==="quiz"){title="📊 Quiz-ligan";getPts=u=>userQuizTotalPts(u.id,window._quizAllAnswers||[],quizQuestions);subText=u=>`${getPts(u)} p totalt`;}
+  else if(appMode==="streak"){
+    title="🔥 Streak-ligan";
+    const pubRnds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number);
+    getPts=u=>calcUserStreak(streakAllTips,u.id,pubRnds).current;
+    subText=u=>{const s=calcUserStreak(streakAllTips,u.id,pubRnds);return`Aktiv: ${s.current}🔥 · Bäst: ${s.best}`;};
+  }
   else{title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
 
   const ligaSorted=[...users].sort((a,b)=>getPts(b)-getPts(a));
@@ -2754,6 +2909,7 @@ function renderAdminTab(){
       ["maljakten","🎯","Måljakten","maljaktenEnabled","maljakten_enabled"],
       ["quiz","🧠","Div2NG Quiz","quizEnabled","quiz_enabled"],
       ["hof","🏆","Hall of Fame","hofEnabled","hof_enabled"],
+      ["streak","🔥","Streak","streakEnabled","streak_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -3244,7 +3400,11 @@ function attachHandlers(){
         try{window._quizAllAnswers=await fetchAllQuizAnswersAll();}catch(e){window._quizAllAnswers=[];}
         screen="main"; mainTab="quiz";      } else if(appMode==="profil"){
         screen="main"; mainTab="profil";
-      } else if(appMode==="hof"){
+      } else if(appMode==="streak"){
+        streakMyTips=await fetchStreakTips();
+        streakAllTips=await fetchAllStreakTips();
+        streakDraft={};
+        screen="main"; mainTab="hem";
         hofData=await fetchHallOfFame();
         screen="main"; mainTab="hof";
       } else {
@@ -3362,6 +3522,23 @@ function attachHandlers(){
         flash("Fel: "+e.message);
       }
       el.textContent="Skicka till alla prenumeranter"; el.disabled=false;
+    }
+    else if(act==="streak-pick"){
+      const idx=el.dataset.idx;
+      const sign=el.dataset.sign;
+      const already=streakDraft[idx]===sign;
+      if(already) delete streakDraft[idx];
+      else if(Object.keys(streakDraft).length>=3&&streakDraft[idx]===undefined)return;
+      else streakDraft[idx]=sign;
+      render();
+    }
+    else if(act==="submit-streak"){
+      if(Object.keys(streakDraft).length<3){flash("Välj 3 matcher.");return;}
+      const error=await saveStreakTip(cfg.omg,streakDraft);
+      if(error){flash("Fel: "+error.message);return;}
+      streakMyTips=await fetchStreakTips();
+      flash("✅ Streak-tips inlämnat!");
+      render();
     }
     else if(act==="hof-save"){
       const season=Number(document.getElementById("hof-season").value);
