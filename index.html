@@ -4041,17 +4041,21 @@ function attachHandlers(){
       if(!raw){flash("Klistra in text från Fotbollskollen.");return;}
 
       // Parsa format: [Lagnamn{mål}](url)
-      // Extrahera par av lag+mål
       const entries=[];
-      const pattern=/\[([^\]]+?)(\d+)\]\(https[^\)]+\)/g;
+      const pattern=/\[([^\]]+?)(\d+)\]\([^\)]+\)/g;
       let m;
       while((m=pattern.exec(raw))!==null){
-        entries.push({team:m[1].trim(), goals:Number(m[2])});
+        entries.push({team:m[1].trim(),goals:Number(m[2])});
       }
 
-      if(entries.length<2){flash("Kunde inte läsa av resultat. Kontrollera att texten är rätt.");return;}
+      console.log("Hittade entries:",entries);
 
-      // Bygg matchpar (varannan rad = hemma/borta)
+      if(entries.length<2){
+        flash("Kunde inte läsa av resultat. Hittade "+entries.length+" poster. Kontrollera texten.");
+        return;
+      }
+
+      // Bygg matchpar
       const parsedMatches=[];
       for(let i=0;i<entries.length-1;i+=2){
         parsedMatches.push({
@@ -4060,21 +4064,29 @@ function attachHandlers(){
         });
       }
 
-      if(!parsedMatches.length){flash("Inga matcher hittades i texten.");return;}
+      // Fyll i befintliga bulkRows med mål, eller skapa nya
+      if(bulkRows.length>0){
+        bulkRows=bulkRows.map((r,i)=>{
+          const pm=parsedMatches[i];
+          if(!pm)return r;
+          return {...r,hMål:pm.homeScore,aMål:pm.awayScore};
+        });
+      } else {
+        // bulkRows är tom – hämta från rounds
+        const rd=rounds[String(cfg.omg)];
+        const existingMatches=rd?.matches||[];
+        bulkRows=parsedMatches.map((pm,i)=>{
+          const ex=existingMatches[i];
+          return {
+            hId:ex?.hId||"",aId:ex?.aId||"",
+            hMål:pm.homeScore,aMål:pm.awayScore,
+            id:ex?.id||`m${i}`
+          };
+        });
+      }
 
-      // Matcha mot befintliga lag och fyll i mål
-      const rd=rounds[String(cfg.omg)];
-      const existingMatches=rd?.matches||[];
-
-      // Försök matcha på lagnamn
-      const updatedRows=[...bulkRows];
-      parsedMatches.forEach((pm,i)=>{
-        if(updatedRows[i]){
-          updatedRows[i]={...updatedRows[i], hMål:pm.homeScore, aMål:pm.awayScore};
-        }
-      });
-      bulkRows=updatedRows;
-      flash(`✓ ${parsedMatches.length} resultat inlästa! Kontrollera och spara.`);
+      render();
+      flash(`✓ ${parsedMatches.length} resultat inlästa! Kontrollera och klicka "Spara resultat".`);
     }
     else if(act==="bulk-save"){
       const rnd=document.getElementById("bulk-rnd").value;
