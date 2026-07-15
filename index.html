@@ -3401,6 +3401,8 @@ function attachHandlers(){
         screen="main"; mainTab="quiz";      } else if(appMode==="profil"){
         screen="main"; mainTab="profil";
       } else if(appMode==="streak"){
+        rounds=await fetchRounds();
+        cfg=await fetchConfig();
         streakMyTips=await fetchStreakTips();
         streakAllTips=await fetchAllStreakTips();
         streakDraft={};
