@@ -3906,14 +3906,48 @@ function attachHandlers(){
       const rnd=String(cfg.omg);
       const cur=rounds[rnd]||{};
       const nowPublished=!cur.results_published;
-      // Spara snapshot av nuvarande ställning INNAN vi publicerar (dvs föregående ställning)
       if(nowPublished&&allPrivateLeagues.length) await updatePrivateLeagueSnapshots();
       const result=await publishRoundResults(rnd,nowPublished);
       if(result.error){flash("Fel: "+result.error.message);return;}
       rounds={...rounds,[rnd]:{...cur,results_published:nowPublished,picks_snapshot:nowPublished?result.picks_snapshot:cur.picks_snapshot}};
-      // Uppdatera lokalt
       try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){}
-      flash(nowPublished?"✅ Resultat publicerade – poäng räknas nu!":"⏳ Resultat återkallades.");
+
+      // ── Beräkna streak-resultat ───────────────────────────────────────────
+      if(nowPublished){
+        const rd=rounds[rnd];
+        const matches=rd.matches||[];
+        const goals=rd.goals||{};
+        // Hämta alla streak-tips för denna omgång
+        const {data:roundStreakTips}=await sb.from("streak_tips")
+          .select("*").eq("league_id",currentLeague.id).eq("round_num",Number(rnd));
+        if(roundStreakTips?.length){
+          for(const tip of roundStreakTips){
+            const picks=tip.picks||{};
+            let allCorrect=true;
+            let pickCount=0;
+            for(const [mIdx,sign] of Object.entries(picks)){
+              const m=matches[Number(mIdx)];
+              if(!m){allCorrect=false;break;}
+              const hg=goals[m.id]?.h??m.hMål??0;
+              const ag=goals[m.id]?.a??m.aMål??0;
+              const actual=hg>ag?"1":hg<ag?"2":"X";
+              if(sign!==actual) allCorrect=false;
+              pickCount++;
+            }
+            if(pickCount<3) allCorrect=false;
+            await sb.from("streak_tips").update({correct:allCorrect})
+              .eq("id",tip.id);
+          }
+          flash(`✅ Resultat publicerade – ${roundStreakTips.length} streak-tips räknade!`);
+        } else {
+          flash("✅ Resultat publicerade – poäng räknas nu!");
+        }
+      } else {
+        // Återkalla – nollställ correct för denna omgång
+        await sb.from("streak_tips").update({correct:null})
+          .eq("league_id",currentLeague.id).eq("round_num",Number(rnd));
+        flash("⏳ Resultat återkallades.");
+      }
     }
     else if(act==="toggle-lock"){
       const rnd=String(cfg.omg);
