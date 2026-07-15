@@ -4040,51 +4040,63 @@ function attachHandlers(){
       const raw=document.getElementById("fk-text")?.value?.trim();
       if(!raw){flash("Klistra in text från Fotbollskollen.");return;}
 
-      // Parsa format: [Lagnamn{mål}](url)
-      const entries=[];
-      const pattern=/\[([^\]]+?)(\d+)\]\([^\)]+\)/g;
-      let m;
-      while((m=pattern.exec(raw))!==null){
-        entries.push({team:m[1].trim(),goals:Number(m[2])});
+      // Parsa samma format som importverktyget
+      const cleaned=raw.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
+      const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+
+      const lines=cleaned.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+      const entries=[]; // {team, goals}
+      let i=0;
+      while(i<lines.length){
+        const line=lines[i];
+        // Hoppa över metadata
+        if(/^\d{1,2}:\d{2}/.test(line)||/^Publik:/i.test(line)||/^Omgång/i.test(line)||/^\d+,/.test(line)||/^\d+ \w+ \d{4}/.test(line)){
+          i++; continue;
+        }
+        // Lagnamn följt av ensam siffra på nästa rad
+        const nextLine=lines[i+1];
+        if(nextLine&&/^\d+$/.test(nextLine)){
+          // Kontrollera om raden är ett lagnamn (matcha mot TEAMS)
+          const lower=normalizeStr(line);
+          let foundTeam=TEAMS.find(t=>normalizeStr(t.name)===lower||lower.startsWith(normalizeStr(t.name)));
+          if(!foundTeam){
+            // Försök med första 2 ord
+            const lineWords=lower.split(" ").slice(0,2).join(" ");
+            foundTeam=TEAMS.find(t=>{
+              const tnWords=normalizeStr(t.name).split(" ").slice(0,2).join(" ");
+              return tnWords===lineWords;
+            });
+          }
+          if(foundTeam){
+            entries.push({team:foundTeam.name,goals:Number(nextLine)});
+            i+=2; continue;
+          }
+        }
+        i++;
       }
 
-      console.log("Hittade entries:",entries);
+      console.log("Resultat-entries:",entries);
+      if(entries.length<2){flash(`Hittade ${entries.length} poster – kontrollera texten.`);return;}
 
-      if(entries.length<2){
-        flash("Kunde inte läsa av resultat. Hittade "+entries.length+" poster. Kontrollera texten.");
-        return;
-      }
-
-      // Bygg matchpar
       const parsedMatches=[];
-      for(let i=0;i<entries.length-1;i+=2){
-        parsedMatches.push({
-          homeTeam:entries[i].team, homeScore:entries[i].goals,
-          awayTeam:entries[i+1].team, awayScore:entries[i+1].goals
-        });
+      for(let j=0;j<entries.length-1;j+=2){
+        parsedMatches.push({homeTeam:entries[j].team,homeScore:entries[j].goals,awayTeam:entries[j+1].team,awayScore:entries[j+1].goals});
       }
 
-      // Fyll i befintliga bulkRows med mål, eller skapa nya
       if(bulkRows.length>0){
-        bulkRows=bulkRows.map((r,i)=>{
-          const pm=parsedMatches[i];
+        bulkRows=bulkRows.map((r,idx)=>{
+          const pm=parsedMatches[idx];
           if(!pm)return r;
           return {...r,hMål:pm.homeScore,aMål:pm.awayScore};
         });
       } else {
-        // bulkRows är tom – hämta från rounds
         const rd=rounds[String(cfg.omg)];
         const existingMatches=rd?.matches||[];
-        bulkRows=parsedMatches.map((pm,i)=>{
-          const ex=existingMatches[i];
-          return {
-            hId:ex?.hId||"",aId:ex?.aId||"",
-            hMål:pm.homeScore,aMål:pm.awayScore,
-            id:ex?.id||`m${i}`
-          };
+        bulkRows=parsedMatches.map((pm,idx)=>{
+          const ex=existingMatches[idx];
+          return {hId:ex?.hId||"",aId:ex?.aId||"",hMål:pm.homeScore,aMål:pm.awayScore,id:ex?.id||`m${idx}`};
         });
       }
-
       render();
       flash(`✓ ${parsedMatches.length} resultat inlästa! Kontrollera och klicka "Spara resultat".`);
     }
