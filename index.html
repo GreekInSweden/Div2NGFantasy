@@ -2597,6 +2597,12 @@ function renderAdminTab(){
       </div>
       ${isLocked
         ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Tippning är stängd. Du kan fortfarande ändra resultat och klicka "Resultat klara".</div>
+           <div class="fg-card" style="background:var(--color-background-secondary);padding:10px;margin-bottom:10px">
+             <div style="font-weight:500;font-size:13px;margin-bottom:6px">🔄 Hämta resultat automatiskt</div>
+             <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">Klistra in URL:en till rätt omgång på fotbollskollen.se</div>
+             <input id="fk-url" class="fg-input" placeholder="https://www.fotbollskollen.se/..." style="margin-bottom:8px;font-size:12px"/>
+             <button class="fg-btn" data-act="fetch-scores" style="padding:8px 14px;font-size:12px">Hämta resultat från Fotbollskollen</button>
+           </div>
            ${rowsHtml}
            <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara resultat</button>`
         : `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
@@ -4029,6 +4035,38 @@ function attachHandlers(){
       confirmDeleteRound=false;
       bulkRows=defaultBulkRows(rnd);
       flash("✓ Omgång "+rnd+" raderad.");
+    }
+    else if(act==="fetch-scores"){
+      const url=document.getElementById("fk-url")?.value?.trim();
+      if(!url){flash("Klistra in en URL från fotbollskollen.se");return;}
+      el.textContent="Hämtar…"; el.disabled=true;
+      try{
+        const resp=await fetch("/api/fetch-scores",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","x-api-key":window.PUSH_API_KEY||""},
+          body:JSON.stringify({url})
+        });
+        const data=await resp.json();
+        if(!resp.ok){flash("Fel: "+(data.error||resp.status));el.textContent="Hämta resultat från Fotbollskollen";el.disabled=false;return;}
+        if(!data.matches?.length){flash("Inga resultat hittades – försök med en annan URL.");el.textContent="Hämta resultat från Fotbollskollen";el.disabled=false;return;}
+        // Fyll i bulkRows med hämtade resultat
+        const rd=rounds[String(cfg.omg)];
+        const existingMatches=rd?.matches||[];
+        bulkRows=data.matches.map((m,i)=>{
+          const existing=existingMatches[i];
+          return {
+            hTeam:existing?.hId||"",
+            aTeam:existing?.aId||"",
+            hMål:m.homeScore,
+            aMål:m.awayScore,
+            hName:m.homeTeam,
+            aName:m.awayTeam,
+            id:existing?.id||`match_${i}`
+          };
+        });
+        flash(`✓ ${data.matches.length} resultat hämtade! Kontrollera och spara.`);
+      }catch(e){flash("Fel: "+e.message);}
+      el.textContent="Hämta resultat från Fotbollskollen"; el.disabled=false;
     }
     else if(act==="bulk-save"){
       const rnd=document.getElementById("bulk-rnd").value;
