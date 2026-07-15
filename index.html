@@ -2160,7 +2160,9 @@ function renderStreakTab(){
     <div class="fg-card" style="text-align:center;padding:24px">
       <div style="font-size:32px">📅</div>
       <div style="font-weight:500;margin-top:8px">Inga matcher för omgång ${cfg.omg} ännu</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin:8px 0">Välj en annan omgång eller ladda om</div>
+      <div style="font-size:11px;color:#999;margin:8px 0;font-family:monospace">
+        cfg.omg=${cfg.omg} · rounds=${Object.keys(rounds).join(",")} · rd=${rd?"finns":"saknas"}
+      </div>
       <button data-act="streak-reload" style="background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px">🔄 Ladda om matcher</button>
     </div>`;
   }
