@@ -1330,6 +1330,24 @@ function renderRulesScreen(){
         ${tip("💡 Det finns en gemensam topplista – ingen privat liga behövs. Alla tävlar mot alla!")}
       `)}
 
+      ${section("🔥","Streak",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Håll din vinstsvit levande! Varje omgång väljer du <b>3 matcher</b> av de 7 som spelas och tippar <b>1, X eller 2</b> på varje. Får du alla 3 rätt fortsätter din streak – missar du en nollställs allt.
+        </div>
+        ${table([
+          ["Alla 3 rätt","Streak +1 🔥"],
+          ["En eller fler fel","Streak nollställs"],
+          ["Ej tippat en omgång","Streak nollställs"],
+          ["Längst streak vid säsongsslut","Vinner!"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Val:</b> Du väljer fritt vilka 3 av de 7 matcherna du vill tippa.<br>
+          <b>Deadline:</b> Tips måste lämnas innan omgången stängs.<br>
+          <b>Strategi:</b> Välj de matcher du är mest säker på – alla 3 måste vara rätt!
+        </div>
+        ${tip("💡 Längsta aktiva streak visas i ligatabellen. Bästa streak under säsongen avgör vinnaren!")}
+      `)}
+
     </div>
   </div>`;
 }
@@ -1338,7 +1356,7 @@ function renderMain(){
   const tabsDef = appMode==="statistik"
     ? [["statistik","📈","Statistik"],["adm","🔒","Admin"]]
     : appMode==="streak"
-    ? [["hem","🏠","Hem"],["liga","📊","Liga"],["adm","🔒","Admin"]]
+    ? [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]]
     : appMode==="hof"
     ? [["hof","🏆","Hall of Fame"],["adm","🔒","Admin"]]
     : appMode==="profil"
