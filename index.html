@@ -850,7 +850,7 @@ function renderModeSelect(){
       ${cfg.tippEnabled?`<button data-act="pick-mode" data-mode="tipp" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🎯</span>
         <div><div style="font-weight:500;font-size:16px">Tippa resultat</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Gissa matchresultat varje omgång</div></div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Gissa rätt resultat i matchen</div></div>
       </button>`:""}
       ${cfg.ligatippEnabled?`<button data-act="pick-mode" data-mode="ligatipp" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">📊</span>
@@ -860,12 +860,12 @@ function renderModeSelect(){
       ${cfg.snabbastEnabled?`<button data-act="pick-mode" data-mode="snabbast" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">⚡</span>
         <div><div style="font-weight:500;font-size:16px">Snabbast vinner</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Tippa vilka 7 lag som gör snabbast mål</div></div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Vilka 7 lag gör snabbast mål?</div></div>
       </button>`:""}
       ${cfg.maljaktenEnabled?`<button data-act="pick-mode" data-mode="måljakten" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🎯</span>
         <div><div style="font-weight:500;font-size:16px">Måljakten</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 lag – tjäna poäng på deras mål</div></div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 lag som du tror gör flest mål</div></div>
       </button>`:""}
     </div>
       <button data-act="pick-mode" data-mode="statistik" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
@@ -884,7 +884,7 @@ function renderModeSelect(){
         <span style="font-size:28px">🧠</span>
         <div>
           <div style="font-weight:500;font-size:16px">Div2NG Quiz</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">5 frågor per omgång · 5 minuter på dig</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Allmänna frågor om Div2 NG</div>
         </div>
       </button>`:""}
 
@@ -3864,7 +3864,12 @@ function attachHandlers(){
 // ── Init ──────────────────────────────────────────────────────────────────
 (async function init(){
   leagues=await fetchLeagues();
-  if(leagues.length===1){
+  // Om inga aktiva ligor, hämta alla och ta den senaste
+  if(!leagues.length){
+    const {data}=await sb.from("leagues").select("*").order("id",{ascending:false}).limit(1);
+    if(data?.length) leagues=data;
+  }
+  if(leagues.length>=1){
     currentLeague=leagues[0];
     TEAMS=await fetchTeams();
     players=await fetchPlayers();
