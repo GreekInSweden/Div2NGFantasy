@@ -2159,7 +2159,9 @@ function renderStreakTab(){
     return `${streakBar}
     <div class="fg-card" style="text-align:center;padding:24px">
       <div style="font-size:32px">📅</div>
-      <div style="font-weight:500;margin-top:8px">Inga matcher inlagda än</div>
+      <div style="font-weight:500;margin-top:8px">Inga matcher för omgång ${cfg.omg} ännu</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin:8px 0">Välj en annan omgång eller ladda om</div>
+      <button data-act="streak-reload" style="background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px">🔄 Ladda om matcher</button>
     </div>`;
   }
 
@@ -3525,6 +3527,11 @@ function attachHandlers(){
       }
       el.textContent="Skicka till alla prenumeranter"; el.disabled=false;
     }
+    else if(act==="streak-reload"){
+      rounds=await fetchRounds();
+      cfg=await fetchConfig();
+      render();
+    }
     else if(act==="streak-pick"){
       const idx=el.dataset.idx;
       const sign=el.dataset.sign;
@@ -3782,6 +3789,7 @@ function attachHandlers(){
       cfg={...cfg,omg:r};
       userSelectedRound=r;
       openRounds=new Set([r]);
+      if(appMode==="streak"){ rounds=await fetchRounds(); }
       render();
     }
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
