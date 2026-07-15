@@ -1346,7 +1346,7 @@ function renderMain(){
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
-  const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&allRoundKeys.length>0;
+  const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&appMode!=="hof"&&allRoundKeys.length>0;
   const roundStrip=showRoundStrip?`
     <div style="background:#1a1a1a;padding:6px 12px 8px">
       <div style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px">
