@@ -3188,7 +3188,7 @@ function renderAdminTab(){
     const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
     const goalSearch = document.getElementById("goals-search") ? document.getElementById("goals-search").value.toLowerCase() : "";
     const curRD = rounds[rndVal] || {matches:[],goals:{}};
-    const goalsLocked = curRD.locked;
+    const goalsLocked = curRD.results_published;
     const teamsInRound = new Set();
     curRD.matches.forEach(m=>{teamsInRound.add(m.hId);teamsInRound.add(m.aId);});
 
