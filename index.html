@@ -3916,8 +3916,6 @@ function attachHandlers(){
       const dir=Number(el.dataset.dir);
       const rnd=Math.max(1,(statsRound||cfg.omg)+dir);
       statsRound=rnd;
-      const root2=document.getElementById("fg-root");
-      if(root2) root2.style.opacity="0.6";
       try{
         [snabbastAllTips,måljaktenAllTips,window._statsQuizAnswers,streakAllTips] = await Promise.all([
           fetchAllSnabbastTips(rnd),
