@@ -55,18 +55,18 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 // ───────────────────────────────────────────────────────────────────────────
 const SUPABASE_URL = "https://vsxqcdsmkozxefyrialf.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZzeHFjZHNta296eGVmeXJpYWxmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4NzE2NjIsImV4cCI6MjA5NzQ0NzY2Mn0.QctNW47LierdfZNaK5bCBwIxXUbIguBUgSsMP0o1wuY";
-const SUPER_ADMIN_PWD = "div2ng25";
-const ADMIN_PWD = "div2ng_resultat"; // fallback
+// OBS: fyll i de riktiga e-postadresserna för dina två admin-konton här
+// (skapa kontona i Supabase → Authentication → Users innan du byter ut dessa)
+const SUPER_ADMIN_EMAIL = "sakalakis@icloud.com";
+const ADMIN_EMAIL = "zakibanan@gmail.com";
 
 // SHA-256 hashing via Web Crypto API (inbyggt i alla moderna webbläsare)
 async function sha256(str){
   const buf=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
-// Hasha PIN med user-id som salt (unikt per användare)
+// Hasha PIN med user-id som salt (unikt per användare) – jämförs sedan server-side via RPC
 async function hashPin(pin,userId){ return sha256(pin+"|"+userId); }
-// Hasha admin-lösenord
-async function hashAdminPwd(pwd){ return sha256("adm|"+pwd); }
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -222,9 +222,9 @@ async function deletePlayer(id){
   if(error)console.error(error);
 }
 async function fetchUsers(){
-  const {data,error}=await sb.from("fantasy_users").select("*").eq("league_id",currentLeague.id).order("created_at");
+  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,pin:u.pin,tips:u.tips||{},created_at:u.created_at}));
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at}));
 }
 async function insertUser(u){
   const {error}=await sb.from("fantasy_users").insert({
@@ -295,7 +295,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("*").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -305,8 +305,6 @@ async function fetchConfig(){
     omg:data.active_round,
     registrationOpen:data.registration_open!==false,
     ligatippLocked:!!data.ligatipp_locked,
-    superAdminPwd:data.super_admin_pwd||SUPER_ADMIN_PWD,
-    adminPwd:data.admin_pwd||ADMIN_PWD,
     quizEnabled:!!data.quiz_enabled,
     fantasyEnabled:data.fantasy_enabled!==false,
     tippEnabled:data.tipp_enabled!==false,
@@ -3158,13 +3156,11 @@ function renderAdminTab(){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
-        Här byter du lösenorden för admin-inloggningen. Ändringar sparas direkt i databasen.
+        Adminlösenorden hanteras nu via ett riktigt inloggningssystem (Supabase Auth) istället för att ligga i appens kod. Här kan du byta lösenordet för <b>det konto du just nu är inloggad med</b> (${adminLevel==="super"?"superadmin":"admin"}).<br><br>
+        Vill du byta lösenord för det <i>andra</i> kontot, eller lägga till fler admin-konton, görs det i Supabase → Authentication → Users.
       </div>
-      <label class="fg-label">Nytt superadmin-lösenord (ditt eget)</label>
-      <input class="fg-input" id="new-super-pwd" type="password" placeholder="Skriv nytt lösenord" style="margin-bottom:14px"/>
-      <label class="fg-label">Nytt admin-lösenord (hjälparens)</label>
-      <input class="fg-input" id="new-admin-pwd" type="password" placeholder="Skriv nytt lösenord" style="margin-bottom:14px"/>
-      <div style="font-size:12px;color:#c1272d;margin-bottom:10px">Lämna ett fält tomt om du inte vill ändra det lösenordet.</div>
+      <label class="fg-label">Nytt lösenord</label>
+      <input class="fg-input" id="new-own-pwd" type="password" placeholder="Minst 6 tecken" style="margin-bottom:14px"/>
       <button class="fg-btn" data-act="save-passwords">Spara lösenord</button>
     </div>`;
   } else if(adminSection==="import"){
@@ -3338,15 +3334,22 @@ function attachHandlers(){
   // Admin login – synkron fallback via window-funktion
   window._doAdminLogin=async function(){
     const pwd=document.getElementById("admin-pwd")?.value||"";
-    let pwdHash="";
-    try{pwdHash=await hashAdminPwd(pwd);}catch(e){}
-    const storedSuper=cfg.superAdminPwd||"";
-    const storedAdmin=cfg.adminPwd||"";
-    const matchSuper=pwd===SUPER_ADMIN_PWD||(storedSuper.length===64?pwdHash===storedSuper:pwd===storedSuper);
-    const matchAdmin=pwd===ADMIN_PWD||(storedAdmin.length===64?pwdHash===storedAdmin:pwd===storedAdmin);
-    if(matchSuper){adminOk=true;adminLevel="super";errMsg="";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
-    else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
-    else{errMsg="Fel lösenord.";}
+    errMsg="Loggar in…"; render();
+    try{
+      // Försök som superadmin först, sedan vanlig admin
+      let {data,error}=await sb.auth.signInWithPassword({email:SUPER_ADMIN_EMAIL,password:pwd});
+      let level="super";
+      if(error){
+        ({data,error}=await sb.auth.signInWithPassword({email:ADMIN_EMAIL,password:pwd}));
+        level="admin";
+      }
+      if(error||!data?.user){ errMsg="Fel lösenord."; render(); return; }
+      const {data:adminRow,error:adminErr}=await sb.from("admins").select("level").eq("user_id",data.user.id).maybeSingle();
+      if(adminErr||!adminRow){ errMsg="Kontot saknar adminbehörighet."; await sb.auth.signOut(); render(); return; }
+      adminOk=true; adminLevel=adminRow.level;
+      errMsg=""; if(adminLevel!=="super") adminSection="round";
+      cfg={...cfg,omg:Number(adminDefaultRound())}; bulkRows=defaultBulkRows(adminDefaultRound());
+    }catch(e){console.error(e); errMsg="Något gick fel vid inloggning.";}
     render();
   };
 
@@ -3495,10 +3498,10 @@ function attachHandlers(){
       let match=false;
       try{
         const inputHash=await hashPin(val,u.id);
-        match=inputHash===u.pin;
+        const {data,error}=await sb.rpc("verify_pin",{p_user_id:u.id,p_pin_hash:inputHash});
+        if(error){console.error(error);}
+        match=!!data;
       }catch(e){console.error("Hash error:",e);}
-      // Fallback för klartext-PINs
-      if(!match && u.pin && u.pin.length<20) match=val===u.pin;
       if(match){
         currentUser=u; pendingLoginUser=null; loginErr="";
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
@@ -3625,6 +3628,7 @@ function attachHandlers(){
       cfg={omg:1,registrationOpen:true,ligatippLocked:false,quizEnabled:false,fantasyEnabled:true,tippEnabled:true,snabbastEnabled:true,maljaktenEnabled:true,ligatippEnabled:true};
       await sb.from("app_config").insert({league_id:league.id,active_round:1,registration_open:true});
       adminOk=false; screen="home"; homeMode="start";
+      sb.auth.signOut().catch(()=>{});
       flash("✓ Säsong "+newYear+" startad! Välkommen till den nya säsongen.");
     }
     else if(act==="change-pin"){
@@ -3953,20 +3957,9 @@ function attachHandlers(){
     }
     else if(act==="toggle-round"){const r=Number(el.dataset.r);if(openRounds.has(r))openRounds.delete(r);else openRounds.add(r);render();}
     else if(act==="admin-login"){
-      const pwd=document.getElementById("admin-pwd").value;
-      let pwdHash="";
-      try{pwdHash=await hashAdminPwd(pwd);}catch(e){console.error("Hash error:",e);}
-      const storedSuper=cfg.superAdminPwd||"";
-      const storedAdmin=cfg.adminPwd||"";
-      // Hårdkodade lösenord fungerar alltid som nödutgång
-      const matchSuper=pwd===SUPER_ADMIN_PWD||
-        (storedSuper.length===64?pwdHash===storedSuper:pwd===storedSuper);
-      const matchAdmin=pwd===ADMIN_PWD||
-        (storedAdmin.length===64?pwdHash===storedAdmin:pwd===storedAdmin);
-      if(matchSuper){adminOk=true;adminLevel="super";errMsg="";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
-      else if(matchAdmin){adminOk=true;adminLevel="admin";errMsg="";adminSection="round";cfg={...cfg,omg:Number(adminDefaultRound())};bulkRows=defaultBulkRows(adminDefaultRound());}
-      else{errMsg=`Fel lösenord. (Inmatat: ${pwd.length} tecken, Fallback: ${SUPER_ADMIN_PWD}, Hash: ${pwdHash.slice(0,8)||"misslyckades"})`;}
-      render();
+      // Denna väg används inte i UI:t (inloggningsknappen anropar window._doAdminLogin()),
+      // men vi låter den peka på samma säkra flöde ifall något annat triggar den.
+      await window._doAdminLogin();
     }
     else if(act==="admin-section"){
       adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
@@ -4070,17 +4063,12 @@ function attachHandlers(){
       flash(`✓ ${saved} omgångar sparade!`);
     }
     else if(act==="save-passwords"){
-      const newSuper=document.getElementById("new-super-pwd").value.trim();
-      const newAdmin=document.getElementById("new-admin-pwd").value.trim();
-      if(!newSuper&&!newAdmin){flash("Ange minst ett nytt lösenord.");return;}
-      const updates={};
-      if(newSuper) updates.super_admin_pwd=await hashAdminPwd(newSuper);
-      if(newAdmin) updates.admin_pwd=await hashAdminPwd(newAdmin);
-      const {error}=await sb.from("app_config").update(updates).eq("league_id",currentLeague.id);
+      const newPwd=document.getElementById("new-own-pwd").value.trim();
+      if(!newPwd||newPwd.length<6){flash("Lösenordet måste vara minst 6 tecken.");return;}
+      const {error}=await sb.auth.updateUser({password:newPwd});
       if(error){flash("Fel: "+error.message);return;}
-      if(newSuper) cfg={...cfg,superAdminPwd:updates.super_admin_pwd};
-      if(newAdmin) cfg={...cfg,adminPwd:updates.admin_pwd};
-      flash("✓ Lösenord uppdaterade och krypterade!");
+      document.getElementById("new-own-pwd").value="";
+      flash("✓ Lösenord uppdaterat!");
     }
     else if(act==="toggle-ligatipp-lock"){
       await toggleLigatippLock(newLocked);
