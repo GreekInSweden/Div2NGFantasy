@@ -669,7 +669,7 @@ function calcSnabbastPts(userPicks,actualResult){
   if(!userPicks||!actualResult||!actualResult.length)return 0;
   let pts=0;
   actualResult.forEach((teamId,idx)=>{
-    if(userPicks.map(Number).includes(Number(teamId))) pts+=(7-idx);
+    if(Number(userPicks[idx])===Number(teamId)) pts+=(7-idx);
   });
   return pts;
 }
@@ -1326,7 +1326,7 @@ function renderRulesScreen(){
       ${section("⚡","Snabbast vinner",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
           Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
-          Poängen baseras på placeringen i facit – 7p för snabbast, 6p för näst snabbast, ner till 1p för sjunde snabbast.
+          Poängen kräver rätt lag på exakt rätt plats – 7p om du gissar snabbaste laget på plats 1, 6p för plats 2, ner till 1p för plats 7. Fel plats ger inga poäng för det laget.
         </div>
         ${table([
           ["Snabbaste målet (plats 1)","7 p"],
@@ -3988,7 +3988,13 @@ function attachHandlers(){
       }catch(e){console.error(e);}
       render();
     }
-    else if(act==="goals-search-update"){ render(); }
+    else if(act==="goals-search-update"){
+      const inp=document.getElementById("goals-search");
+      const pos=inp?inp.selectionStart:null;
+      render();
+      const inp2=document.getElementById("goals-search");
+      if(inp2){ inp2.focus(); if(pos!=null){ try{inp2.setSelectionRange(pos,pos);}catch(e){} } }
+    }
     else if(act==="admin-jump-round"){
       const n=Number(el.dataset.n);
       bulkRows=defaultBulkRows(String(n));
