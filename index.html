@@ -140,7 +140,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
     hofData=[],
     streakMyTips=[], streakAllTips=[], streakDraft={},
-    statsRound=null;
+    statsRound=null, myRoundStatus={};
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -694,6 +694,39 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+async function loadMyRoundStatus(){
+  if(!currentUser||!cfg||!cfg.omg) return;
+  const rnd=cfg.omg;
+  try{
+    const [snb,mlj,str,qz] = await Promise.all([
+      fetchMySnabbastTips(),
+      fetchMyMåljaktenTips(),
+      fetchStreakTips(),
+      fetchMyQuizAnswers(rnd)
+    ]);
+    myRoundStatus={
+      round:rnd,
+      snabbast:!!(snb[rnd]&&snb[rnd].length),
+      maljakten:!!(mlj[rnd]&&mlj[rnd].length),
+      streak:str.some(t=>Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0),
+      quiz:Object.keys(qz||{}).length>0
+    };
+  }catch(e){console.error(e);myRoundStatus={round:rnd};}
+}
+function missingModesList(){
+  if(!currentUser) return [];
+  const rnd=cfg.omg;
+  const rd=rounds[String(rnd)];
+  if(!rd || rd.locked) return [];
+  const missing=[];
+  if(cfg.fantasyEnabled && !(pickCount(currentUser)===TOTAL_PICKS && currentUser.kapten)) missing.push({ico:"⚽",label:"Fantasy – välj ditt lag"});
+  if(cfg.tippEnabled && !(currentUser.tips&&(currentUser.tips[String(rnd)]||[]).length>0)) missing.push({ico:"🎯",label:"Tippa resultat"});
+  if(cfg.snabbastEnabled && !myRoundStatus.snabbast) missing.push({ico:"⚡",label:"Snabbast vinner"});
+  if(cfg.maljaktenEnabled && !myRoundStatus.maljakten) missing.push({ico:"🎯",label:"Måljakten"});
+  if(cfg.streakEnabled && !myRoundStatus.streak) missing.push({ico:"🔥",label:"Streak"});
+  if(cfg.quizEnabled && !myRoundStatus.quiz) missing.push({ico:"🧠",label:"Quiz"});
+  return missing;
+}
 
 function plPts(player,rd){
   if(!rd)return 0;
@@ -874,6 +907,16 @@ function renderModeSelect(){
     </div>
     <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:4px">Hej ${esc(currentUser.namn)}!</div>
     <div style="font-size:20px;font-weight:500;margin-bottom:28px;text-align:center">Vad vill du göra?</div>
+    ${(()=>{
+      const missing = (myRoundStatus.round===cfg.omg) ? missingModesList() : [];
+      if(!missing.length) return "";
+      return `<div class="fg-card" style="width:100%;max-width:320px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
+        <div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">⏰ Du har inte lagt in allt för omgång ${cfg.omg} än:</div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          ${missing.map(m=>`<div style="font-size:12px;color:#A32D2D">${m.ico} ${esc(m.label)}</div>`).join("")}
+        </div>
+      </div>`;
+    })()}
     <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px">
       ${cfg.fantasyEnabled?`<button data-act="pick-mode" data-mode="fantasy" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">⚽</span>
@@ -2746,19 +2789,23 @@ function renderAdminTab(){
     const rnd = statsRound || cfg.omg;
     const sorted = [...users].sort((a,b)=>a.namn.localeCompare(b.namn,"sv"));
     const modes=[
-      {ico:"🎯",label:"Tippa",enabled:cfg.tippEnabled!==false,
+      {ico:"⚽",label:"Fantasy",roundBound:false,enabled:cfg.fantasyEnabled!==false,
+        has:u=>pickCount(u)===TOTAL_PICKS && !!u.kapten},
+      {ico:"📊",label:"Tippa serien",roundBound:false,enabled:cfg.ligatippEnabled!==false,
+        has:u=>(allLeagueTips||[]).some(t=>t.user_id===u.id)},
+      {ico:"🎯",label:"Tippa",roundBound:true,enabled:cfg.tippEnabled!==false,
         has:u=>!!(u.tips&&(u.tips[String(rnd)]||[]).length>0)},
-      {ico:"⚡",label:"Snabbast",enabled:cfg.snabbastEnabled!==false,
+      {ico:"⚡",label:"Snabbast",roundBound:true,enabled:cfg.snabbastEnabled!==false,
         has:u=>snabbastAllTips.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0)},
-      {ico:"🎯",label:"Måljakten",enabled:cfg.maljaktenEnabled!==false,
+      {ico:"🎯",label:"Måljakten",roundBound:true,enabled:cfg.maljaktenEnabled!==false,
         has:u=>måljaktenAllTips.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0)},
-      {ico:"🔥",label:"Streak",enabled:cfg.streakEnabled!==false,
+      {ico:"🔥",label:"Streak",roundBound:true,enabled:cfg.streakEnabled!==false,
         has:u=>streakAllTips.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0)},
-      {ico:"🧠",label:"Quiz",enabled:cfg.quizEnabled!==false,
+      {ico:"🧠",label:"Quiz",roundBound:true,enabled:cfg.quizEnabled!==false,
         has:u=>(window._statsQuizAnswers||[]).some(a=>a.user_id===u.id&&Number(a.round_num)===Number(rnd))},
     ].filter(m=>m.enabled);
 
-    const headerCells = modes.map(m=>`<div style="width:56px;text-align:center;font-size:16px" title="${esc(m.label)}">${m.ico}</div>`).join("");
+    const headerCells = modes.map(m=>`<div style="width:56px;text-align:center;font-size:16px" title="${esc(m.label)}${m.roundBound?'':' (ej per omgång)'}">${m.ico}</div>`).join("");
     const rowsHtml = sorted.map(u=>{
       const cells = modes.map(m=>{
         const ok=m.has(u);
@@ -2775,9 +2822,6 @@ function renderAdminTab(){
       return `<div style="font-size:12px;color:var(--color-text-secondary)">${m.ico} ${esc(m.label)}: <b style="color:var(--color-text-primary)">${cnt}/${sorted.length}</b></div>`;
     }).join("");
 
-    const fantasyComplete = sorted.filter(u=>pickCount(u)===TOTAL_PICKS && u.kapten).length;
-    const ligatippCount = sorted.filter(u=>(allLeagueTips||[]).some(t=>t.user_id===u.id)).length;
-
     body = `<div class="fg-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
         <div style="font-weight:500">📊 Deltagande per omgång</div>
@@ -2787,17 +2831,13 @@ function renderAdminTab(){
           <button data-act="stat-round-nav" data-dir="1" style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:28px;height:28px;cursor:pointer">›</button>
         </div>
       </div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">⚽ Fantasy och 📊 Tippa serien är ej bundna till omgången – de visar aktuellt status oavsett vilken omgång du bläddrar till.</div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">${summaryHtml}</div>
       <div style="display:flex;align-items:center;padding:4px 0 8px;border-bottom:1px solid var(--color-border-secondary)">
         <div style="flex:1;font-size:11px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.5px">ANVÄNDARE (${sorted.length})</div>
         ${headerCells}
       </div>
       ${rowsHtml || '<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga registrerade användare ännu.</div>'}
-    </div>
-    <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">Engångsstatus (ej per omgång)</div>
-      <div style="font-size:12px;color:var(--color-text-secondary)">⚽ Fantasy – lag klart: <b style="color:var(--color-text-primary)">${fantasyComplete}/${sorted.length}</b></div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">📊 Tippa serien – har lämnat tips: <b style="color:var(--color-text-primary)">${ligatippCount}/${sorted.length}</b></div>
     </div>`;
   } else if(adminSection==="privliga"){
     const showHistory=window._privligaTab==="history";
@@ -3408,7 +3448,7 @@ function attachHandlers(){
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
       const u=users.find(x=>x.id===el.dataset.id);
-      currentUser=u; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
+      currentUser=u; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
     }
     else if(act==="ask-pin"){
       pendingLoginUser=users.find(x=>x.id===el.dataset.id);
@@ -3426,7 +3466,7 @@ function attachHandlers(){
       if(!match && u.pin && u.pin.length<20) match=val===u.pin;
       if(match){
         currentUser=u; pendingLoginUser=null; loginErr="";
-        screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
+        screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       } else {
         loginErr="Fel PIN-kod."; render();
       }
@@ -3448,7 +3488,7 @@ function attachHandlers(){
         return;
       }
       users=[...users,ny];
-      currentUser=ny; errMsg=""; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} render();
+      currentUser=ny; errMsg=""; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
     }
     else if(act==="pick-mode"){
       appMode=el.dataset.mode;
@@ -3821,7 +3861,7 @@ function attachHandlers(){
       const arr=[...ligatippDraft[key]]; arr.splice(idx,1);
       ligatippDraft[key]=arr; render();
     }
-    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; render(); }
+    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; render(); loadMyRoundStatus().then(render); }
     else if(act==="back-to-main"){screen="main";render();}
     else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
     else if(act==="pick-player"){
