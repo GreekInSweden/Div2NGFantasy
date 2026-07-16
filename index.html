@@ -937,7 +937,7 @@ function renderModeSelect(){
       const showCountdown = rd && rd.lock_deadline && !rd.locked && new Date(rd.lock_deadline)>new Date();
       if(!missing.length && !showCountdown) return "";
       return `<div class="fg-card" style="width:100%;max-width:320px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
-        ${showCountdown?`<div style="font-size:13px;font-weight:600;color:#A32D2D;margin-bottom:${missing.length?'8px':'0'}" data-countdown-deadline="${rd.lock_deadline}">${formatCountdown(rd.lock_deadline)}</div>`:""}
+        ${showCountdown?`<div style="font-size:20px;font-weight:800;color:#A32D2D;margin-bottom:${missing.length?'10px':'0'};letter-spacing:.2px" data-countdown-deadline="${rd.lock_deadline}">${formatCountdown(rd.lock_deadline)}</div>`:""}
         ${missing.length?`<div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">Du har inte lagt in allt för omgång ${cfg.omg} än:</div>
         <div style="display:flex;flex-direction:column;gap:4px">
           ${missing.map(m=>`<div style="font-size:12px;color:#A32D2D">${m.ico} ${esc(m.label)}</div>`).join("")}
@@ -2657,7 +2657,7 @@ function renderAdminTab(){
         </div>
         <button class="fg-outbtn" data-act="save-lock-deadline" style="padding:9px 14px">Spara</button>
       </div>
-      ${curRoundData&&curRoundData.lock_deadline&&!isLocked?`<div style="font-size:12px;color:var(--color-text-secondary);margin:-6px 0 14px" data-countdown-deadline="${curRoundData.lock_deadline}">Räknar…</div>`:""}
+      ${curRoundData&&curRoundData.lock_deadline&&!isLocked?`<div style="font-size:16px;font-weight:700;color:#A32D2D;margin:-6px 0 14px" data-countdown-deadline="${curRoundData.lock_deadline}">Räknar…</div>`:""}
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <div style="flex:1;background:${isLocked?'#FCEBEB':G_GREENL};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${isLocked?'🔒':'🔓'}</span>
