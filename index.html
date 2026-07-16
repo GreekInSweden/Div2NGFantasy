@@ -254,8 +254,13 @@ async function fetchRounds(){
   const {data,error}=await sb.from("rounds").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return {};}
   const out={};
-  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[],picks_snapshot:r.picks_snapshot||{},results_published:!!r.results_published}; });
+  data.forEach(r=>{ out[String(r.round_num)]={matches:r.matches||[],goals:r.goals||{},locked:!!r.locked,locked_at:r.locked_at||null,snabbast_result:r.snabbast_result||[],picks_snapshot:r.picks_snapshot||{},results_published:!!r.results_published,lock_deadline:r.lock_deadline||null}; });
   return out;
+}
+async function saveRoundDeadline(rnd,deadlineIso){
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),lock_deadline:deadlineIso,league_id:currentLeague.id});
+  if(error)console.error(error);
+  return error;
 }
 async function saveRoundMatches(rnd,matches){
   const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
@@ -835,6 +840,25 @@ function userTipRoundPts(u,r){
 function userTipTotalPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userTipRoundPts(u,Number(r)),0); }
 function sortedUsers(){return [...users].sort((a,b)=>userTotPts(b)-userTotPts(a));}
 function esc(str){const d=document.createElement("div");d.textContent=str==null?"":String(str);return d.innerHTML;}
+function toDatetimeLocal(iso){
+  const d=new Date(iso);
+  if(isNaN(d))return"";
+  const pad=n=>String(n).padStart(2,"0");
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function formatCountdown(deadlineIso){
+  const diff=new Date(deadlineIso)-new Date();
+  if(diff<=0)return"Spelstopp har passerat";
+  const d=Math.floor(diff/86400000), h=Math.floor(diff%86400000/3600000), m=Math.floor(diff%3600000/60000);
+  if(d>0)return `⏰ Spelstopp om ${d}d ${h}h ${m}m`;
+  if(h>0)return `⏰ Spelstopp om ${h}h ${m}m`;
+  return `⏰ Spelstopp om ${m} min`;
+}
+function updateCountdownEls(){
+  document.querySelectorAll("[data-countdown-deadline]").forEach(el=>{
+    el.textContent=formatCountdown(el.dataset.countdownDeadline);
+  });
+}
 
 // ── Render ──────────────────────────────────────────────────────────────────
 function render(){
@@ -908,13 +932,16 @@ function renderModeSelect(){
     <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:4px">Hej ${esc(currentUser.namn)}!</div>
     <div style="font-size:20px;font-weight:500;margin-bottom:28px;text-align:center">Vad vill du göra?</div>
     ${(()=>{
+      const rd = rounds[String(cfg.omg)];
       const missing = (myRoundStatus.round===cfg.omg) ? missingModesList() : [];
-      if(!missing.length) return "";
+      const showCountdown = rd && rd.lock_deadline && !rd.locked && new Date(rd.lock_deadline)>new Date();
+      if(!missing.length && !showCountdown) return "";
       return `<div class="fg-card" style="width:100%;max-width:320px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
-        <div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">⏰ Du har inte lagt in allt för omgång ${cfg.omg} än:</div>
+        ${showCountdown?`<div style="font-size:13px;font-weight:600;color:#A32D2D;margin-bottom:${missing.length?'8px':'0'}" data-countdown-deadline="${rd.lock_deadline}">${formatCountdown(rd.lock_deadline)}</div>`:""}
+        ${missing.length?`<div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">Du har inte lagt in allt för omgång ${cfg.omg} än:</div>
         <div style="display:flex;flex-direction:column;gap:4px">
           ${missing.map(m=>`<div style="font-size:12px;color:#A32D2D">${m.ico} ${esc(m.label)}</div>`).join("")}
-        </div>
+        </div>`:""}
       </div>`;
     })()}
     <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px">
@@ -2552,7 +2579,7 @@ function renderAdminTab(){
     </div>`;
   }
   const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
-  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Statistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
+  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -2623,6 +2650,14 @@ function renderAdminTab(){
         </div>
         <button class="fg-outbtn" data-act="bulk-load" style="padding:9px 14px">Hämta</button>
       </div>
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:14px;padding:10px 12px;background:var(--color-background-secondary);border-radius:8px">
+        <div style="flex:1">
+          <label class="fg-label">⏰ Spelstopp (första matchens avspark)</label>
+          <input class="fg-input" id="lock-deadline-input" type="datetime-local" value="${curRoundData&&curRoundData.lock_deadline?toDatetimeLocal(curRoundData.lock_deadline):""}"/>
+        </div>
+        <button class="fg-outbtn" data-act="save-lock-deadline" style="padding:9px 14px">Spara</button>
+      </div>
+      ${curRoundData&&curRoundData.lock_deadline&&!isLocked?`<div style="font-size:12px;color:var(--color-text-secondary);margin:-6px 0 14px" data-countdown-deadline="${curRoundData.lock_deadline}">Räknar…</div>`:""}
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <div style="flex:1;background:${isLocked?'#FCEBEB':G_GREENL};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${isLocked?'🔒':'🔓'}</span>
@@ -4118,6 +4153,15 @@ function attachHandlers(){
         flash("⏳ Resultat återkallades.");
       }
     }
+    else if(act==="save-lock-deadline"){
+      const val=document.getElementById("lock-deadline-input").value;
+      if(!val){alert("Välj ett datum och tid först.");return;}
+      const rnd=String(cfg.omg);
+      const iso=new Date(val).toISOString();
+      await saveRoundDeadline(rnd,iso);
+      rounds={...rounds,[rnd]:{...(rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false}),lock_deadline:iso}};
+      render();
+    }
     else if(act==="toggle-lock"){
       const rnd=String(cfg.omg);
       const nowLocked=el.dataset.locked==="1"?false:true;
@@ -4325,6 +4369,8 @@ function attachHandlers(){
     screen="leagues";
   }
   render();
+  updateCountdownEls();
+  setInterval(updateCountdownEls,30000);
 })();
 })();
 </script>
