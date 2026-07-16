@@ -139,7 +139,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
     quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
     hofData=[],
-    streakMyTips=[], streakAllTips=[], streakDraft={};
+    streakMyTips=[], streakAllTips=[], streakDraft={},
+    statsRound=null;
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -2508,7 +2509,7 @@ function renderAdminTab(){
     </div>`;
   }
   const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
-  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
+  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Statistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -2741,6 +2742,63 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
     </div>
     ${rowsHtml}`;
+  } else if(adminSection==="statistik"){
+    const rnd = statsRound || cfg.omg;
+    const sorted = [...users].sort((a,b)=>a.namn.localeCompare(b.namn,"sv"));
+    const modes=[
+      {ico:"🎯",label:"Tippa",enabled:cfg.tippEnabled!==false,
+        has:u=>!!(u.tips&&(u.tips[String(rnd)]||[]).length>0)},
+      {ico:"⚡",label:"Snabbast",enabled:cfg.snabbastEnabled!==false,
+        has:u=>snabbastAllTips.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0)},
+      {ico:"🎯",label:"Måljakten",enabled:cfg.maljaktenEnabled!==false,
+        has:u=>måljaktenAllTips.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0)},
+      {ico:"🔥",label:"Streak",enabled:cfg.streakEnabled!==false,
+        has:u=>streakAllTips.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0)},
+      {ico:"🧠",label:"Quiz",enabled:cfg.quizEnabled!==false,
+        has:u=>(window._statsQuizAnswers||[]).some(a=>a.user_id===u.id&&Number(a.round_num)===Number(rnd))},
+    ].filter(m=>m.enabled);
+
+    const headerCells = modes.map(m=>`<div style="width:56px;text-align:center;font-size:16px" title="${esc(m.label)}">${m.ico}</div>`).join("");
+    const rowsHtml = sorted.map(u=>{
+      const cells = modes.map(m=>{
+        const ok=m.has(u);
+        return `<div style="width:56px;text-align:center;font-size:15px">${ok?'<span style="color:#1a7a3d;font-weight:700">✓</span>':'<span style="color:#A32D2D;font-weight:700">✗</span>'}</div>`;
+      }).join("");
+      return `<div style="display:flex;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="flex:1;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.namn)}</div>
+        ${cells}
+      </div>`;
+    }).join("");
+
+    const summaryHtml = modes.map(m=>{
+      const cnt=sorted.filter(u=>m.has(u)).length;
+      return `<div style="font-size:12px;color:var(--color-text-secondary)">${m.ico} ${esc(m.label)}: <b style="color:var(--color-text-primary)">${cnt}/${sorted.length}</b></div>`;
+    }).join("");
+
+    const fantasyComplete = sorted.filter(u=>pickCount(u)===TOTAL_PICKS && u.kapten).length;
+    const ligatippCount = sorted.filter(u=>(allLeagueTips||[]).some(t=>t.user_id===u.id)).length;
+
+    body = `<div class="fg-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <div style="font-weight:500">📊 Deltagande per omgång</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button data-act="stat-round-nav" data-dir="-1" style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:28px;height:28px;cursor:pointer">‹</button>
+          <div style="font-weight:500;font-size:13px;min-width:78px;text-align:center">Omgång ${rnd}</div>
+          <button data-act="stat-round-nav" data-dir="1" style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:28px;height:28px;cursor:pointer">›</button>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">${summaryHtml}</div>
+      <div style="display:flex;align-items:center;padding:4px 0 8px;border-bottom:1px solid var(--color-border-secondary)">
+        <div style="flex:1;font-size:11px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.5px">ANVÄNDARE (${sorted.length})</div>
+        ${headerCells}
+      </div>
+      ${rowsHtml || '<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga registrerade användare ännu.</div>'}
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Engångsstatus (ej per omgång)</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">⚽ Fantasy – lag klart: <b style="color:var(--color-text-primary)">${fantasyComplete}/${sorted.length}</b></div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">📊 Tippa serien – har lämnat tips: <b style="color:var(--color-text-primary)">${ligatippCount}/${sorted.length}</b></div>
+    </div>`;
   } else if(adminSection==="privliga"){
     const showHistory=window._privligaTab==="history";
     const pending=allPrivateLeagues.filter(l=>!l.approved);
@@ -3840,6 +3898,34 @@ function attachHandlers(){
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
       if(adminSection==="season"){ window._allLeaguesCache=null; }
+      if(adminSection==="statistik"){
+        statsRound = statsRound || cfg.omg;
+        try{
+          [snabbastAllTips,måljaktenAllTips,window._statsQuizAnswers,streakAllTips,allLeagueTips] = await Promise.all([
+            fetchAllSnabbastTips(statsRound),
+            fetchAllMåljaktenTips(statsRound),
+            fetchAllQuizAnswers(statsRound),
+            fetchAllStreakTips(),
+            fetchAllLigatips()
+          ]);
+        }catch(e){console.error(e);}
+      }
+      render();
+    }
+    else if(act==="stat-round-nav"){
+      const dir=Number(el.dataset.dir);
+      const rnd=Math.max(1,(statsRound||cfg.omg)+dir);
+      statsRound=rnd;
+      const root2=document.getElementById("fg-root");
+      if(root2) root2.style.opacity="0.6";
+      try{
+        [snabbastAllTips,måljaktenAllTips,window._statsQuizAnswers,streakAllTips] = await Promise.all([
+          fetchAllSnabbastTips(rnd),
+          fetchAllMåljaktenTips(rnd),
+          fetchAllQuizAnswers(rnd),
+          fetchAllStreakTips()
+        ]);
+      }catch(e){console.error(e);}
       render();
     }
     else if(act==="goals-search-update"){ render(); }
