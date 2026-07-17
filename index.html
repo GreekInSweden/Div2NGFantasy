@@ -1935,7 +1935,7 @@ function renderPrivateLeagueSection(gameMode){
           <div style="font-weight:500">${esc(pl.name)}</div>
           <button data-act="pl-close" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:13px">✕ Stäng</button>
         </div>
-        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${pl.game_mode==="alla"?"🏆 Alla spel – totalpoäng":"Inbjudningskod:"} <b style="color:${G_GREEN};letter-spacing:2px">${pl.invite_code}</b> · Dela med vänner!</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${pl.game_mode==="alla"?"🏆 Alla spel – totalpoäng":"Inbjudningskod:"} <b style="color:#111;font-weight:800;font-size:14px;letter-spacing:2px">${pl.invite_code}</b> · Dela med vänner!</div>
         ${memberUsers.map((u,i)=>{
           const rank=i+1;
           const isMe=u.id===currentUser.id;
@@ -1957,7 +1957,7 @@ function renderPrivateLeagueSection(gameMode){
       <span style="font-size:18px">👥</span>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:500">${esc(pl.name)}</div>
-        <div style="font-size:11px;color:var(--color-text-secondary)">${(pl.private_league_members||[]).length} deltagare · Kod: ${pl.invite_code}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${(pl.private_league_members||[]).length} deltagare · Kod: <b style="color:#111;font-weight:800">${pl.invite_code}</b></div>
       </div>
       <span style="color:var(--color-text-secondary)">›</span>
     </button>`).join("");
@@ -2928,7 +2928,7 @@ function renderAdminTab(){
         <div style="font-weight:500;font-size:14px;margin-bottom:6px">👥 ${esc(gName)}</div>
         ${leagues.map(l=>`<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px">
           <span style="color:var(--color-text-secondary);width:110px">${modeLabel[l.game_mode]||l.game_mode}</span>
-          <span style="font-family:monospace;background:var(--color-background-secondary);padding:2px 8px;border-radius:4px;letter-spacing:2px;font-weight:500;color:${G_GREEN}">${l.invite_code}</span>
+          <span style="font-family:monospace;background:var(--color-background-secondary);padding:2px 8px;border-radius:4px;letter-spacing:2px;font-weight:800;color:#111">${l.invite_code}</span>
           <span style="color:var(--color-text-secondary)">${(l.private_league_members||[]).length} med</span>
           <button data-act="pl-delete-admin" data-id="${l.id}" style="background:none;border:none;cursor:pointer;color:#c1272d;font-size:16px;padding:0;margin-left:auto">×</button>
         </div>`).join("")}
