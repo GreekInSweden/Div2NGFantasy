@@ -610,9 +610,13 @@ async function joinPrivateLeague(code){
 }
 async function approvePrivateLeague(id){
   const code=Math.random().toString(36).slice(2,8).toUpperCase();
+  const {data:plRow}=await sb.from("private_leagues").select("created_by").eq("id",id).maybeSingle();
   const {error}=await sb.from("private_leagues").update({approved:true,invite_code:code}).eq("id",id);
   if(!error){
     allPrivateLeagues=allPrivateLeagues.map(l=>l.id===id?{...l,approved:true,invite_code:code}:l);
+    if(plRow&&plRow.created_by){
+      await sb.from("private_league_members").upsert({private_league_id:id,user_id:plRow.created_by});
+    }
   }
   return{error,code};
 }
