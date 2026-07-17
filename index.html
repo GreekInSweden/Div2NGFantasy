@@ -4061,7 +4061,7 @@ function attachHandlers(){
       el.textContent="Sparar…"; el.disabled=true;
       let saved=0;
       for(const {roundNum,matches} of parsed){
-        const matchData=matches.filter(m=>m.hId&&m.aId).map(m=>({hId:m.hId,aId:m.aId,hMål:0,aMål:0}));
+        const matchData=matches.filter(m=>m.hId!=null&&m.aId!=null).map(m=>({hId:m.hId,aId:m.aId,hMål:0,aMål:0}));
         if(!matchData.length)continue;
         const cur=rounds[String(roundNum)]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
         const {error}=await sb.from("rounds").upsert({round_num:Number(roundNum),matches:matchData,goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},results_published:cur.results_published||false,league_id:currentLeague.id});
@@ -4260,7 +4260,7 @@ function attachHandlers(){
         const existingMatches=rd?.matches||[];
         bulkRows=parsedMatches.map((pm,idx)=>{
           const ex=existingMatches[idx];
-          return {hId:ex?.hId||"",aId:ex?.aId||"",hMål:pm.homeScore,aMål:pm.awayScore,id:ex?.id||`m${idx}`};
+          return {hId:ex?.hId??"",aId:ex?.aId??"",hMål:pm.homeScore,aMål:pm.awayScore,id:ex?.id??`m${idx}`};
         });
       }
       render();
