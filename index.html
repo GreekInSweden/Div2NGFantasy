@@ -3442,7 +3442,7 @@ function renderAdminTab(){
       const published=!!rdM.focus_published;
       factsCard=`<div class="fg-card">
         <div style="font-weight:500;margin-bottom:4px">Matchfakta – ${esc(hName)} vs ${esc(aName)}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Slutresultatet hämtas automatiskt från ⚽ Mål-fliken (${focusM.hMål}-${focusM.aMål}). Fyll i resten här.</div>
+        <div style="font-size:12px;color:${rdM.results_published?'var(--color-text-secondary)':'#A32D2D'};margin-bottom:12px">${rdM.results_published?`Slutresultatet hämtas automatiskt från ⚽ Mål-fliken (${focusM.hMål}-${focusM.aMål}). Fyll i resten här.`:`⚠️ Omgångens resultat är INTE markerade som klara än. Nuvarande värde för matchen är ${focusM.hMål}-${focusM.aMål} – dubbelkolla att det stämmer innan du publicerar!`}</div>
         <label class="fg-label">Halvtidsresultat</label>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
           <input class="fg-input" id="mf-admin-ht-h" type="number" min="0" max="20" value="${rdM.focus_ht_h??''}" style="width:70px;text-align:center"/>
@@ -4227,7 +4227,12 @@ function attachHandlers(){
       if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">✓ Fakta sparad!</span>';
     }
     else if(act==="publish-mf"){
-      if(!confirm("Publicera Omgångens Match? Spelarnas facit och poäng blir synliga direkt."))return;
+      const rdCheck=rounds[String(cfg.omg)]||{};
+      const mCheck=matchfokusFocusMatch(rdCheck);
+      const scoreWarn=(!rdCheck.results_published)
+        ? `\n\n⚠️ Omgångens resultat är inte markerade som "Resultat klara" än. Kontrollera att ${mCheck?mCheck.hMål+'-'+mCheck.aMål:'matchens'} slutresultat verkligen är rätt inlagt i ⚽ Mål-fliken innan du fortsätter – annars rättas spelarna mot fel resultat.`
+        : "";
+      if(!confirm("Publicera Omgångens Match? Spelarnas facit och poäng blir synliga direkt."+scoreWarn))return;
       const rd=rounds[String(cfg.omg)]||{};
       const htH=document.getElementById("mf-admin-ht-h")?.value;
       const htA=document.getElementById("mf-admin-ht-a")?.value;
