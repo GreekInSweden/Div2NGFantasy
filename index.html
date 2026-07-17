@@ -135,8 +135,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
-    snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[],
-    måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[],
+    snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
+    måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
     quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
@@ -369,6 +369,11 @@ async function fetchAllSnabbastTips(roundNum){
   if(error){console.error(error);return [];}
   return data;
 }
+async function fetchAllSnabbastTipsAllRounds(){
+  const {data,error}=await sb.from("snabbast_tips").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
 async function saveSnabbastTip(roundNum,picks){
   const {error}=await sb.from("snabbast_tips").upsert({id:currentUser.id+"-"+currentLeague.id+"-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
   return error;
@@ -392,6 +397,11 @@ async function fetchAllMåljaktenTips(roundNum){
   if(error){console.error(error);return [];}
   return data;
 }
+async function fetchAllMåljaktenTipsAllRounds(){
+  const {data,error}=await sb.from("måljakten_tips").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
 async function saveMåljaktenTip(roundNum,picks){
   const {error}=await sb.from("måljakten_tips").upsert({id:currentUser.id+"-ml-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
   return error;
@@ -410,7 +420,7 @@ function calcMåljaktenTeamPts(teamId,rd){
 function userMåljaktenRoundPts(userId,roundNum){
   const rd=rounds[String(roundNum)];
   if(!rd||!rd.results_published)return 0;
-  const tip=måljaktenAllTips.find(t=>t.user_id===userId&&t.round_num===roundNum);
+  const tip=måljaktenAllTipsGlobal.find(t=>t.user_id===userId&&Number(t.round_num)===Number(roundNum));
   if(!tip)return 0;
   return (tip.picks||[]).reduce((s,teamId)=>s+calcMåljaktenTeamPts(teamId,rd).pts,0);
 }
@@ -428,6 +438,9 @@ window.saveMåljakten=async function(){
     const idx=måljaktenAllTips.findIndex(t=>t.user_id===currentUser.id&&t.round_num===cfg.omg);
     if(idx>=0)måljaktenAllTips[idx]={...måljaktenAllTips[idx],picks:[...måljaktenDraft]};
     else måljaktenAllTips=[...måljaktenAllTips,{user_id:currentUser.id,round_num:cfg.omg,picks:[...måljaktenDraft]}];
+    const idxG=måljaktenAllTipsGlobal.findIndex(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
+    if(idxG>=0)måljaktenAllTipsGlobal[idxG]={...måljaktenAllTipsGlobal[idxG],picks:[...måljaktenDraft]};
+    else måljaktenAllTipsGlobal=[...måljaktenAllTipsGlobal,{user_id:currentUser.id,round_num:cfg.omg,picks:[...måljaktenDraft]}];
     if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
@@ -682,7 +695,7 @@ function calcSnabbastPts(userPicks,actualResult){
 function userSnabbastRoundPts(userId,roundNum){
   const rd=rounds[String(roundNum)];
   if(!rd||!rd.results_published||!rd.snabbast_result||!rd.snabbast_result.length)return 0;
-  const tip=snabbastAllTips.find(t=>t.user_id===userId&&t.round_num===roundNum);
+  const tip=snabbastAllTipsGlobal.find(t=>t.user_id===userId&&Number(t.round_num)===Number(roundNum));
   if(!tip)return 0;
   return calcSnabbastPts(tip.picks||[],rd.snabbast_result);
 }
@@ -781,6 +794,9 @@ window.saveSnabbast=async function(){
     const existing=snabbastAllTips.findIndex(t=>t.user_id===currentUser.id&&t.round_num===cfg.omg);
     if(existing>=0) snabbastAllTips[existing]={...snabbastAllTips[existing],picks:[...snabbastDraft]};
     else snabbastAllTips=[...snabbastAllTips,{user_id:currentUser.id,round_num:cfg.omg,picks:[...snabbastDraft]}];
+    const existingG=snabbastAllTipsGlobal.findIndex(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
+    if(existingG>=0) snabbastAllTipsGlobal[existingG]={...snabbastAllTipsGlobal[existingG],picks:[...snabbastDraft]};
+    else snabbastAllTipsGlobal=[...snabbastAllTipsGlobal,{user_id:currentUser.id,round_num:cfg.omg,picks:[...snabbastDraft]}];
     if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
@@ -3479,6 +3495,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds()]);}catch(e){console.error(e);}
       screen="home"; homeMode="start";
       render();
     }
@@ -4368,6 +4385,7 @@ function attachHandlers(){
     users=await fetchUsers();
     rounds=await fetchRounds();
     cfg=await fetchConfig();
+    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds()]);}catch(e){console.error(e);}
     screen="home";
   } else {
     screen="leagues";
