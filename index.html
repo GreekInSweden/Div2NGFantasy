@@ -2372,18 +2372,6 @@ function renderStatistikTab(){
       ${groupAvgVal?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px;text-align:center">Gruppsnitt: <b>${groupAvgVal} p</b> · Du: <b>${total} p</b> ${Number(total)>=Number(groupAvgVal)?"✅":"📉"}</div>`:""}
     </div>`;
 
-  // ── Poängkurva Fantasy ─────────────────────────────────────────────────────
-  const maxPts=Math.max(...fantasyPts,1);
-  const barW=Math.max(8,Math.floor(280/Math.max(lockedRounds.length,1)));
-  const bars=lockedRounds.map((r,i)=>{
-    const h=Math.round((fantasyPts[i]/maxPts)*60);
-    return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-      <div style="font-size:8px;color:${G_GREEN};font-weight:500">${fantasyPts[i]||""}</div>
-      <div style="width:${barW}px;height:${h||2}px;background:${G_GREEN};border-radius:2px 2px 0 0;min-height:2px"></div>
-      <div style="font-size:8px;color:var(--color-text-secondary)">${r}</div>
-    </div>`;
-  }).join("");
-
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">📈 Min statistik</div>
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Säsong ${season} · ${lockedRounds.length} omgångar spelade</div>
@@ -2392,13 +2380,6 @@ function renderStatistikTab(){
   ${modeCard("🎯","Tippa resultat",tippTotal,tippBest,tippBestRnd,(lockedRounds.length?(tippTotal/lockedRounds.length).toFixed(1):0),tippGroupAvg)}
   ${modeCard("⚡","Snabbast vinner",snabbTotal,snabbBest,lockedRounds[snabbPts.indexOf(snabbBest)],(lockedRounds.length?(snabbTotal/lockedRounds.length).toFixed(1):0),"")}
   ${modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),"")}
-
-  ${lockedRounds.length?`<div class="fg-card">
-    <div style="font-weight:500;margin-bottom:10px">Fantasy – poäng per omgång</div>
-    <div style="display:flex;align-items:flex-end;gap:2px;height:80px;overflow-x:auto;padding-bottom:4px">
-      ${bars}
-    </div>
-  </div>`:""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
