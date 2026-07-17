@@ -2379,25 +2379,25 @@ function renderStatistikTab(){
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">📈 Min statistik</div>
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Säsong ${season} · ${lockedRounds.length} omgångar spelade</div>
 
-  ${modeCard("⚽","Fantasy",fantasyTotal,fantasyBest,fantasyBestRnd,fantasyAvg,fantasyGroupAvg)}
-  ${modeCard("🎯","Tippa resultat",tippTotal,tippBest,tippBestRnd,(lockedRounds.length?(tippTotal/lockedRounds.length).toFixed(1):0),tippGroupAvg)}
-  ${modeCard("⚡","Snabbast vinner",snabbTotal,snabbBest,lockedRounds[snabbPts.indexOf(snabbBest)],(lockedRounds.length?(snabbTotal/lockedRounds.length).toFixed(1):0),"")}
-  ${modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),"")}
+  ${cfg.fantasyEnabled!==false?modeCard("⚽","Fantasy",fantasyTotal,fantasyBest,fantasyBestRnd,fantasyAvg,fantasyGroupAvg):""}
+  ${cfg.tippEnabled!==false?modeCard("🎯","Tippa resultat",tippTotal,tippBest,tippBestRnd,(lockedRounds.length?(tippTotal/lockedRounds.length).toFixed(1):0),tippGroupAvg):""}
+  ${cfg.snabbastEnabled!==false?modeCard("⚡","Snabbast vinner",snabbTotal,snabbBest,lockedRounds[snabbPts.indexOf(snabbBest)],(lockedRounds.length?(snabbTotal/lockedRounds.length).toFixed(1):0),""):""}
+  ${cfg.maljaktenEnabled!==false?modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),""):""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
-    ${[["⚽ Fantasy",fantasyTotal],["🎯 Tippa",tippTotal],["⚡ Snabbast",snabbTotal],["🎯 Måljakten",malTotal],["🧠 Quiz",quizTotal]].map(([n,p])=>`
+    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled]].filter(([,,on])=>on).map(([n,p])=>`
       <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${n}</span>
         <span style="font-weight:500">${p} p</span>
       </div>`).join("")}
     <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:600">
       <span>Grand total</span>
-      <span style="color:${G_GREEN}">${fantasyTotal+tippTotal+snabbTotal+malTotal+quizTotal} p</span>
+      <span style="color:${G_GREEN}">${(cfg.fantasyEnabled!==false?fantasyTotal:0)+(cfg.tippEnabled!==false?tippTotal:0)+(cfg.snabbastEnabled!==false?snabbTotal:0)+(cfg.maljaktenEnabled!==false?malTotal:0)+(cfg.quizEnabled?quizTotal:0)} p</span>
     </div>
   </div>
 
-  ${modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,"")}
+  ${cfg.quizEnabled?modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,""):""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:12px">👤 Min profil</div>
