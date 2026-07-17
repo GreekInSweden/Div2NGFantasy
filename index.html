@@ -4393,6 +4393,19 @@ function attachHandlers(){
   render();
   updateCountdownEls();
   setInterval(updateCountdownEls,30000);
+  window._debugMaljakten=function(){
+    const out={
+      currentUserId: currentUser?currentUser.id:null,
+      currentUserNamn: currentUser?currentUser.namn:null,
+      publishedRounds: Object.keys(rounds).filter(k=>rounds[k].results_published),
+      allRoundKeys: Object.keys(rounds),
+      myTipsInGlobalCache: måljaktenAllTipsGlobal.filter(t=>t.user_id===(currentUser&&currentUser.id)),
+      myRoundPtsBreakdown: Object.keys(rounds).map(r=>({round:r, pts:userMåljaktenRoundPts(currentUser&&currentUser.id, Number(r))})),
+      total: currentUser?userMåljaktenTotalPts(currentUser.id):null
+    };
+    console.log(JSON.stringify(out,null,2));
+    return out;
+  };
 })();
 })();
 </script>
