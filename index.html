@@ -3312,7 +3312,9 @@ function parseScheduleText(text){
     if(foundTeams.length%2!==0){
       const leftover=foundTeams[foundTeams.length-1].name;
       errors.push(`Lag utan motståndare: "${leftover}"`);
-      if(skippedLines.length) errors.push(`Rader som inte matchades: ${skippedLines.map(l=>`"${l}"`).join(", ")}`);
+    }
+    if(skippedLines.length){
+      errors.push(`Rader som inte kunde matchas mot något lag (kontrollera stavning): ${skippedLines.map(l=>`"${l}"`).join(", ")}`);
     }
 
     results.push({roundNum,matches,errors});
