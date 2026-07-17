@@ -38,11 +38,11 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
 .fg-tabbtn.active{color:#c1272d;border-bottom:2px solid #c1272d}
 .fg-posbadge{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
-.fg-mrow{display:grid;grid-template-columns:minmax(0,1fr) 56px 14px 56px minmax(0,1fr) 28px;gap:8px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
-.fg-mrow select{font-size:13px;padding:8px 6px;min-width:0;width:100%;max-width:100%;text-overflow:ellipsis}
+.fg-mrow{display:grid;grid-template-columns:minmax(0,1fr) 48px 14px 48px minmax(0,1fr) 24px;gap:6px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
+.fg-mrow select{font-size:11px;padding:8px 4px;min-width:0;width:100%;max-width:100%;text-overflow:ellipsis}
 .fg-mcard{padding:12px 0;border-bottom:1px solid var(--color-border-tertiary)}
 .fg-mteam{width:100%;font-size:14px;padding:9px 8px;min-width:0;box-sizing:border-box}
-.fg-mscore{font-size:18px;font-weight:600;padding:8px 4px;text-align:center;-moz-appearance:textfield;width:56px}
+.fg-mscore{font-size:16px;font-weight:600;padding:6px 2px;text-align:center;-moz-appearance:textfield;width:48px}
 .fg-mscore::-webkit-outer-spin-button,.fg-mscore::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fg-adm-tab{padding:8px 4px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer}
 .fg-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--color-text-secondary);font-size:14px}
@@ -2610,17 +2610,13 @@ function renderAdminTab(){
     const isLocked = curRoundData && curRoundData.locked;
     const isPublished = curRoundData && curRoundData.results_published;
     const rowsHtml = bulkRows.map((r,i)=>`
-      <div class="fg-mcard">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-          <select class="fg-mteam" data-act="bulk-hid" data-idx="${i}">${teamOpts(r.hId)}</select>
-          <button data-act="bulk-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px;flex-shrink:0">×</button>
-        </div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px">
-          <input class="fg-mscore" data-act="bulk-hm" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.hMål}"/>
-          <span style="color:var(--color-text-secondary);font-weight:600">–</span>
-          <input class="fg-mscore" data-act="bulk-am" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.aMål}"/>
-        </div>
-        <select class="fg-mteam" data-act="bulk-aid" data-idx="${i}">${teamOpts(r.aId)}</select>
+      <div class="fg-mrow">
+        <select data-act="bulk-hid" data-idx="${i}">${teamOpts(r.hId)}</select>
+        <input class="fg-mscore" data-act="bulk-hm" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.hMål}"/>
+        <span style="text-align:center;color:var(--color-text-secondary);font-weight:600">–</span>
+        <input class="fg-mscore" data-act="bulk-am" data-idx="${i}" type="number" inputmode="numeric" min="0" value="${r.aMål}"/>
+        <select data-act="bulk-aid" data-idx="${i}">${teamOpts(r.aId)}</select>
+        <button data-act="bulk-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px">×</button>
       </div>`).join("");
     body=`
     <div class="fg-card" style="padding:10px 14px;margin-bottom:0">
@@ -2681,9 +2677,15 @@ function renderAdminTab(){
              <textarea id="fk-text" rows="6" placeholder="Klistra in text från Fotbollskollen här..." autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:11px;font-family:monospace;resize:vertical;background:var(--color-background-primary);margin-bottom:8px;box-sizing:border-box"></textarea>
              <button class="fg-btn" data-act="fetch-scores" style="padding:8px 14px;font-size:12px">Läs in resultat</button>
            </div>
+           <div style="display:grid;grid-template-columns:1fr 48px 14px 48px 1fr 24px;gap:6px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
+             <span>Hemmalag</span><span style="text-align:center">Mål</span><span></span><span style="text-align:center">Mål</span><span>Bortalag</span><span></span>
+           </div>
            ${rowsHtml}
            <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara resultat</button>`
         : `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Fyll i resultat för varje match. Lägg till fler rader om omgången har fler matcher.</div>
+           <div style="display:grid;grid-template-columns:1fr 48px 14px 48px 1fr 24px;gap:6px;font-size:11px;color:var(--color-text-secondary);padding-bottom:6px;border-bottom:1px solid var(--color-border-tertiary)">
+             <span>Hemmalag</span><span style="text-align:center">Mål</span><span></span><span style="text-align:center">Mål</span><span>Bortalag</span><span></span>
+           </div>
            ${rowsHtml}
            <button class="fg-outbtn" data-act="bulk-addrow" style="width:100%;margin-top:10px">+ Lägg till matchrad</button>
            <button class="fg-btn" data-act="bulk-save" style="margin-top:12px">Spara hela omgången</button>`}
