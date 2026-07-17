@@ -3597,8 +3597,11 @@ function attachHandlers(){
         streakMyTips=await fetchStreakTips();
         streakAllTips=await fetchAllStreakTips();
         streakDraft={};
+      } else if(appMode==="hof"){
         screen="main"; mainTab="hof";
         hofData=await fetchHallOfFame();
+      } else if(appMode==="statistik"){
+        screen="main"; mainTab="statistik";
       } else {
         screen="main"; mainTab="hem";
       }
