@@ -1240,15 +1240,18 @@ function renderHome(){
   }
   const tickerHtml=matchups.map(m=>`<span style="padding:0 28px;white-space:nowrap">${m}</span>`).join("");
 
-  // Spelformskort
-  const modes=[
-    {ico:"⚽",title:"Fantasy",desc:"Bygg ditt lag, välj kapten"},
-    {ico:"🎯",title:"Tippa resultat",desc:"Gissa rätt resultat i matchen"},
-    {ico:"📊",title:"Tippa serien",desc:"Rangordna alla 14 lag"},
-    {ico:"⚡",title:"Snabbast vinner",desc:"Vilka 7 lag gör snabbast mål?"},
-    {ico:"🎯",title:"Måljakten",desc:"Välj 3 lag som du tror gör flest mål"},
-    {ico:"🧠",title:"Quiz",desc:"Allmänna frågor om Div2 NG"},
+  // Spelformskort – visar bara aktiverade spelformer
+  const allModes=[
+    {ico:"⚽",title:"Fantasy",desc:"Bygg ditt lag, välj kapten",on:cfg.fantasyEnabled!==false},
+    {ico:"🎯",title:"Tippa resultat",desc:"Gissa rätt resultat i matchen",on:cfg.tippEnabled!==false},
+    {ico:"📊",title:"Tippa serien",desc:`Rangordna alla ${TEAMS.length||14} lag`,on:cfg.ligatippEnabled!==false},
+    {ico:"⚡",title:"Snabbast vinner",desc:"Vilka 7 lag gör snabbast mål?",on:cfg.snabbastEnabled!==false},
+    {ico:"🎯",title:"Måljakten",desc:"Välj 3 lag som du tror gör flest mål",on:cfg.maljaktenEnabled!==false},
+    {ico:"🧠",title:"Quiz",desc:`Allmänna frågor om ${currentLeague.name}`,on:!!cfg.quizEnabled},
+    {ico:"🔥",title:"Streak",desc:"Håll din vinstsvit vid liv",on:!!cfg.streakEnabled},
+    {ico:"⚽",title:"Omgångens Match",desc:"13 stryktips-frågor om en utvald match",on:!!cfg.matchfokusEnabled},
   ];
+  const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
     <div style="background:#2d2d2d;border:0.5px solid #444;border-radius:10px;padding:14px 12px">
       <div style="font-size:22px;margin-bottom:6px">${m.ico}</div>
@@ -1262,14 +1265,14 @@ function renderHome(){
     <!-- Topbar -->
     <div style="background:#111;padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #2a2a2a">
       <svg width="12" height="12" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
-      <span style="font-family:Georgia,serif;font-style:italic;font-size:17px;color:#fff;letter-spacing:-0.2px">Div2 Norra Götaland</span>
+      <span style="font-family:Georgia,serif;font-style:italic;font-size:17px;color:#fff;letter-spacing:-0.2px">${esc(currentLeague.name)}</span>
       <span style="font-size:11px;letter-spacing:.25em;color:#c1272d;font-weight:600;margin-left:2px">PLAY</span>
     </div>
 
     <!-- Hero -->
     <div style="padding:36px 24px 28px;text-align:center">
       <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:36px;line-height:1.15;color:#fff;margin-bottom:12px">
-        Div2 Norra Götaland
+        ${esc(currentLeague.name)}
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
         <div style="height:1px;width:50px;background:#c1272d"></div>
@@ -1302,7 +1305,7 @@ function renderHome(){
 
     <!-- Footer -->
     <div style="margin-top:auto;padding:20px;text-align:center;border-top:0.5px solid #222">
-      <div style="font-size:11px;color:#666">Div2 Norra Götaland – Liverapportering · Säsong 2027</div>
+      <div style="font-size:11px;color:#666">${esc(currentLeague.name)} – Liverapportering · Säsong ${currentLeague.season||cfg.omg||""}</div>
     </div>
 
   </div>`;
