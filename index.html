@@ -4067,6 +4067,10 @@ function attachHandlers(){
         if(!resp.ok){flash("API-fel: "+resp.status+" "+resp.statusText);el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
         const result=await resp.json();
         flash(`✓ Notis skickad till ${result.sent} användare!${result.failed?` (${result.failed} misslyckades)`:""}`);
+        if(result.errors&&result.errors.length){
+          console.log("Push-fel:",result.errors);
+          alert("Fel vid utskick (kopiera gärna denna text till Claude):\n\n"+result.errors.map(e=>`[${e.statusCode||"?"}] ${e.message}`).join("\n"));
+        }
       }catch(e){
         flash("Fel: "+e.message);
       }
