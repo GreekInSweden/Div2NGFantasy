@@ -3647,15 +3647,6 @@ function parseScheduleText(text){
       // Lagnamnet innehåller radens text (om raden är förkortad)
       if(tn.startsWith(lower+" ")||tn===lower)return t;
     }
-    // Sista utväg: matcha på de första 2 orden (hanterar stavningsskillnader)
-    for(const t of sorted){
-      const tnWords=normalizeStr(t.name).split(" ");
-      const lineWords=lower.split(" ");
-      const compareLen=Math.min(2,tnWords.length,lineWords.length);
-      if(tnWords.slice(0,compareLen).join(" ")===lineWords.slice(0,compareLen).join(" ")){
-        return t;
-      }
-    }
     return null;
   };
 
