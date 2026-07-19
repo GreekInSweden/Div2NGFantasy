@@ -134,7 +134,7 @@ function urlBase64ToUint8Array(base64String){
 
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
-    pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null,
+    pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -1183,8 +1183,24 @@ function renderModeSelect(){
 }
 
 function renderLeagues(){
+  if(pendingCrossLeagueUser){
+    const lg=leagues.find(l=>l.id===pendingCrossLeagueUser.league_id);
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+      <div style="width:64px;height:64px;background:#c1272d;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingCrossLeagueUser.namn[0])}</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">Hej ${esc(pendingCrossLeagueUser.namn)}!</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">Logga in i ${esc(lg?lg.name:"")}</div>
+      <div style="width:100%;max-width:300px">
+        <label class="fg-label">PIN-kod</label>
+        <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
+        ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
+        <button class="fg-btn" data-act="submit-entry-pin" style="margin-bottom:8px">Logga in →</button>
+        <button class="fg-outbtn" data-act="entry-cancel-pin" style="width:100%">← Tillbaka</button>
+      </div>
+    </div>`;
+  }
   const list = leagues.map(l=>`
-    <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary)">
+    <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
       <div style="width:40px;height:40px;border-radius:10px;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:18px">🏆</div>
       <div style="flex:1"><div style="font-weight:500;font-size:15px">${esc(l.name)}</div></div>
       <span style="color:var(--color-text-secondary)">›</span>
@@ -1192,12 +1208,48 @@ function renderLeagues(){
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
     <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">⚽</div>
-    <div style="font-size:22px;font-weight:500;margin-bottom:24px;text-align:center">Välj serie</div>
-    <div style="width:100%;max-width:340px">
+    <div style="font-size:22px;font-weight:500;margin-bottom:6px;text-align:center">Vad heter du?</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;text-align:center;max-width:320px">Sök ditt namn så hittar vi rätt serie åt dig direkt – oavsett hur många serier du spelar i.</div>
+    <div style="width:100%;max-width:340px;margin-bottom:8px">
+      <input class="fg-input" id="entry-search" placeholder="🔍 Skriv ditt namn…" oninput="window._doEntrySearch&&window._doEntrySearch()" autocomplete="off" autocorrect="off"/>
+      <div id="entry-search-results" style="margin-top:10px"></div>
+    </div>
+    <div style="width:100%;max-width:340px;border-top:0.5px solid var(--color-border-tertiary);padding-top:16px;margin-top:8px">
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">Ny spelare, eller hittade vi dig inte? Välj serie att gå med i:</div>
       ${list || '<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">Inga serier tillgängliga ännu.</div>'}
     </div>
   </div>`;
 }
+window._entrySearchTimer=null;
+window._doEntrySearch=function(){
+  clearTimeout(window._entrySearchTimer);
+  window._entrySearchTimer=setTimeout(async()=>{
+    const q=(document.getElementById("entry-search")?.value||"").trim();
+    const resultsEl=document.getElementById("entry-search-results");
+    if(!resultsEl)return;
+    if(!q||q.length<2){resultsEl.innerHTML="";return;}
+    resultsEl.innerHTML='<div style="font-size:12px;color:var(--color-text-secondary);text-align:center;padding:8px">Söker…</div>';
+    try{
+      const {data,error}=await sb.from("fantasy_users").select("id,namn,league_id").ilike("namn","%"+q+"%").in("league_id",leagues.map(l=>l.id)).limit(20);
+      if(error||!data||!data.length){
+        resultsEl.innerHTML='<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:8px">Ingen match hittades.</div>';
+        return;
+      }
+      resultsEl.innerHTML=data.map(u=>{
+        const lg=leagues.find(l=>l.id===u.league_id);
+        return `<button data-act="entry-pick-user" data-id="${u.id}" data-league-id="${u.league_id}" data-namn="${esc(u.namn)}" class="fg-card" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
+          <div style="width:36px;height:36px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc(u.namn[0])}</div>
+          <div style="flex:1"><div style="font-weight:500;font-size:14px">${esc(u.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(lg?lg.name:"")}</div></div>
+          <span style="color:var(--color-text-secondary)">›</span>
+        </button>`;
+      }).join("");
+      attachHandlers();
+    }catch(e){
+      console.error(e);
+      resultsEl.innerHTML='<div style="font-size:12px;color:#A32D2D;text-align:center;padding:8px">Något gick fel, försök igen.</div>';
+    }
+  },300);
+};
 
 function renderHome(){
   // ── PIN-skärm ──────────────────────────────────────────────────────────
@@ -1334,7 +1386,10 @@ function renderReg(){
     <input class="fg-input" id="reg-namn" placeholder="T.ex. Marcus N" autofocus style="margin-bottom:14px"/>
     <label class="fg-label">Välj en 5-siffrig PIN-kod</label>
     <input class="fg-input" id="reg-pin" placeholder="T.ex. 48215" inputmode="numeric" maxlength="5" pattern="[0-9]*"/>
-    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Du behöver PIN-koden varje gång du loggar in – kom ihåg den!<br>Spelar du redan i en annan serie? Ange samma PIN som där, så känner vi igen dig.</div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Du behöver PIN-koden varje gång du loggar in – kom ihåg den!</div>
+    <div style="background:#fce8e8;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:500;margin-top:10px;line-height:1.5">
+      🔑 Spelar du redan i en annan serie? Ange <b>samma PIN</b> som där så känner vi igen dig!
+    </div>
     ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:6px">${esc(errMsg)}</div>`:""}
     <button class="fg-btn" data-act="submit-reg" style="margin-top:14px">Registrera →</button>
   </div>`;
@@ -3881,6 +3936,45 @@ function attachHandlers(){
       screen="home"; homeMode="start";
       render();
     }
+    else if(act==="entry-pick-user"){
+      pendingCrossLeagueUser={id:el.dataset.id,league_id:Number(el.dataset.leagueId),namn:el.dataset.namn};
+      loginErr="";
+      render();
+    }
+    else if(act==="entry-cancel-pin"){
+      pendingCrossLeagueUser=null; loginErr="";
+      render();
+    }
+    else if(act==="submit-entry-pin"){
+      const pin=document.getElementById("entry-pin").value.trim();
+      if(!pin){loginErr="Ange din PIN-kod.";render();return;}
+      loginErr="Loggar in…";render();
+      try{
+        const target=leagues.find(l=>l.id===pendingCrossLeagueUser.league_id);
+        if(!target){loginErr="Serien hittades inte.";render();return;}
+        currentLeague=target;
+        TEAMS=await fetchTeams();
+        players=await fetchPlayers();
+        users=await fetchUsers();
+        rounds=await fetchRounds();
+        cfg=await fetchConfig();
+        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds()]);}catch(e){console.error(e);}
+        const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
+        const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
+        if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
+        const u=users.find(x=>x.id===pendingCrossLeagueUser.id);
+        if(!u){loginErr="Kunde inte hitta kontot.";render();return;}
+        currentUser=u; pendingCrossLeagueUser=null; loginErr="";
+        screen="mode";
+        try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
+        loadMyRoundStatus().then(render);
+        render();
+      }catch(e){
+        console.error(e);
+        loginErr="Något gick fel, försök igen.";
+        render();
+      }
+    }
     else if(act==="switch-league"){
       currentUser=null; currentLeague=null; appMode=null; screen="leagues"; homeMode="start";
       render();
@@ -4935,7 +5029,7 @@ function attachHandlers(){
     const {data}=await sb.from("leagues").select("*").order("id",{ascending:false}).limit(1);
     if(data?.length) leagues=data;
   }
-  if(leagues.length>=1){
+  if(leagues.length===1){
     currentLeague=leagues[0];
     TEAMS=await fetchTeams();
     players=await fetchPlayers();
