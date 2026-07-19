@@ -95,9 +95,10 @@ async function subscribeToPush(){
     });
     // Spara prenumeration i Supabase (matchar riktig tabellstruktur: member_name, endpoint, p256dh, auth)
     const subJson=sub.toJSON();
-    await sb.from("push_subscriptions").delete().eq("member_name",currentUser.namn);
+    await sb.from("push_subscriptions").delete().eq("member_name",currentUser.namn).eq("league_id",currentLeague.id);
     const {error:subErr}=await sb.from("push_subscriptions").insert({
       member_name:currentUser.namn,
+      league_id:currentLeague.id,
       endpoint:subJson.endpoint,
       p256dh:subJson.keys.p256dh,
       auth:subJson.keys.auth
@@ -113,7 +114,7 @@ async function unsubscribeFromPush(){
   const sub=await reg.pushManager.getSubscription();
   if(sub){
     await sub.unsubscribe();
-    await sb.from("push_subscriptions").delete().eq("member_name",currentUser.namn);
+    await sb.from("push_subscriptions").delete().eq("member_name",currentUser.namn).eq("league_id",currentLeague.id);
   }
 }
 
@@ -206,7 +207,7 @@ window.saveMatchfokus = async function(){
 
 // ── Supabase data layer ─────────────────────────────────────────────────────
 async function fetchLeagues(){
-  const {data,error}=await sb.from("leagues").select("*").eq("is_current",true).order("id");
+  const {data,error}=await sb.from("leagues").select("*").eq("is_current",true).eq("hidden",false).order("id");
   if(error){console.error(error);return [];}
   return data;
 }
@@ -3419,10 +3420,12 @@ function renderAdminTab(){
     const seasonRows=allLeaguesData.map(l=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="flex:1">
-          <div style="font-weight:500;font-size:13px">Säsong ${l.season||"?"}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">${l.name}</div>
+          <div style="font-weight:500;font-size:13px">${esc(l.name)} ${l.season?"– "+l.season:""}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${l.id===currentLeague.id?"👉 Du jobbar med den här nu":""}</div>
         </div>
-        ${l.is_current?`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Aktiv</span>`:`<span style="font-size:11px;color:var(--color-text-secondary)">Avslutad</span>`}
+        ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
+        <button data-act="toggle-league-hidden" data-id="${l.id}" data-hidden="${l.hidden?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.hidden?"Gör synlig":"Dölj"}</button>
+        ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
       </div>`).join("");
     body=`
     <div class="fg-card">
@@ -3438,10 +3441,21 @@ function renderAdminTab(){
         🚀 Starta säsong ${nextYear}
       </button>
     </div>
-    ${allLeaguesData.length>1?`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">Säsongshistorik</div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">➕ Ny serie</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
+        Skapa en helt ny, separat serie (eget lag, spelare, användare – allt separat). Den skapas <b>dold</b> från vanliga användare tills du själv gör den synlig, så du kan bygga klart i lugn och ro.
+      </div>
+      <label class="fg-label">Namn på serien</label>
+      <input class="fg-input" id="new-league-name" placeholder="t.ex. Div2 Södra Götaland" style="margin-bottom:10px"/>
+      <label class="fg-label">Säsong/år</label>
+      <input class="fg-input" id="new-league-season" type="number" value="${curYear}" style="margin-bottom:14px"/>
+      <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Alla serier (${allLeaguesData.length})</div>
       ${seasonRows}
-    </div>`:""}`;
+    </div>`;
   } else if(adminSection==="passwords"){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
@@ -3994,6 +4008,43 @@ function attachHandlers(){
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
       render();
     }
+    else if(act==="create-league"){
+      const name=document.getElementById("new-league-name").value.trim();
+      const season=Number(document.getElementById("new-league-season").value);
+      if(!name){flash("Ange ett namn för serien.");return;}
+      const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+season;
+      const {data,error}=await sb.from("leagues").insert({name,slug,season,is_current:true,hidden:true}).select().single();
+      if(error){flash("Fel: "+error.message);return;}
+      window._allLeaguesCache=null;
+      flash(`✓ Serien "${name}" skapad (dold). Klicka "Hoppa till" för att börja bygga upp den.`);
+      render();
+    }
+    else if(act==="toggle-league-hidden"){
+      const id=Number(el.dataset.id);
+      const newHidden=el.dataset.hidden==="1";
+      const {error}=await sb.from("leagues").update({hidden:newHidden}).eq("id",id);
+      if(error){flash("Fel: "+error.message);return;}
+      window._allLeaguesCache=(window._allLeaguesCache||[]).map(l=>l.id===id?{...l,hidden:newHidden}:l);
+      render();
+      flash(newHidden?"Serien är nu dold för användare.":"✓ Serien är nu synlig för alla!");
+    }
+    else if(act==="jump-to-league"){
+      const id=Number(el.dataset.id);
+      const target=(window._allLeaguesCache||[]).find(l=>l.id===id);
+      if(!target)return;
+      const root2=document.getElementById("fg-root");
+      root2.innerHTML='<div class="fg-loading">Byter serie…</div>';
+      currentLeague=target;
+      TEAMS=await fetchTeams();
+      players=await fetchPlayers();
+      users=await fetchUsers();
+      rounds=await fetchRounds();
+      cfg=await fetchConfig();
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds()]);}catch(e){console.error(e);}
+      adminSection="round";
+      flash(`✓ Nu jobbar du med "${target.name}"`);
+      render();
+    }
     else if(act==="start-new-season"){
       const newYear=Number(el.dataset.year);
       if(!confirm(`Är du säker? Säsong ${currentLeague.season||2027} avslutas och säsong ${newYear} startar.`))return;
@@ -4055,7 +4106,7 @@ function attachHandlers(){
       if(!title||!body){flash("Fyll i rubrik och meddelande.");return;}
       el.textContent="Skickar…"; el.disabled=true;
       try{
-        const {data:subsRaw,error}=await sb.from("push_subscriptions").select("endpoint,p256dh,auth");
+        const {data:subsRaw,error}=await sb.from("push_subscriptions").select("endpoint,p256dh,auth").eq("league_id",currentLeague.id);
         if(error){flash("Databasfel: "+error.message);el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
         const subs=(subsRaw||[]).filter(s=>s.endpoint&&s.p256dh&&s.auth).map(s=>({endpoint:s.endpoint,keys:{p256dh:s.p256dh,auth:s.auth}}));
         if(!subs.length){flash("Inga giltiga prenumeranter ännu – be användarna aktivera notiser (på nytt om de gjorde det innan dagens fix).");el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
