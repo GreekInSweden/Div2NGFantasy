@@ -141,7 +141,7 @@ function urlBase64ToUint8Array(base64String){
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
-    viewingTeamUserId=null, viewingTeamRound=null,
+    viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -1823,7 +1823,59 @@ function renderHemTab(sorted){
   ${renderPrivateLeagueSection("fantasy")}`;
 }
 
+function renderTippUserView(u,r){
+  const rd=rounds[String(r)];
+  const sortedTip=[...users].sort((a,b)=>userTipTotalPts(b)-userTipTotalPts(a));
+  const rank=sortedTip.findIndex(x=>x.id===u.id)+1;
+  const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  const minR=allRoundKeys.length?allRoundKeys[0]:1, maxR=allRoundKeys.length?allRoundKeys[allRoundKeys.length-1]:1;
+  const savedTips=(u.tips&&u.tips[String(r)])||[];
+  const resultsShown=rd&&rd.results_published;
+  const roundPts=userTipRoundPts(u,r);
+
+  let rowsHtml="";
+  if(!rd||!rd.matches.length){
+    rowsHtml=`<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga matcher inlagda för denna omgång.</div>`;
+  } else {
+    rowsHtml=rd.matches.map(m=>{
+      const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
+      const pred=savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId);
+      const pts=resultsShown?tipMatchPts(pred,m.hMål,m.aMål):0;
+      return `<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:2px">
+          <span style="flex:1;text-align:right">${esc(hTeam?hTeam.name:"")}</span>
+          <span style="font-weight:600;min-width:44px;text-align:center">${pred?pred.predH+" – "+pred.predA:"–"}</span>
+          <span style="flex:1">${esc(aTeam?aTeam.name:"")}</span>
+        </div>
+        <div style="display:flex;justify-content:center;gap:10px;font-size:11px;color:var(--color-text-secondary)">
+          ${resultsShown?`<span>Facit: ${m.hMål} – ${m.aMål}</span><span style="color:${pts>0?G_GREEN:'#A32D2D'};font-weight:600">${pred?pts+"p":"Ej tippat"}</span>`:'<span>Väntar på resultat</span>'}
+        </div>
+      </div>`;
+    }).join("");
+  }
+
+  return `
+  <button data-act="close-tipp-view" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:14px">← Tillbaka till ligan</button>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="width:46px;height:46px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:18px;flex-shrink:0">${esc(u.namn[0])}</div>
+    <div style="flex:1"><div style="font-weight:500;font-size:17px">${esc(u.namn)}</div><div style="font-size:12px;color:var(--color-text-secondary)">Plats ${rank>0?rank:"–"} av ${sortedTip.length} · ${userTipTotalPts(u)} p totalt</div></div>
+  </div>
+  <div class="fg-card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <button data-act="tipp-view-round" data-dir="-1" ${r<=minR?"disabled":""} style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:32px;height:32px;cursor:pointer;opacity:${r<=minR?0.3:1}">‹</button>
+    <div style="text-align:center">
+      <div style="font-weight:500;font-size:14px">Omgång ${r}</div>
+      <div style="font-size:12px;color:${G_GREEN};font-weight:600">${resultsShown?roundPts+" p denna omgång":"Väntar på resultat"}</div>
+    </div>
+    <button data-act="tipp-view-round" data-dir="1" ${r>=maxR?"disabled":""} style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:32px;height:32px;cursor:pointer;opacity:${r>=maxR?0.3:1}">›</button>
+  </div>
+  <div class="fg-card">${rowsHtml}</div>`;
+}
 function renderTippTab(){
+  if(viewingTippUserId){
+    const u=users.find(x=>x.id===viewingTippUserId);
+    if(u) return renderTippUserView(u,viewingTippRound||cfg.omg);
+    viewingTippUserId=null;
+  }
   const user=currentUser;
   const activeRound=userSelectedRound||cfg.omg;
   const rd=rounds[String(activeRound)];
@@ -1881,10 +1933,11 @@ function renderTippTab(){
     const pts=userTipTotalPts(u);
     const isMe=u.id===user.id;
     const medals=["🥇","🥈","🥉"];
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px;padding-right:8px`:""}">
+    return `<div data-act="view-tipp" data-id="${u.id}" style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);cursor:pointer;${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px;padding-right:8px`:""}">
       <span style="width:24px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
       <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?' (du)':''}</span>
       <span style="font-weight:500">${pts} p</span>
+      <span style="color:var(--color-text-secondary);font-size:15px">›</span>
     </div>`;
   }).join("");
 
@@ -4638,7 +4691,7 @@ function attachHandlers(){
       const arr=[...ligatippDraft[key]]; arr.splice(idx,1);
       ligatippDraft[key]=arr; render();
     }
-    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; viewingTeamUserId=null; viewingTeamRound=null; render(); loadMyRoundStatus().then(render); }
+    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; viewingTeamUserId=null; viewingTeamRound=null; viewingTippUserId=null; viewingTippRound=null; render(); loadMyRoundStatus().then(render); }
     else if(act==="back-to-main"){screen="main";render();}
     else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
     else if(act==="pick-player"){
@@ -4730,6 +4783,22 @@ function attachHandlers(){
           fetchAllStreakTips()
         ]);
       }catch(e){console.error(e);}
+      render();
+    }
+    else if(act==="view-tipp"){
+      viewingTippUserId=el.dataset.id;
+      viewingTippRound=cfg.omg;
+      render();
+    }
+    else if(act==="close-tipp-view"){
+      viewingTippUserId=null; viewingTippRound=null;
+      render();
+    }
+    else if(act==="tipp-view-round"){
+      const dir=Number(el.dataset.dir);
+      const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+      const minR=allRoundKeys.length?allRoundKeys[0]:1, maxR=allRoundKeys.length?allRoundKeys[allRoundKeys.length-1]:1;
+      viewingTippRound=Math.min(maxR,Math.max(minR,(viewingTippRound||cfg.omg)+dir));
       render();
     }
     else if(act==="view-team"){
