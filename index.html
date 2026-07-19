@@ -2834,20 +2834,20 @@ function renderTeamPitchView(u,r){
   const posRow=(pos)=>{
     const ids=(picks&&picks[pos])||[];
     if(!ids.length)return "";
-    return `<div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+    return `<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:20px">
       ${ids.map(pid=>{
         const pl=players.find(p=>p.id===pid);
         if(!pl) return "";
         const isCap=pl.id===kapten;
         const pts=plPts(pl,rd);
         const team=TEAMS.find(t=>t.id===pl.teamId);
-        return `<div style="width:76px;text-align:center">
-          <div style="background:#fff;border-radius:8px;padding:6px 3px;box-shadow:0 1px 4px rgba(0,0,0,0.25);position:relative">
-            ${isCap?`<div style="position:absolute;top:-6px;right:-6px;background:${G_GOLD};color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700">C</div>`:""}
-            <div style="font-size:11px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pl.namn)}</div>
-            <div style="font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(team?team.name:"")}</div>
+        return `<div style="width:100px;text-align:center">
+          <div style="background:#fff;border-radius:8px;padding:8px 5px;box-shadow:0 1px 4px rgba(0,0,0,0.25);position:relative;min-height:52px;display:flex;flex-direction:column;justify-content:center">
+            ${isCap?`<div style="position:absolute;top:-7px;right:-7px;background:${G_GOLD};color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700">C</div>`:""}
+            <div style="font-size:12px;font-weight:600;color:#1a1a1a;line-height:1.25;word-break:break-word">${esc(pl.namn)}</div>
+            <div style="font-size:10px;color:#888;line-height:1.2;margin-top:2px;word-break:break-word">${esc(team?team.name:"")}</div>
           </div>
-          <div style="margin-top:3px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,0.35);border-radius:10px;padding:1px 7px;display:inline-block">${resultsShown?(isCap?pts*2:pts):"–"}p</div>
+          <div style="margin-top:4px;font-size:12px;font-weight:700;color:#fff;background:rgba(0,0,0,0.35);border-radius:10px;padding:2px 8px;display:inline-block">${resultsShown?(isCap?pts*2:pts):"–"}p</div>
         </div>`;
       }).join("")}
     </div>`;
