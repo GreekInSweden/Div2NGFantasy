@@ -245,6 +245,16 @@ async function updateTeamName(id,name){
   const {error}=await sb.from("teams").update({name}).eq("id",id).eq("league_id",currentLeague.id);
   if(error)console.error(error);
 }
+async function addTeam(name){
+  const {data:maxRow}=await sb.from("teams").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
+  const nextId=(maxRow?.id||0)+1;
+  const {data,error}=await sb.from("teams").insert({id:nextId,name,league_id:currentLeague.id}).select().single();
+  return {data,error};
+}
+async function deleteTeam(id){
+  const {error}=await sb.from("teams").delete().eq("id",id).eq("league_id",currentLeague.id);
+  return error;
+}
 async function fetchPlayers(){
   const {data,error}=await sb.from("players").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return [];}
@@ -3025,8 +3035,17 @@ function renderAdminTab(){
         <input class="fg-input" data-act="team-name-input" data-id="${t.id}" value="${esc(t.name)}" style="flex:1"/>
         <span style="font-size:11px;color:var(--color-text-secondary);white-space:nowrap">${teamCount[t.id]||0} spelare</span>
         <button data-act="save-team-name" data-id="${t.id}" style="background:${G_GREEN};color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;font-weight:500">Spara</button>
+        <button data-act="delete-team" data-id="${t.id}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px">×</button>
       </div>`).join("");
     body = `<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">➕ Lägg till nytt lag</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Använd den här för en helt ny serie, eller för att lägga till ett enstaka lag.</div>
+      <div style="display:flex;gap:8px">
+        <input class="fg-input" id="new-team-name" placeholder="Lagnamn" style="flex:1"/>
+        <button class="fg-btn" data-act="add-team" style="padding:9px 14px">Lägg till</button>
+      </div>
+    </div>
+    <div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">Byt ut lag inför ny säsong</div>
       <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">
         Byt namn på ett lag som åkt ur serien till namnet på det nya laget som kommit upp.
@@ -3035,7 +3054,7 @@ function renderAdminTab(){
         under fliken "Spelare" om du vill rensa upp, och lägg in de nya lagets spelare där.
       </div>
     </div>
-    <div class="fg-card">${rowsHtml}</div>`;
+    <div class="fg-card">${rowsHtml||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga lag inlagda ännu – lägg till det första ovan.</div>'}</div>`;
   } else if(adminSection==="ligatipp"){
     const curTips=allLeagueTips;
     const cp1=ligatippStandings[1]||{standings:[],locked:false};
@@ -4818,6 +4837,27 @@ function attachHandlers(){
       await updateTeamName(id,newName);
       TEAMS=TEAMS.map(t=>t.id===id?{...t,name:newName}:t);
       flash("✓ Lagnamn uppdaterat!");
+    }
+    else if(act==="add-team"){
+      const nameEl=document.getElementById("new-team-name");
+      const name=nameEl.value.trim();
+      if(!name){flash("Ange ett lagnamn.");return;}
+      const {data,error}=await addTeam(name);
+      if(error){flash("Fel: "+error.message);return;}
+      TEAMS=[...TEAMS,data];
+      nameEl.value="";
+      flash(`✓ "${name}" tillagt!`);
+      render();
+    }
+    else if(act==="delete-team"){
+      const id=Number(el.dataset.id);
+      const t=TEAMS.find(x=>x.id===id);
+      if(!confirm(`Ta bort laget "${t?t.name:""}"? Detta går inte att ångra. Spelare kopplade till laget påverkas inte men kommer sakna ett giltigt lag tills du flyttar dem.`))return;
+      const error=await deleteTeam(id);
+      if(error){flash("Fel: "+error.message);return;}
+      TEAMS=TEAMS.filter(x=>x.id!==id);
+      flash("Laget borttaget.");
+      render();
     }
     else if(act==="confirm-remove-user"){
       const id=el.dataset.id;
