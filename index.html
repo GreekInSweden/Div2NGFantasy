@@ -4013,7 +4013,9 @@ function attachHandlers(){
       const season=Number(document.getElementById("new-league-season").value);
       if(!name){flash("Ange ett namn för serien.");return;}
       const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+season;
-      const {data,error}=await sb.from("leagues").insert({name,slug,season,is_current:true,hidden:true}).select().single();
+      const {data:maxRow}=await sb.from("leagues").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
+      const nextId=(maxRow?.id||0)+1;
+      const {data,error}=await sb.from("leagues").insert({id:nextId,name,slug,season,is_current:true,hidden:true}).select().single();
       if(error){flash("Fel: "+error.message);return;}
       window._allLeaguesCache=null;
       flash(`✓ Serien "${name}" skapad (dold). Klicka "Hoppa till" för att börja bygga upp den.`);
