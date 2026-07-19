@@ -26,6 +26,12 @@
 html,body{height:100%}
 body{font-family:var(--font-sans);background:var(--color-background-tertiary);color:var(--color-text-primary)}
 #fg-root{min-height:100vh;max-width:480px;margin:0 auto;background:var(--color-background-tertiary)}
+@media (min-width:700px){
+  #fg-root{max-width:640px}
+  #fg-root [style*="max-width:340px"]{max-width:460px!important}
+  #fg-root [style*="max-width:320px"]{max-width:440px!important}
+  #fg-root [style*="max-width:300px"]{max-width:420px!important}
+}
 input,select,button{font-family:inherit}
 input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-card{background:var(--color-background-primary);border-radius:10px;border:0.5px solid var(--color-border-tertiary);padding:1rem 1.25rem;margin-bottom:10px}
