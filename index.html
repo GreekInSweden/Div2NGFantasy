@@ -93,14 +93,16 @@ async function subscribeToPush(){
       userVisibleOnly:true,
       applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
     });
-    // Spara prenumeration i Supabase
+    // Spara prenumeration i Supabase (matchar riktig tabellstruktur: member_name, endpoint, p256dh, auth)
     const subJson=sub.toJSON();
-    await sb.from("push_subscriptions").upsert({
-      id:currentUser.id+"-"+btoa(subJson.endpoint).slice(0,20),
-      user_id:currentUser.id,
+    await sb.from("push_subscriptions").delete().eq("member_name",currentUser.namn);
+    const {error:subErr}=await sb.from("push_subscriptions").insert({
+      member_name:currentUser.namn,
       endpoint:subJson.endpoint,
-      keys:subJson.keys
+      p256dh:subJson.keys.p256dh,
+      auth:subJson.keys.auth
     });
+    if(subErr){console.error("Push subscribe save failed:",subErr);return null;}
     return sub;
   }catch(e){console.error("Push subscribe failed:",e);return null;}
 }
@@ -111,7 +113,7 @@ async function unsubscribeFromPush(){
   const sub=await reg.pushManager.getSubscription();
   if(sub){
     await sub.unsubscribe();
-    await sb.from("push_subscriptions").delete().eq("user_id",currentUser.id);
+    await sb.from("push_subscriptions").delete().eq("member_name",currentUser.namn);
   }
 }
 
@@ -4053,9 +4055,10 @@ function attachHandlers(){
       if(!title||!body){flash("Fyll i rubrik och meddelande.");return;}
       el.textContent="Skickar…"; el.disabled=true;
       try{
-        const {data:subs,error}=await sb.from("push_subscriptions").select("endpoint,keys");
+        const {data:subsRaw,error}=await sb.from("push_subscriptions").select("endpoint,p256dh,auth");
         if(error){flash("Databasfel: "+error.message);el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
-        if(!subs?.length){flash("Inga prenumeranter ännu – be användarna aktivera notiser.");el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
+        const subs=(subsRaw||[]).filter(s=>s.endpoint&&s.p256dh&&s.auth).map(s=>({endpoint:s.endpoint,keys:{p256dh:s.p256dh,auth:s.auth}}));
+        if(!subs.length){flash("Inga giltiga prenumeranter ännu – be användarna aktivera notiser (på nytt om de gjorde det innan dagens fix).");el.textContent="Skicka till alla prenumeranter";el.disabled=false;return;}
         const resp=await fetch("/api/send-notification",{
           method:"POST",
           headers:{"Content-Type":"application/json","x-api-key":window.PUSH_API_KEY||""},
