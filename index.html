@@ -4570,7 +4570,7 @@ function attachHandlers(){
           </div>`;
         });
         if(errors.length) html+=`<div style="font-size:11px;color:#c1272d;margin-top:4px">⚠ ${errors.join(", ")}</div>`;
-        if(infos&&infos.length) html+=`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">ℹ️ ${infos.join(", ")}</div>`;
+        // (info-rader om ignorerade plan-/arenanamn visas inte längre – bara riktiga fel gör det)
         html+=`</div>`;
       });
       html+=`<button class="fg-btn" data-act="import-save" style="margin-top:4px">Spara alla omgångar</button></div>`;
