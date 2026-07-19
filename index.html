@@ -3041,8 +3041,8 @@ function renderAdminTab(){
       <div style="font-weight:500;margin-bottom:6px">➕ Lägg till nytt lag</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Använd den här för en helt ny serie, eller för att lägga till ett enstaka lag.</div>
       <div style="display:flex;gap:8px">
-        <input class="fg-input" id="new-team-name" placeholder="Lagnamn" style="flex:1"/>
-        <button class="fg-btn" data-act="add-team" style="padding:9px 14px">Lägg till</button>
+        <input class="fg-input" id="new-team-name" placeholder="Lagnamn" style="flex:1;min-width:0"/>
+        <button data-act="add-team" style="background:#c1272d;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;width:auto;flex-shrink:0;white-space:nowrap">Lägg till</button>
       </div>
     </div>
     <div class="fg-card">
@@ -4036,8 +4036,12 @@ function attachHandlers(){
       const nextId=(maxRow?.id||0)+1;
       const {data,error}=await sb.from("leagues").insert({id:nextId,name,slug,season,is_current:true,hidden:true}).select().single();
       if(error){flash("Fel: "+error.message);return;}
+      const {data:maxTeamRow}=await sb.from("teams").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
+      let nextTeamId=(maxTeamRow?.id||0)+1;
+      const placeholderTeams=Array.from({length:12}).map((_,i)=>({id:nextTeamId+i,name:`Lag ${i+1}`,league_id:data.id}));
+      await sb.from("teams").insert(placeholderTeams);
       window._allLeaguesCache=null;
-      flash(`✓ Serien "${name}" skapad (dold). Klicka "Hoppa till" för att börja bygga upp den.`);
+      flash(`✓ Serien "${name}" skapad (dold) med 12 tomma lag att döpa om. Klicka "Hoppa till" för att börja bygga upp den.`);
       render();
     }
     else if(act==="toggle-league-hidden"){
