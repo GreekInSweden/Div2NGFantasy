@@ -143,7 +143,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     hofData=[],
     streakMyTips=[], streakAllTips=[], streakDraft={},
     statsRound=null, myRoundStatus={},
-    matchfokusMyTips={}, matchfokusAllTipsGlobal=[], matchfokusDraft={};
+    matchfokusMyTips={}, matchfokusAllTipsGlobal=[], matchfokusDraft={}, standingsTab=null,
+    standingsQuizAnswers=[], standingsQuizQuestions=[];
 
 window.saveTips = async function(){
   const statusEl = document.getElementById("tipp-status");
@@ -1122,6 +1123,13 @@ function renderModeSelect(){
         <div style="font-size:12px;color:var(--color-text-secondary)">13 stryktips-frågor om omgångens utvalda match</div></div>
       </button>`:""}
     </div>
+      <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
+        <span style="font-size:28px">🏆</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Ställningar</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Se topplistan i alla spelformer på ett ställe</div>
+        </div>
+      </button>
       <button data-act="pick-mode" data-mode="statistik" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">📈</span>
         <div>
@@ -1579,12 +1587,14 @@ function renderMain(){
     ? [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]]
     : appMode==="hof"
     ? [["hof","🏆","Hall of Fame"],["adm","🔒","Admin"]]
+    : appMode==="standings"
+    ? [["standings","🏆","Ställningar"],["adm","🔒","Admin"]]
     : appMode==="profil"
     ? [["profil","👤","Profil"],["adm","🔒","Admin"]]
     : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
-  const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&appMode!=="hof"&&allRoundKeys.length>0;
+  const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&appMode!=="hof"&&appMode!=="standings"&&allRoundKeys.length>0;
   const roundStrip=showRoundStrip?`
     <div style="background:#1a1a1a;padding:6px 12px 8px">
       <div style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px">
@@ -1615,6 +1625,7 @@ function renderMain(){
   else if(mainTab==="liga") body=renderLigaTab(sorted);
   else if(mainTab==="statistik") body=renderStatistikTab();
   else if(mainTab==="hof") body=renderHofTab();
+  else if(mainTab==="standings") body=renderStandingsTab();
   else if(mainTab==="profil") body=renderProfilTab();
   else if(mainTab==="omg") body=renderOmgTab();
   else body=renderAdminTab();
@@ -2219,6 +2230,54 @@ function renderMatchfokusTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Omgångens Match</div>
     ${lbRows}
+  </div>`;
+}
+function renderStandingsTab(){
+  const modes=[
+    {id:"fantasy",ico:"⚽",label:"Fantasy",enabled:cfg.fantasyEnabled!==false,fn:u=>userTotPts(u)},
+    {id:"tipp",ico:"🎯",label:"Tippa resultat",enabled:cfg.tippEnabled!==false,fn:u=>userTipTotalPts(u)},
+    {id:"snabbast",ico:"⚡",label:"Snabbast",enabled:cfg.snabbastEnabled!==false,fn:u=>userSnabbastTotalPts(u.id)},
+    {id:"måljakten",ico:"🎯",label:"Måljakten",enabled:cfg.maljaktenEnabled!==false,fn:u=>userMåljaktenTotalPts(u.id)},
+    {id:"matchfokus",ico:"⚽",label:"Omgångens Match",enabled:!!cfg.matchfokusEnabled,fn:u=>userMatchfokusTotalPts(u.id)},
+    {id:"streak",ico:"🔥",label:"Streak",enabled:!!cfg.streakEnabled,unit:"i streak",
+      fn:u=>{
+        const pubRounds=Object.keys(rounds).map(Number).filter(r=>rounds[String(r)].results_published);
+        return calcUserStreak(streakAllTips,u.id,pubRounds).best;
+      }},
+    {id:"quiz",ico:"🧠",label:"Quiz",enabled:!!cfg.quizEnabled,fn:u=>userQuizTotalPts(u.id,standingsQuizAnswers,standingsQuizQuestions)},
+  ].filter(m=>m.enabled);
+
+  if(!modes.length){
+    return `<div class="fg-card" style="text-align:center;padding:24px">
+      <div style="font-size:36px;margin-bottom:8px">🏆</div>
+      <div style="font-weight:500">Inga spelformer aktiverade ännu</div>
+    </div>`;
+  }
+
+  const active=modes.find(m=>m.id===standingsTab)?standingsTab:modes[0].id;
+  const activeMode=modes.find(m=>m.id===active);
+
+  const tabBtns=modes.map(m=>`<button data-act="standings-tab" data-tab="${m.id}" style="padding:9px 14px;border-radius:8px;border:1.5px solid ${active===m.id?G_GREEN:'var(--color-border-secondary)'};background:${active===m.id?G_GREENL:'var(--color-background-primary)'};font-size:12px;font-weight:${active===m.id?600:400};cursor:pointer;white-space:nowrap;flex-shrink:0">${m.ico} ${esc(m.label)}</button>`).join("");
+
+  const medals=["🥇","🥈","🥉"];
+  const sorted=[...users].sort((a,b)=>activeMode.fn(b)-activeMode.fn(a));
+  const rowsHtml=sorted.length?sorted.map((u,i)=>{
+    const p=activeMode.fn(u);
+    const isMe=currentUser&&u.id===currentUser.id;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?'background:'+G_GREENL+';border-radius:6px;padding-left:6px;padding-right:6px':''}">
+      <span style="width:24px;text-align:center;font-size:14px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+      <span style="font-weight:500">${p} ${activeMode.unit||"p"}</span>
+    </div>`;
+  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga registrerade användare ännu.</div>`;
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🏆 Ställningar</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Topplistan för varje spelform, samlat på ett ställe.</div>
+  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:4px">${tabBtns}</div>
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:10px">${activeMode.ico} ${esc(activeMode.label)}</div>
+    ${rowsHtml}
   </div>`;
 }
 function renderQuizTab(){
@@ -3881,6 +3940,18 @@ function attachHandlers(){
         matchfokusMyTips=await fetchMyMatchfokusTips();
         matchfokusDraft={...(matchfokusMyTips[cfg.omg]||{})};
         screen="main"; mainTab="hem";
+      } else if(appMode==="standings"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar ställningar…</div>';
+        try{
+          if(cfg.streakEnabled) streakAllTips=await fetchAllStreakTips();
+          if(cfg.quizEnabled){
+            standingsQuizAnswers=await fetchAllQuizAnswersAll();
+            standingsQuizQuestions=await fetchAllQuizAdmin();
+          }
+        }catch(e){console.error(e);}
+        screen="main"; mainTab="standings";
+        standingsTab=standingsTab||(cfg.fantasyEnabled!==false?"fantasy":cfg.tippEnabled!==false?"tipp":cfg.snabbastEnabled!==false?"snabbast":cfg.maljaktenEnabled!==false?"måljakten":cfg.matchfokusEnabled?"matchfokus":cfg.streakEnabled?"streak":cfg.quizEnabled?"quiz":"fantasy");
       } else {
         screen="main"; mainTab="hem";
       }
@@ -4365,6 +4436,10 @@ function attachHandlers(){
           fetchAllStreakTips()
         ]);
       }catch(e){console.error(e);}
+      render();
+    }
+    else if(act==="standings-tab"){
+      standingsTab=el.dataset.tab;
       render();
     }
     else if(act==="mf-answer"){
