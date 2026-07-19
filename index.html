@@ -135,6 +135,7 @@ function urlBase64ToUint8Array(base64String){
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
+    viewingTeamUserId=null, viewingTeamRound=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -2812,7 +2813,83 @@ function renderRegler(){
   return renderRulesScreen();
 }
 
+function getTeamForRound(u,r){
+  const rd=rounds[String(r)];
+  const snapshot=rd&&rd.picks_snapshot&&rd.picks_snapshot[u.id];
+  return {
+    picks: snapshot?snapshot.picks:u.picks,
+    kapten: snapshot?snapshot.kapten:u.kapten
+  };
+}
+function renderTeamPitchView(u,r){
+  const rd=rounds[String(r)];
+  const {picks,kapten}=getTeamForRound(u,r);
+  const rankAll=[...users].sort((a,b)=>userTotPts(b)-userTotPts(a));
+  const rank=rankAll.findIndex(x=>x.id===u.id)+1;
+  const roundPts=userRoundPts(u,r);
+  const resultsShown=rd&&rd.results_published;
+  const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+  const minR=allRoundKeys.length?allRoundKeys[0]:1, maxR=allRoundKeys.length?allRoundKeys[allRoundKeys.length-1]:1;
+
+  const posRow=(pos)=>{
+    const ids=(picks&&picks[pos])||[];
+    if(!ids.length)return "";
+    return `<div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      ${ids.map(pid=>{
+        const pl=players.find(p=>p.id===pid);
+        if(!pl) return "";
+        const isCap=pl.id===kapten;
+        const pts=plPts(pl,rd);
+        const team=TEAMS.find(t=>t.id===pl.teamId);
+        return `<div style="width:76px;text-align:center">
+          <div style="background:#fff;border-radius:8px;padding:6px 3px;box-shadow:0 1px 4px rgba(0,0,0,0.25);position:relative">
+            ${isCap?`<div style="position:absolute;top:-6px;right:-6px;background:${G_GOLD};color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700">C</div>`:""}
+            <div style="font-size:11px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(pl.namn)}</div>
+            <div style="font-size:9px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(team?team.name:"")}</div>
+          </div>
+          <div style="margin-top:3px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,0.35);border-radius:10px;padding:1px 7px;display:inline-block">${resultsShown?(isCap?pts*2:pts):"–"}p</div>
+        </div>`;
+      }).join("")}
+    </div>`;
+  };
+
+  const hasTeam = picks && ((picks.GK||[]).length+(picks.DEF||[]).length+(picks.MID||[]).length+(picks.FW||[]).length)>0;
+
+  const pitchHtml = `
+    <div style="background:linear-gradient(180deg,#2d7a3e,#1e5c2c);border-radius:14px;padding:20px 8px;position:relative;overflow:hidden">
+      <div style="position:absolute;inset:10px;border:1.5px solid rgba(255,255,255,0.25);border-radius:8px;pointer-events:none"></div>
+      <div style="position:absolute;left:50%;top:10px;bottom:10px;width:1px;background:rgba(255,255,255,0.15);pointer-events:none"></div>
+      <div style="position:relative">
+        ${posRow("FW")}
+        ${posRow("MID")}
+        ${posRow("DEF")}
+        ${posRow("GK")}
+      </div>
+    </div>`;
+
+  return `
+  <button data-act="close-team-view" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:14px">← Tillbaka till ligan</button>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+    <div style="width:46px;height:46px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:18px;flex-shrink:0">${esc(u.namn[0])}</div>
+    <div style="flex:1"><div style="font-weight:500;font-size:17px">${esc(u.namn)}</div><div style="font-size:12px;color:var(--color-text-secondary)">Plats ${rank>0?rank:"–"} av ${rankAll.length} · ${userTotPts(u)} p totalt</div></div>
+  </div>
+  <div class="fg-card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <button data-act="team-view-round" data-dir="-1" ${r<=minR?"disabled":""} style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:32px;height:32px;cursor:pointer;opacity:${r<=minR?0.3:1}">‹</button>
+    <div style="text-align:center">
+      <div style="font-weight:500;font-size:14px">Omgång ${r}</div>
+      <div style="font-size:12px;color:${G_GREEN};font-weight:600">${resultsShown?roundPts+" p denna omgång":"Väntar på resultat"}</div>
+    </div>
+    <button data-act="team-view-round" data-dir="1" ${r>=maxR?"disabled":""} style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:32px;height:32px;cursor:pointer;opacity:${r>=maxR?0.3:1}">›</button>
+  </div>
+  ${hasTeam?pitchHtml:'<div class="fg-card" style="text-align:center;padding:2rem;font-size:13px;color:var(--color-text-secondary)">Inget lag valt för denna omgång.</div>'}
+  `;
+}
 function renderLigaTab(sorted){
+  if(viewingTeamUserId&&(appMode==="fantasy"||appMode===null)){
+    const u=users.find(x=>x.id===viewingTeamUserId);
+    if(u) return renderTeamPitchView(u,viewingTeamRound||cfg.omg);
+    viewingTeamUserId=null;
+  }
   const medals=["🥇","🥈","🥉"];
 
   let title="📊 Liga", getPts, subText;
@@ -2831,14 +2908,16 @@ function renderLigaTab(sorted){
 
   const ligaSorted=[...users].sort((a,b)=>getPts(b)-getPts(a));
 
+  const isFantasy=(appMode==="fantasy"||appMode===null);
   const rows=ligaSorted.map((u,i)=>{
     const pts=getPts(u);
     const isMe=currentUser&&u.id===currentUser.id;
-    return `<div class="fg-card" style="display:flex;align-items:center;gap:10px;background:${isMe?G_GREENL:"var(--color-background-primary)"};border:${isMe?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"}">
+    return `<div class="fg-card" data-act="${isFantasy?"view-team":""}" data-id="${u.id}" style="display:flex;align-items:center;gap:10px;background:${isMe?G_GREENL:"var(--color-background-primary)"};border:${isMe?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"};${isFantasy?"cursor:pointer":""}">
       <div style="width:26px;text-align:center">${i<3?medals[i]:i+1}</div>
       <div style="width:38px;height:38px;border-radius:50%;background:${isMe?G_GREEN:"var(--color-background-secondary)"};color:${isMe?"#fff":"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
       <div style="flex:1"><div style="font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?`<span style="font-size:11px;color:${G_GREEN}"> (du)</span>`:""}</div><div style="font-size:12px;color:var(--color-text-secondary)">${subText(u)}</div></div>
       <div style="font-weight:500;font-size:18px">${pts}</div>
+      ${isFantasy?`<span style="color:var(--color-text-secondary);font-size:16px">›</span>`:""}
     </div>`;
   }).join("");
 
@@ -4553,7 +4632,7 @@ function attachHandlers(){
       const arr=[...ligatippDraft[key]]; arr.splice(idx,1);
       ligatippDraft[key]=arr; render();
     }
-    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; render(); loadMyRoundStatus().then(render); }
+    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; viewingTeamUserId=null; viewingTeamRound=null; render(); loadMyRoundStatus().then(render); }
     else if(act==="back-to-main"){screen="main";render();}
     else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
     else if(act==="pick-player"){
@@ -4645,6 +4724,22 @@ function attachHandlers(){
           fetchAllStreakTips()
         ]);
       }catch(e){console.error(e);}
+      render();
+    }
+    else if(act==="view-team"){
+      viewingTeamUserId=el.dataset.id;
+      viewingTeamRound=cfg.omg;
+      render();
+    }
+    else if(act==="close-team-view"){
+      viewingTeamUserId=null; viewingTeamRound=null;
+      render();
+    }
+    else if(act==="team-view-round"){
+      const dir=Number(el.dataset.dir);
+      const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
+      const minR=allRoundKeys.length?allRoundKeys[0]:1, maxR=allRoundKeys.length?allRoundKeys[allRoundKeys.length-1]:1;
+      viewingTeamRound=Math.min(maxR,Math.max(minR,(viewingTeamRound||cfg.omg)+dir));
       render();
     }
     else if(act==="standings-tab"){
