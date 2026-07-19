@@ -2949,6 +2949,11 @@ function renderLigaTab(sorted){
     if(u) return renderTeamPitchView(u,viewingTeamRound||cfg.omg);
     viewingTeamUserId=null;
   }
+  if(viewingTippUserId&&appMode==="tipp"){
+    const u=users.find(x=>x.id===viewingTippUserId);
+    if(u) return renderTippUserView(u,viewingTippRound||cfg.omg);
+    viewingTippUserId=null;
+  }
   const medals=["🥇","🥈","🥉"];
 
   let title="📊 Liga", getPts, subText;
@@ -2968,15 +2973,17 @@ function renderLigaTab(sorted){
   const ligaSorted=[...users].sort((a,b)=>getPts(b)-getPts(a));
 
   const isFantasy=(appMode==="fantasy"||appMode===null);
+  const isTipp=(appMode==="tipp");
+  const isClickable=isFantasy||isTipp;
   const rows=ligaSorted.map((u,i)=>{
     const pts=getPts(u);
     const isMe=currentUser&&u.id===currentUser.id;
-    return `<div class="fg-card" data-act="${isFantasy?"view-team":""}" data-id="${u.id}" style="display:flex;align-items:center;gap:10px;background:${isMe?G_GREENL:"var(--color-background-primary)"};border:${isMe?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"};${isFantasy?"cursor:pointer":""}">
+    return `<div class="fg-card" data-act="${isFantasy?"view-team":isTipp?"view-tipp":""}" data-id="${u.id}" style="display:flex;align-items:center;gap:10px;background:${isMe?G_GREENL:"var(--color-background-primary)"};border:${isMe?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-tertiary)"};${isClickable?"cursor:pointer":""}">
       <div style="width:26px;text-align:center">${i<3?medals[i]:i+1}</div>
       <div style="width:38px;height:38px;border-radius:50%;background:${isMe?G_GREEN:"var(--color-background-secondary)"};color:${isMe?"#fff":"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
       <div style="flex:1"><div style="font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?`<span style="font-size:11px;color:${G_GREEN}"> (du)</span>`:""}</div><div style="font-size:12px;color:var(--color-text-secondary)">${subText(u)}</div></div>
       <div style="font-weight:500;font-size:18px">${pts}</div>
-      ${isFantasy?`<span style="color:var(--color-text-secondary);font-size:16px">›</span>`:""}
+      ${isClickable?`<span style="color:var(--color-text-secondary);font-size:16px">›</span>`:""}
     </div>`;
   }).join("");
 
