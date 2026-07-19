@@ -3810,7 +3810,12 @@ function attachHandlers(){
       if(adminErr||!adminRow){ errMsg="Kontot saknar adminbehörighet."; await sb.auth.signOut(); render(); return; }
       adminOk=true; adminLevel=adminRow.level;
       errMsg=""; if(adminLevel!=="super") adminSection="round";
-      cfg={...cfg,omg:Number(adminDefaultRound())}; bulkRows=defaultBulkRows(adminDefaultRound());
+      const correctRound=Number(adminDefaultRound());
+      if(correctRound!==cfg.omg){
+        cfg={...cfg,omg:correctRound};
+        try{await setConfig(correctRound);}catch(e){console.error(e);}
+      }
+      bulkRows=defaultBulkRows(String(correctRound));
     }catch(e){console.error(e); errMsg="Något gick fel vid inloggning.";}
     render();
   };
