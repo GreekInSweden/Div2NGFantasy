@@ -2881,7 +2881,7 @@ function renderTopPlayersCard(r){
       <div style="font-size:13px;color:var(--color-text-secondary)">Väntar på resultat för omgång ${r}.</div>
     </div>`;
   }
-  const top=players.map(p=>({p,pts:plPts(p,rd)})).sort((a,b)=>b.pts-a.pts).slice(0,30);
+  const top=players.map(p=>({p,pts:plPts(p,rd)})).sort((a,b)=>b.pts-a.pts||a.p.namn.localeCompare(b.p.namn,"sv")).slice(0,20);
   const posIco={GK:"🧤",DEF:"🛡️",MID:"⚙️",FW:"⚡"};
   const rowsHtml=top.map((row,i)=>{
     const team=TEAMS.find(t=>t.id===row.p.teamId);
