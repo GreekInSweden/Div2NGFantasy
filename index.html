@@ -142,6 +142,7 @@ let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
+    duellenSignups=[], duellenConfig={status:"signup",total_rounds:0}, duellenFixtures=[],
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -363,7 +364,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -381,7 +382,8 @@ async function fetchConfig(){
     ligatippEnabled:data.ligatipp_enabled!==false,
     hofEnabled:!!data.hof_enabled,
     streakEnabled:!!data.streak_enabled,
-    matchfokusEnabled:!!data.matchfokus_enabled
+    matchfokusEnabled:!!data.matchfokus_enabled,
+    duellenEnabled:!!data.duellen_enabled
   };
 }
 async function setConfig(omg){
@@ -784,6 +786,129 @@ function allPickedIds(u){
 }
 function pickCount(u){ return allPickedIds(u).length; }
 
+// ── Duellen ──────────────────────────────────────────────────────────────
+async function fetchDuellenSignups(){
+  const {data,error}=await sb.from("duellen_signups").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function fetchDuellenConfig(){
+  const {data,error}=await sb.from("duellen_config").select("*").eq("league_id",currentLeague.id).maybeSingle();
+  if(error){console.error(error);return {status:"signup",total_rounds:0};}
+  if(!data) return {status:"signup",total_rounds:0};
+  return data;
+}
+async function fetchDuellenFixtures(){
+  const {data,error}=await sb.from("duellen_fixtures").select("*").eq("league_id",currentLeague.id).order("round_num");
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function joinDuellen(){
+  const {error}=await sb.from("duellen_signups").insert({id:currentUser.id+"-duellen",user_id:currentUser.id,league_id:currentLeague.id});
+  return error;
+}
+async function leaveDuellen(){
+  const {error}=await sb.from("duellen_signups").delete().eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
+  return error;
+}
+// Round-robin ("cirkelmetoden") – garanterar att ingen möter samma person två gånger.
+// Jämnt antal krävs; udda antal fylls ut med en bot ("BOT").
+function generateRoundRobinSchedule(participantIds){
+  let ids=[...participantIds];
+  // Blanda slumpmässigt innan schemat byggs, så det inte alltid blir samma ordning
+  for(let i=ids.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [ids[i],ids[j]]=[ids[j],ids[i]];
+  }
+  if(ids.length%2!==0) ids.push("BOT");
+  const n=ids.length;
+  if(n<2) return [];
+  const fixed=ids[0];
+  let rest=ids.slice(1);
+  const rounds=[];
+  for(let r=0;r<n-1;r++){
+    const rotated=[fixed,...rest];
+    const pairs=[];
+    for(let i=0;i<n/2;i++){
+      let a=rotated[i], b=rotated[n-1-i];
+      // Växla hemma/borta mellan omgångar för lite balans
+      if(r%2===1){ const t=a; a=b; b=t; }
+      pairs.push([a,b]);
+    }
+    rounds.push(pairs);
+    rest.unshift(rest.pop());
+  }
+  return rounds; // array av omgångar, varje omgång = array av [homeId,awayId]
+}
+async function generateDuellenSeason(){
+  const signups=await fetchDuellenSignups();
+  const ids=signups.map(s=>s.user_id);
+  if(ids.length<2) return {error:{message:"Behöver minst 2 anmälda för att starta."}};
+  const schedule=generateRoundRobinSchedule(ids);
+  const fixtures=[];
+  schedule.forEach((pairs,idx)=>{
+    const roundNum=idx+1;
+    pairs.forEach(([a,b],pIdx)=>{
+      fixtures.push({
+        id:`${currentLeague.id}-${roundNum}-${pIdx}`,
+        league_id:currentLeague.id,
+        round_num:roundNum,
+        home_user_id:a==="BOT"?null:a,
+        away_user_id:b==="BOT"?null:b,
+        home_is_bot:a==="BOT",
+        away_is_bot:b==="BOT"
+      });
+    });
+  });
+  const {error:delErr}=await sb.from("duellen_fixtures").delete().eq("league_id",currentLeague.id);
+  if(delErr) return {error:delErr};
+  const {error:insErr}=await sb.from("duellen_fixtures").insert(fixtures);
+  if(insErr) return {error:insErr};
+  const {error:cfgErr}=await sb.from("duellen_config").upsert({league_id:currentLeague.id,status:"active",total_rounds:schedule.length});
+  if(cfgErr) return {error:cfgErr};
+  return {error:null,rounds:schedule.length};
+}
+async function resetDuellenSeason(){
+  await sb.from("duellen_fixtures").delete().eq("league_id",currentLeague.id);
+  const {error}=await sb.from("duellen_config").upsert({league_id:currentLeague.id,status:"signup",total_rounds:0});
+  return error;
+}
+// Räknar ut resultatet av en enskild duell (live, baserat på Tippa-poäng den omgången)
+function duellenMatchResult(fx){
+  const rd=rounds[String(fx.round_num)];
+  if(!rd||!rd.results_published) return null;
+  const homeUser=fx.home_is_bot?null:users.find(u=>u.id===fx.home_user_id);
+  const awayUser=fx.away_is_bot?null:users.find(u=>u.id===fx.away_user_id);
+  const homePts=fx.home_is_bot?0:(homeUser?userTipRoundPts(homeUser,fx.round_num):0);
+  const awayPts=fx.away_is_bot?0:(awayUser?userTipRoundPts(awayUser,fx.round_num):0);
+  let homeRes,awayRes;
+  if(homePts>awayPts){homeRes=3;awayRes=0;}
+  else if(homePts<awayPts){homeRes=0;awayRes=3;}
+  else {homeRes=1;awayRes=1;}
+  return {homePts,awayPts,homeRes,awayRes,decided:true};
+}
+function duellenStandings(fixtures){
+  const table={};
+  const ensure=(id,isBot,namn)=>{
+    const key=isBot?"BOT":id;
+    if(!table[key]) table[key]={id:key,namn:namn||"Bot",isBot,played:0,w:0,d:0,l:0,pts:0,gd:0};
+    return table[key];
+  };
+  fixtures.forEach(fx=>{
+    const result=duellenMatchResult(fx);
+    if(!result) return;
+    const homeUser=fx.home_is_bot?null:users.find(u=>u.id===fx.home_user_id);
+    const awayUser=fx.away_is_bot?null:users.find(u=>u.id===fx.away_user_id);
+    const h=ensure(fx.home_user_id,fx.home_is_bot,homeUser?homeUser.namn:"Bot");
+    const a=ensure(fx.away_user_id,fx.away_is_bot,awayUser?awayUser.namn:"Bot");
+    h.played++; a.played++;
+    h.gd+=(result.homePts-result.awayPts); a.gd+=(result.awayPts-result.homePts);
+    if(result.homeRes===3){h.w++;a.l++;} else if(result.awayRes===3){a.w++;h.l++;} else {h.d++;a.d++;}
+    h.pts+=result.homeRes; a.pts+=result.awayRes;
+  });
+  return Object.values(table).filter(r=>!r.isBot).sort((x,y)=>y.pts-x.pts||y.gd-x.gd||x.namn.localeCompare(y.namn,"sv"));
+}
+
 // ── Omgångens Match ──────────────────────────────────────────────────────
 function matchfokusQuestions(hName,aName){
   return [
@@ -1155,6 +1280,11 @@ function renderModeSelect(){
         <span style="font-size:28px">⚽</span>
         <div><div style="font-weight:500;font-size:16px">Omgångens Match</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">13 stryktips-frågor om omgångens utvalda match</div></div>
+      </button>`:""}
+      ${cfg.duellenEnabled?`<button data-act="pick-mode" data-mode="duellen" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🥊</span>
+        <div><div style="font-weight:500;font-size:16px">Duellen</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Möt andra spelare hemma/borta – vinn via Tippa resultat</div></div>
       </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
@@ -1727,6 +1857,7 @@ function renderMain(){
     else if(appMode==="quiz") body=renderQuizTab();
     else if(appMode==="streak") body=renderStreakTab();
     else if(appMode==="matchfokus") body=renderMatchfokusTab();
+    else if(appMode==="duellen") body=renderDuellenTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -2441,6 +2572,85 @@ function renderStandingsTab(){
     ${rowsHtml}
   </div>`;
 }
+function renderDuellenTab(){
+  const isSignedUp=duellenSignups.some(s=>s.user_id===currentUser.id);
+
+  if(duellenConfig.status!=="active"){
+    const signupNames=duellenSignups.map(s=>{
+      const u=users.find(x=>x.id===s.user_id);
+      return u?u.namn:"?";
+    });
+    return `
+    <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Möt en annan spelare hemma/borta varje omgång – vem som vinner avgörs av vem som får mest poäng i Tippa resultat den omgången.</div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">Anmälan öppen</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.5">
+        Säsongen startar när admin känner att tillräckligt många anmält sig. Ingen möter samma person två gånger under säsongen.
+      </div>
+      ${isSignedUp
+        ?`<div style="background:${G_GREENL};color:${G_GREEN};border-radius:8px;padding:10px;font-size:13px;font-weight:500;text-align:center;margin-bottom:10px">✓ Du är anmäld!</div>
+           <button class="fg-outbtn" data-act="duellen-leave" style="width:100%">Avanmäl mig</button>`
+        :`<button class="fg-btn" data-act="duellen-join" style="width:100%">Anmäl mig till Duellen</button>`}
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Anmälda (${signupNames.length})</div>
+      ${signupNames.length?signupNames.map(n=>`<div style="padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">${esc(n)}</div>`).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld ännu – var först!</div>'}
+    </div>`;
+  }
+
+  // Aktiv säsong
+  const myFixtures=duellenFixtures.filter(fx=>fx.home_user_id===currentUser.id||fx.away_user_id===currentUser.id);
+  const currentFx=myFixtures.find(fx=>fx.round_num===cfg.omg);
+  const standings=duellenStandings(duellenFixtures);
+  const myRank=standings.findIndex(r=>r.id===currentUser.id)+1;
+
+  let matchCard="";
+  if(currentFx){
+    const isHome=currentFx.home_user_id===currentUser.id;
+    const oppName=currentFx.home_is_bot||currentFx.away_is_bot?"Bot (vilolott)":
+      (isHome?(users.find(u=>u.id===currentFx.away_user_id)?.namn||"?"):(users.find(u=>u.id===currentFx.home_user_id)?.namn||"?"));
+    const result=duellenMatchResult(currentFx);
+    matchCard=`<div class="fg-card">
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:6px">Omgång ${cfg.omg} · ${isHome?"Hemma":"Borta"}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:8px">
+        <div style="text-align:center;flex:1"><div style="font-weight:500;font-size:14px">${esc(currentUser.namn)}</div>${result?`<div style="font-size:22px;font-weight:700">${isHome?result.homePts:result.awayPts}</div>`:""}</div>
+        <div style="color:var(--color-text-secondary);font-weight:600">vs</div>
+        <div style="text-align:center;flex:1"><div style="font-weight:500;font-size:14px">${esc(oppName)}</div>${result?`<div style="font-size:22px;font-weight:700">${isHome?result.awayPts:result.homePts}</div>`:""}</div>
+      </div>
+      <div style="text-align:center;font-size:13px;font-weight:600;color:${result?(((isHome?result.homeRes:result.awayRes)===3)?G_GREEN:((isHome?result.homeRes:result.awayRes)===1?G_GOLD:'#A32D2D')):'var(--color-text-secondary)'}">
+        ${result?(((isHome?result.homeRes:result.awayRes)===3)?"Vinst! 🎉":((isHome?result.homeRes:result.awayRes)===1?"Oavgjort":"Förlust")):"Väntar på resultat"}
+      </div>
+    </div>`;
+  } else {
+    matchCard=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary);text-align:center">Ingen match denna omgång.</div></div>`;
+  }
+
+  const tableRows=standings.map((r,i)=>{
+    const isMe=r.id===currentUser.id;
+    return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;${isMe?`background:${G_GREENL};border-radius:6px;padding-left:6px`:""}">
+      <span style="width:20px;text-align:center;color:var(--color-text-secondary)">${i+1}</span>
+      <span style="flex:1;font-weight:${isMe?500:400}">${esc(r.namn)}</span>
+      <span style="width:24px;text-align:center;color:var(--color-text-secondary)">${r.played}</span>
+      <span style="width:20px;text-align:center;color:${G_GREEN}">${r.w}</span>
+      <span style="width:20px;text-align:center;color:${G_GOLD}">${r.d}</span>
+      <span style="width:20px;text-align:center;color:#A32D2D">${r.l}</span>
+      <span style="width:28px;text-align:center;font-weight:700">${r.pts}</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${standings.length} · Omgång ${cfg.omg} av ${duellenConfig.total_rounds}</div>
+  ${matchCard}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">Tabell</div>
+    <div style="display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--color-border-secondary);font-size:10px;color:var(--color-text-secondary);font-weight:600">
+      <span style="width:20px"></span><span style="flex:1">SPELARE</span><span style="width:24px;text-align:center">S</span><span style="width:20px;text-align:center">V</span><span style="width:20px;text-align:center">O</span><span style="width:20px;text-align:center">F</span><span style="width:28px;text-align:center">P</span>
+    </div>
+    ${tableRows||'<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga resultat än.</div>'}
+  </div>`;
+}
 function renderQuizTab(){
   const rnd=cfg.omg;
   const qs=quizQuestions.filter(q=>q.round_num===rnd); // bara denna omgångs frågor
@@ -3142,7 +3352,7 @@ function renderAdminTab(){
       <button class="fg-btn" onclick="window._doAdminLogin()" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Omgångens Match"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
+  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Omgångens Match"],["duellen","🥊 Duellen"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
   const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
@@ -3641,6 +3851,7 @@ function renderAdminTab(){
       ["hof","🏆","Hall of Fame","hofEnabled","hof_enabled"],
       ["streak","🔥","Streak","streakEnabled","streak_enabled"],
       ["matchfokus","⚽","Omgångens Match","matchfokusEnabled","matchfokus_enabled"],
+      ["duellen","🥊","Duellen","duellenEnabled","duellen_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -3826,6 +4037,53 @@ function renderAdminTab(){
       </div>`;
     }
     body=matchPicker+factsCard;
+  } else if(adminSection==="duellen"){
+    const signupNames=duellenSignups.map(s=>{
+      const u=users.find(x=>x.id===s.user_id);
+      return u?u.namn:"(okänd)";
+    });
+    if(duellenConfig.status!=="active"){
+      body=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:6px">🥊 Duellen – anmälan pågår</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${duellenSignups.length} anmälda. Generera säsongen när du känner att tillräckligt många har anmält sig.</div>
+        ${signupNames.length?signupNames.map(n=>`<div style="padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">${esc(n)}</div>`).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld ännu.</div>'}
+        <button class="fg-btn" data-act="duellen-generate" style="margin-top:14px">🚀 Generera säsong (${duellenSignups.length} anmälda)</button>
+        ${duellenSignups.length<2?'<div style="font-size:12px;color:#A32D2D;margin-top:6px">Behöver minst 2 anmälda.</div>':''}
+      </div>`;
+    } else {
+      const standings=duellenStandings(duellenFixtures);
+      const roundFixtures=duellenFixtures.filter(fx=>fx.round_num===cfg.omg);
+      const fxRows=roundFixtures.map(fx=>{
+        const h=fx.home_is_bot?"Bot":(users.find(u=>u.id===fx.home_user_id)?.namn||"?");
+        const a=fx.away_is_bot?"Bot":(users.find(u=>u.id===fx.away_user_id)?.namn||"?");
+        const res=duellenMatchResult(fx);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+          <span style="flex:1;text-align:right">${esc(h)}</span>
+          <span style="min-width:50px;text-align:center;font-weight:600">${res?res.homePts+" – "+res.awayPts:"– – –"}</span>
+          <span style="flex:1">${esc(a)}</span>
+        </div>`;
+      }).join("");
+      const tableRows=standings.map((r,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px">
+        <span style="width:20px;text-align:center;color:var(--color-text-secondary)">${i+1}</span>
+        <span style="flex:1">${esc(r.namn)}</span>
+        <span style="width:22px;text-align:center">${r.played}</span>
+        <span style="width:26px;text-align:center;font-weight:700">${r.pts}p</span>
+      </div>`).join("");
+      body=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:4px">🥊 Duellen – aktiv säsong</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${duellenConfig.total_rounds} omgångar totalt · Visar omgång ${cfg.omg}</div>
+        ${fxRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga matcher denna omgång.</div>'}
+      </div>
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px">Tabell</div>
+        ${tableRows}
+      </div>
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:6px;color:#A32D2D">Nollställ säsong</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Tar bort alla matcher och öppnar för ny anmälan. Går inte att ångra.</div>
+        <button class="fg-outbtn" data-act="duellen-reset" style="width:100%;border-color:#A32D2D;color:#A32D2D">Nollställ säsongen</button>
+      </div>`;
+    }
   } else {
     const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
     const goalSearch = document.getElementById("goals-search") ? document.getElementById("goals-search").value.toLowerCase() : "";
@@ -4274,6 +4532,13 @@ function attachHandlers(){
         root2.innerHTML='<div class="fg-loading">Laddar Omgångens Match…</div>';
         matchfokusMyTips=await fetchMyMatchfokusTips();
         matchfokusDraft={...(matchfokusMyTips[cfg.omg]||{})};
+        screen="main"; mainTab="hem";
+      } else if(appMode==="duellen"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Duellen…</div>';
+        try{
+          [duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);
+        }catch(e){console.error(e);}
         screen="main"; mainTab="hem";
       } else if(appMode==="standings"){
         const root2=document.getElementById("fg-root");
@@ -4793,6 +5058,9 @@ function attachHandlers(){
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
       if(adminSection==="season"){ window._allLeaguesCache=null; }
+      if(adminSection==="duellen"){
+        try{[duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);}catch(e){console.error(e);}
+      }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
         try{
@@ -4855,6 +5123,38 @@ function attachHandlers(){
     }
     else if(act==="standings-tab"){
       standingsTab=el.dataset.tab;
+      render();
+    }
+    else if(act==="duellen-generate"){
+      if(!confirm(`Generera Duellen-säsongen med ${duellenSignups.length} anmälda? Detta går inte att ångra utan att nollställa säsongen.`))return;
+      const result=await generateDuellenSeason();
+      if(result.error){flash("Fel: "+result.error.message);return;}
+      duellenConfig={status:"active",total_rounds:result.rounds,league_id:currentLeague.id};
+      duellenFixtures=await fetchDuellenFixtures();
+      flash(`✓ Säsong genererad! ${result.rounds} omgångar.`);
+      render();
+    }
+    else if(act==="duellen-reset"){
+      if(!confirm("Nollställ hela Duellen-säsongen? Alla matcher raderas permanent."))return;
+      const error=await resetDuellenSeason();
+      if(error){flash("Fel: "+error.message);return;}
+      duellenConfig={status:"signup",total_rounds:0};
+      duellenFixtures=[];
+      flash("Säsongen nollställd.");
+      render();
+    }
+    else if(act==="duellen-join"){
+      const error=await joinDuellen();
+      if(error){flash("Fel: "+error.message);return;}
+      duellenSignups=[...duellenSignups,{id:currentUser.id+"-duellen",user_id:currentUser.id,league_id:currentLeague.id}];
+      flash("✓ Anmäld till Duellen!");
+      render();
+    }
+    else if(act==="duellen-leave"){
+      const error=await leaveDuellen();
+      if(error){flash("Fel: "+error.message);return;}
+      duellenSignups=duellenSignups.filter(s=>s.user_id!==currentUser.id);
+      flash("Du är avanmäld.");
       render();
     }
     else if(act==="mf-answer"){
