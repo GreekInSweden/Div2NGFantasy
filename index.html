@@ -1814,6 +1814,24 @@ function renderRulesScreen(){
         ${tip("💡 Facit och poäng visas per fråga så fort admin publicerat matchfakta efter matchen.")}
       `)}
 
+      ${section("🥊","Duellen",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar Div2NG Play. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.
+        </div>
+        ${table([
+          ["Du får fler poäng än motståndaren","Vinst – 3p"],
+          ["Ni får exakt lika många poäng","Oavgjort – 1p"],
+          ["Motståndaren får fler poäng","Förlust – 0p"],
+          ["Möter en bot","Boten har alltid 0p – lätt vinst!"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Anmälan:</b> Frivillig, egen anmälan i Duellen-fliken. Ingen extra tippning behövs – dina Tippa resultat-poäng används automatiskt.<br>
+          <b>Schema:</b> Säsongen slumpas fram när admin startar den – du möter varje motståndare <b>högst en gång</b> under säsongen. Är ni ett udda antal fyller en bot ut schemat.<br>
+          <b>Tabell:</b> 3 poäng för vinst, 1 för oavgjort, 0 för förlust – precis som i riktig fotboll.
+        </div>
+        ${tip("💡 Kommer inte du eller din motståndare in med tips en omgång räknas det som 0 poäng den matchen – glöm inte att tippa!")}
+      `)}
+
     </div>
   </div>`;
 }
