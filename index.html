@@ -1453,6 +1453,7 @@ function renderHome(){
     {ico:"🧠",title:"Quiz",desc:`Allmänna frågor om ${currentLeague.name}`,on:!!cfg.quizEnabled},
     {ico:"🔥",title:"Streak",desc:"Håll din vinstsvit vid liv",on:!!cfg.streakEnabled},
     {ico:"⚽",title:"Omgångens Match",desc:"13 stryktips-frågor om en utvald match",on:!!cfg.matchfokusEnabled},
+    {ico:"🥊",title:"Duellen",desc:"Möt andra spelare hemma/borta via Tippa resultat",on:!!cfg.duellenEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
