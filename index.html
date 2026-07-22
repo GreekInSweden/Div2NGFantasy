@@ -144,6 +144,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     duellenSignups=[], duellenConfig={status:"signup",total_rounds:0}, duellenFixtures=[],
     malregnMyTips={}, malregnAllTipsGlobal=[], malregnDraft=null,
+    jubelMyTips={}, jubelAllTipsGlobal=[], jubelDraft={},
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -184,6 +185,29 @@ window.saveTips = async function(){
   }
 };
 
+window.saveJubel = async function(){
+  const statusEl=document.getElementById("jubel-status");
+  const rd=rounds[String(cfg.omg)];
+  if(!rd||!rd.matches||!rd.matches.length){ if(statusEl) statusEl.textContent="Inga matcher att svara på."; return; }
+  const missing=rd.matches.filter(m=>jubelDraft[jubelMatchKey(m)]===undefined);
+  if(missing.length){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Svara på alla matcher innan du sparar (saknas: '+missing.length+').</span>';
+    return;
+  }
+  if(statusEl) statusEl.textContent="Sparar…";
+  try{
+    const picks={...jubelDraft};
+    const error=await saveJubelTip(cfg.omg,picks);
+    if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+    jubelMyTips={...jubelMyTips,[cfg.omg]:picks};
+    const idx=jubelAllTipsGlobal.findIndex(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
+    const row={user_id:currentUser.id,round_num:cfg.omg,picks};
+    if(idx>=0) jubelAllTipsGlobal[idx]=row; else jubelAllTipsGlobal=[...jubelAllTipsGlobal,row];
+    if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">✓ Tips sparade!</span>';
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
+  }
+};
 window.saveMalregn = async function(){
   const statusEl=document.getElementById("malregn-status");
   const input=document.getElementById("malregn-input");
@@ -386,7 +410,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -406,7 +430,8 @@ async function fetchConfig(){
     streakEnabled:!!data.streak_enabled,
     matchfokusEnabled:!!data.matchfokus_enabled,
     duellenEnabled:!!data.duellen_enabled,
-    malregnEnabled:!!data.malregn_enabled
+    malregnEnabled:!!data.malregn_enabled,
+    jubelEnabled:!!data.jubel_enabled
   };
 }
 async function setConfig(omg){
@@ -808,6 +833,44 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+
+// ── Båda får Jubla ───────────────────────────────────────────────────────
+function jubelMatchKey(m){ return m.hId+"-"+m.aId; }
+function jubelFacit(m){ return (m.hMål>0&&m.aMål>0)?"J":"N"; }
+async function fetchMyJubelTips(){
+  const {data,error}=await sb.from("jubel_tips").select("*").eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
+  if(error){console.error(error);return {};}
+  const out={};
+  data.forEach(t=>{out[t.round_num]=t.picks||{};});
+  return out;
+}
+async function fetchAllJubelTipsAllRounds(){
+  const {data,error}=await sb.from("jubel_tips").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function saveJubelTip(roundNum,picks){
+  const {error}=await sb.from("jubel_tips").upsert({id:currentUser.id+"-jb-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
+  return error;
+}
+function calcJubelPts(picks,rd){
+  if(!picks||!rd||!rd.results_published||!rd.matches) return 0;
+  return rd.matches.reduce((s,m)=>{
+    const key=jubelMatchKey(m);
+    if(picks[key]===undefined) return s;
+    return s+(picks[key]===jubelFacit(m)?1:0);
+  },0);
+}
+function userJubelRoundPts(userId,roundNum){
+  const rd=rounds[String(roundNum)];
+  if(!rd||!rd.results_published) return 0;
+  const tip=jubelAllTipsGlobal.find(t=>t.user_id===userId&&Number(t.round_num)===Number(roundNum));
+  if(!tip) return 0;
+  return calcJubelPts(tip.picks||{},rd);
+}
+function userJubelTotalPts(userId){
+  return Object.keys(rounds).reduce((s,r)=>s+userJubelRoundPts(userId,Number(r)),0);
+}
 
 // ── Målregn ──────────────────────────────────────────────────────────────
 function computeMalregnFacit(rd){
@@ -1351,6 +1414,11 @@ function renderModeSelect(){
         <div><div style="font-weight:500;font-size:16px">Målregn</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">Gissa totalt antal mål i omgången</div></div>
       </button>`:""}
+      ${cfg.jubelEnabled?`<button data-act="pick-mode" data-mode="jubel" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🙌</span>
+        <div><div style="font-weight:500;font-size:16px">Båda får Jubla</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Gör båda lagen mål i matchen? Ja eller nej, för alla 7 matcher</div></div>
+      </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
         <div>
@@ -1520,6 +1588,7 @@ function renderHome(){
     {ico:"⚽",title:"Omgångens Match",desc:"13 stryktips-frågor om en utvald match",on:!!cfg.matchfokusEnabled},
     {ico:"🥊",title:"Duellen",desc:"Möt andra spelare hemma/borta via Tippa resultat",on:!!cfg.duellenEnabled},
     {ico:"🌧️",title:"Målregn",desc:"Gissa totalt antal mål i omgången",on:!!cfg.malregnEnabled},
+    {ico:"🙌",title:"Båda får Jubla",desc:"Gör båda lagen mål i matchen? Ja eller nej",on:!!cfg.jubelEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
@@ -1804,6 +1873,22 @@ function renderRulesScreen(){
         ${tip("💡 Titta på tabellen – lag i toppen och botten brukar ge fler mål än jämna möten!")}
       `):""}
 
+      ${cfg.jubelEnabled?section("🙌","Båda får Jubla",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Enkelt och snabbt: för varje match, gissa om <b>båda lagen gör minst ett mål</b>. Svara Ja eller Nej på alla 7 matcher.
+        </div>
+        ${table([
+          ["Rätt gissning","1 p/match"],
+          ["Fel gissning","0 p"],
+          ["Max per omgång","7 p"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
+          <b>Facit:</b> Räknas fram automatiskt så fort resultaten är inlagda – båda lagen gjorde minst ett mål = Ja, annars Nej.
+        </div>
+        ${tip("💡 Snabbaste spelet att tippa – bara 7 klick, ingen exakt gissning behövs!")}
+      `):""}
+
       ${cfg.snabbastEnabled!==false?section("⚡","Snabbast vinner",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
           Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
@@ -1959,6 +2044,7 @@ function renderMain(){
     else if(appMode==="matchfokus") body=renderMatchfokusTab();
     else if(appMode==="duellen") body=renderDuellenTab();
     else if(appMode==="malregn") body=renderMalregnTab();
+    else if(appMode==="jubel") body=renderJubelTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -2633,6 +2719,7 @@ function renderStandingsTab(){
     {id:"måljakten",ico:"🎯",label:"Måljakten",enabled:cfg.maljaktenEnabled!==false,fn:u=>userMåljaktenTotalPts(u.id)},
     {id:"matchfokus",ico:"⚽",label:"Omgångens Match",enabled:!!cfg.matchfokusEnabled,fn:u=>userMatchfokusTotalPts(u.id)},
     {id:"malregn",ico:"🌧️",label:"Målregn",enabled:!!cfg.malregnEnabled,fn:u=>userMalregnTotalPts(u.id)},
+    {id:"jubel",ico:"🙌",label:"Båda får Jubla",enabled:!!cfg.jubelEnabled,fn:u=>userJubelTotalPts(u.id)},
     {id:"streak",ico:"🔥",label:"Streak",enabled:!!cfg.streakEnabled,unit:"i streak",
       fn:u=>{
         const pubRounds=Object.keys(rounds).map(Number).filter(r=>rounds[String(r)].results_published);
@@ -2810,6 +2897,87 @@ function renderMalregnTab(){
   ${card}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Målregn</div>
+    ${lbRows}
+  </div>`;
+}
+function renderJubelTab(){
+  const rd=rounds[String(cfg.omg)];
+  const locked=rd&&rd.locked;
+  const resultsShown=rd&&rd.results_published;
+  const savedPicks=jubelMyTips[cfg.omg]||{};
+  const sortedJb=[...users].sort((a,b)=>userJubelTotalPts(b.id)-userJubelTotalPts(a.id));
+  const myRank=sortedJb.findIndex(u=>u.id===currentUser.id)+1;
+  const myPts=userJubelRoundPts(currentUser.id,cfg.omg);
+
+  let card;
+  if(!rd||!rd.matches||!rd.matches.length){
+    card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga matcher inlagda för omgång ${cfg.omg} än.</div></div>`;
+  } else if(resultsShown){
+    const tip=jubelAllTipsGlobal.find(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
+    const myAnswers=tip?tip.picks||{}:{};
+    const rows=rd.matches.map(m=>{
+      const h=TEAMS.find(t=>t.id===m.hId), a=TEAMS.find(t=>t.id===m.aId);
+      const key=jubelMatchKey(m);
+      const facit=jubelFacit(m);
+      const mine=myAnswers[key];
+      const ok=mine!==undefined&&mine===facit;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
+        <span style="min-width:40px;text-align:center;color:var(--color-text-secondary)">${m.hMål}-${m.aMål}</span>
+        <span style="flex:1">${esc(a?a.name:"")}</span>
+        <span style="width:60px;text-align:center;font-size:11px;color:var(--color-text-secondary)">Ditt: ${mine||"–"}</span>
+        <span style="width:24px;text-align:center;font-weight:700;color:${ok?G_GREEN:'#A32D2D'}">${ok?"✓":"✗"}</span>
+      </div>`;
+    }).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">Facit – Omgång ${cfg.omg}</div>
+      <div style="font-size:20px;font-weight:700;text-align:center;margin:8px 0;color:${G_GREEN}">${myPts} / ${rd.matches.length} rätt</div>
+      ${rows}
+    </div>`;
+  } else if(locked){
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔒 Omgången är låst</div>
+      <div style="font-size:13px;color:var(--color-text-secondary)">Dina svar är sparade. Facit visas här så fort resultaten är klara.</div>
+    </div>`;
+  } else {
+    const rows=rd.matches.map(m=>{
+      const h=TEAMS.find(t=>t.id===m.hId), a=TEAMS.find(t=>t.id===m.aId);
+      const key=jubelMatchKey(m);
+      const current=jubelDraft[key]!==undefined?jubelDraft[key]:savedPicks[key];
+      return `<div style="padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="font-size:13px;text-align:center;margin-bottom:6px">${esc(h?h.name:"")} <span style="color:var(--color-text-secondary)">vs</span> ${esc(a?a.name:"")}</div>
+        <div style="display:flex;gap:8px;justify-content:center">
+          <button data-act="jubel-answer" data-key="${key}" data-val="J" style="flex:1;max-width:110px;padding:9px 6px;border-radius:8px;border:1.5px solid ${current==="J"?G_GREEN:'var(--color-border-secondary)'};background:${current==="J"?G_GREENL:'var(--color-background-primary)'};color:${current==="J"?G_GREEN:'var(--color-text-primary)'};font-weight:${current==="J"?600:400};font-size:13px;cursor:pointer">Ja 🙌</button>
+          <button data-act="jubel-answer" data-key="${key}" data-val="N" style="flex:1;max-width:110px;padding:9px 6px;border-radius:8px;border:1.5px solid ${current==="N"?G_GREEN:'var(--color-border-secondary)'};background:${current==="N"?G_GREENL:'var(--color-background-primary)'};color:${current==="N"?G_GREEN:'var(--color-text-primary)'};font-weight:${current==="N"?600:400};font-size:13px;cursor:pointer">Nej</button>
+        </div>
+      </div>`;
+    }).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:2px">🙌 Båda får Jubla – Omgång ${cfg.omg}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Gör båda lagen mål? Svara Ja/Nej för varje match. 1 poäng per rätt svar.</div>
+      ${rows}
+      <div id="jubel-status" style="font-size:13px;margin-top:10px;min-height:18px;text-align:center"></div>
+      <button class="fg-btn" style="margin-top:8px" onclick="window.saveJubel()">Spara mina tips</button>
+    </div>`;
+  }
+
+  const medals=["🥇","🥈","🥉"];
+  const lbRows=sortedJb.map((u,i)=>{
+    const pts=userJubelTotalPts(u.id);
+    const isMe=u.id===currentUser.id;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px`:''}">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?' (du)':''}</span>
+      <span style="font-weight:500">${pts} p</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🙌 Båda får Jubla</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${sortedJb.length} · ${userJubelTotalPts(currentUser.id)} p totalt</div>
+  ${card}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Båda får Jubla</div>
     ${lbRows}
   </div>`;
 }
@@ -3165,6 +3333,10 @@ function renderStatistikTab(){
   const mrPts=lockedRounds.map(r=>userMalregnRoundPts(u.id,r));
   const mrTotal=mrPts.reduce((s,p)=>s+p,0);
   const mrBest=lockedRounds.length?Math.max(...mrPts):0;
+
+  const jbPts=lockedRounds.map(r=>userJubelRoundPts(u.id,r));
+  const jbTotal=jbPts.reduce((s,p)=>s+p,0);
+  const jbBest=lockedRounds.length?Math.max(...jbPts):0;
   const mfRank=[...users].sort((a,b)=>userMatchfokusTotalPts(b.id)-userMatchfokusTotalPts(a.id)).findIndex(x=>x.id===u.id)+1;
 
   // Gruppsnitt
@@ -3206,17 +3378,18 @@ function renderStatistikTab(){
   ${cfg.maljaktenEnabled!==false?modeCard("🎯","Måljakten",malTotal,malBest,lockedRounds[malPts.indexOf(malBest)],(lockedRounds.length?(malTotal/lockedRounds.length).toFixed(1):0),""):""}
   ${cfg.matchfokusEnabled?modeCard("⚽","Omgångens Match",mfTotal,mfBest,lockedRounds[mfPts.indexOf(mfBest)],(lockedRounds.length?(mfTotal/lockedRounds.length).toFixed(1):0),""):""}
   ${cfg.malregnEnabled?modeCard("🌧️","Målregn",mrTotal,mrBest,lockedRounds[mrPts.indexOf(mrBest)],(lockedRounds.length?(mrTotal/lockedRounds.length).toFixed(1):0),""):""}
+  ${cfg.jubelEnabled?modeCard("🙌","Båda får Jubla",jbTotal,jbBest,lockedRounds[jbPts.indexOf(jbBest)],(lockedRounds.length?(jbTotal/lockedRounds.length).toFixed(1):0),""):""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
-    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled],["⚽ Omgångens Match",mfTotal,!!cfg.matchfokusEnabled],["🌧️ Målregn",mrTotal,!!cfg.malregnEnabled]].filter(([,,on])=>on).map(([n,p])=>`
+    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled],["⚽ Omgångens Match",mfTotal,!!cfg.matchfokusEnabled],["🌧️ Målregn",mrTotal,!!cfg.malregnEnabled],["🙌 Båda får Jubla",jbTotal,!!cfg.jubelEnabled]].filter(([,,on])=>on).map(([n,p])=>`
       <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${n}</span>
         <span style="font-weight:500">${p} p</span>
       </div>`).join("")}
     <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:600">
       <span>Grand total</span>
-      <span style="color:${G_GREEN}">${(cfg.fantasyEnabled!==false?fantasyTotal:0)+(cfg.tippEnabled!==false?tippTotal:0)+(cfg.snabbastEnabled!==false?snabbTotal:0)+(cfg.maljaktenEnabled!==false?malTotal:0)+(cfg.quizEnabled?quizTotal:0)+(cfg.matchfokusEnabled?mfTotal:0)+(cfg.malregnEnabled?mrTotal:0)} p</span>
+      <span style="color:${G_GREEN}">${(cfg.fantasyEnabled!==false?fantasyTotal:0)+(cfg.tippEnabled!==false?tippTotal:0)+(cfg.snabbastEnabled!==false?snabbTotal:0)+(cfg.maljaktenEnabled!==false?malTotal:0)+(cfg.quizEnabled?quizTotal:0)+(cfg.matchfokusEnabled?mfTotal:0)+(cfg.malregnEnabled?mrTotal:0)+(cfg.jubelEnabled?jbTotal:0)} p</span>
     </div>
   </div>
 
@@ -4020,6 +4193,7 @@ function renderAdminTab(){
       ["matchfokus","⚽","Omgångens Match","matchfokusEnabled","matchfokus_enabled"],
       ["duellen","🥊","Duellen","duellenEnabled","duellen_enabled"],
       ["malregn","🌧️","Målregn","malregnEnabled","malregn_enabled"],
+      ["jubel","🙌","Båda får Jubla","jubelEnabled","jubel_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -4537,7 +4711,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
       screen="home"; homeMode="start";
       render();
     }
@@ -4563,7 +4737,7 @@ function attachHandlers(){
         users=await fetchUsers();
         rounds=await fetchRounds();
         cfg=await fetchConfig();
-        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds()]);}catch(e){console.error(e);}
+        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
         const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
         if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
@@ -4714,6 +4888,12 @@ function attachHandlers(){
         malregnMyTips=await fetchMyMalregnTips();
         malregnDraft=malregnMyTips[cfg.omg]??null;
         screen="main"; mainTab="hem";
+      } else if(appMode==="jubel"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Båda får Jubla…</div>';
+        jubelMyTips=await fetchMyJubelTips();
+        jubelDraft={...(jubelMyTips[cfg.omg]||{})};
+        screen="main"; mainTab="hem";
       } else if(appMode==="standings"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar ställningar…</div>';
@@ -4804,7 +4984,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
       adminSection="round";
       flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
@@ -5331,6 +5511,10 @@ function attachHandlers(){
       flash("Du är avanmäld.");
       render();
     }
+    else if(act==="jubel-answer"){
+      jubelDraft={...jubelDraft,[el.dataset.key]:el.dataset.val};
+      render();
+    }
     else if(act==="mf-answer"){
       matchfokusDraft={...matchfokusDraft,[el.dataset.qid]:el.dataset.val};
       render();
@@ -5721,7 +5905,7 @@ function attachHandlers(){
     users=await fetchUsers();
     rounds=await fetchRounds();
     cfg=await fetchConfig();
-    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds()]);}catch(e){console.error(e);}
+    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
     screen="home";
   } else {
     screen="leagues";
