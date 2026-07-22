@@ -158,6 +158,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     duellenDivisions=[], duellenDivisionMembers=[], duellenViewDivisionId=null, duellenShowSchedule=false, duellenViewSeason=null, duellenAllDivisions=[],
     malregnMyTips={}, malregnAllTipsGlobal=[], malregnDraft=null,
     jubelMyTips={}, jubelAllTipsGlobal=[], jubelDraft={},
+    investerareAllTipsGlobal=[], investerareDraft={},
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -423,7 +424,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -444,7 +445,8 @@ async function fetchConfig(){
     matchfokusEnabled:!!data.matchfokus_enabled,
     duellenEnabled:!!data.duellen_enabled,
     malregnEnabled:!!data.malregn_enabled,
-    jubelEnabled:!!data.jubel_enabled
+    jubelEnabled:!!data.jubel_enabled,
+    investerareEnabled:!!data.investerare_enabled
   };
 }
 async function setConfig(omg){
@@ -846,6 +848,68 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+
+// ── Investeraren ─────────────────────────────────────────────────────────
+const INVESTERARE_START=1000;
+function investerareTeamPct(teamId,m){
+  const isHome=m.hId===teamId;
+  const gf=isHome?m.hMål:m.aMål, ga=isHome?m.aMål:m.hMål;
+  let pct=0;
+  if(gf>ga) pct+=10; else if(gf===ga) pct+=2; else pct-=8;
+  if(ga===0) pct+=2;
+  if(gf>3) pct+=3;
+  if(gf>ga && (gf-ga)>=3) pct+=3;
+  return pct;
+}
+async function fetchAllInvesterareTipsAllRounds(){
+  const {data,error}=await sb.from("investerare_investments").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function saveInvesterareRound(roundNum,investments){
+  // investments: [{teamId, amount}, ...] – ersätter helt vad användaren har för denna omgång
+  const {error:delErr}=await sb.from("investerare_investments").delete().eq("user_id",currentUser.id).eq("league_id",currentLeague.id).eq("round_num",roundNum);
+  if(delErr) return delErr;
+  const rows=investments.filter(i=>i.amount>0).map(i=>({
+    id:`${currentUser.id}-inv-${roundNum}-${i.teamId}`,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,team_id:i.teamId,amount:i.amount
+  }));
+  if(!rows.length) return null;
+  const {error:insErr}=await sb.from("investerare_investments").insert(rows);
+  return insErr;
+}
+// Räknar fram en spelares portfölj-historik omgång för omgång (körs live, inget sparas mellanvägen)
+function investerareComputeState(userId,uptoRound){
+  let balance=INVESTERARE_START;
+  const history=[];
+  const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b).filter(r=>r<=uptoRound);
+  for(const r of roundKeys){
+    const rd=rounds[String(r)];
+    const invs=investerareAllTipsGlobal.filter(t=>t.user_id===userId&&Number(t.round_num)===r);
+    const totalInvested=invs.reduce((s,i)=>s+Number(i.amount),0);
+    const uninvested=Math.max(0,balance-totalInvested);
+    if(!rd||!rd.results_published){
+      history.push({round:r,balanceStart:balance,invested:totalInvested,uninvested,pending:true,details:invs.map(i=>({teamId:Number(i.team_id),amount:Number(i.amount)})),balanceEnd:balance});
+      break;
+    }
+    let balanceEnd=uninvested;
+    const details=invs.map(inv=>{
+      const teamId=Number(inv.team_id);
+      const m=rd.matches.find(x=>x.hId===teamId||x.aId===teamId);
+      if(!m){ balanceEnd+=Number(inv.amount); return {teamId,amount:Number(inv.amount),pct:0,newAmount:Number(inv.amount)}; }
+      const pct=investerareTeamPct(teamId,m);
+      const newAmount=Number(inv.amount)*(1+pct/100);
+      balanceEnd+=newAmount;
+      return {teamId,amount:Number(inv.amount),pct,newAmount};
+    });
+    history.push({round:r,balanceStart:balance,invested:totalInvested,uninvested,details,balanceEnd,pending:false});
+    balance=balanceEnd;
+  }
+  return {balance,history};
+}
+function investerareCurrentBalance(userId){
+  const maxRound=Math.max(0,...Object.keys(rounds).map(Number));
+  return investerareComputeState(userId,maxRound).balance;
+}
 
 // ── Båda får Jubla ───────────────────────────────────────────────────────
 function jubelMatchKey(m){ return m.hId+"-"+m.aId; }
@@ -1566,6 +1630,11 @@ function renderModeSelect(){
         <div><div style="font-weight:500;font-size:16px">Båda får Jubla</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">Gör båda lagen mål i matchen? Ja eller nej, för alla 7 matcher</div></div>
       </button>`:""}
+      ${cfg.investerareEnabled?`<button data-act="pick-mode" data-mode="investerare" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">💰</span>
+        <div><div style="font-weight:500;font-size:16px">Investeraren</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Placera 1000 kr på lag – bygg din portfölj hela säsongen</div></div>
+      </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
         <div>
@@ -1736,6 +1805,7 @@ function renderHome(){
     {ico:"🥊",title:"Duellen",desc:"Möt andra spelare hemma/borta via Tippa resultat",on:!!cfg.duellenEnabled},
     {ico:"🌧️",title:"Målregn",desc:"Gissa totalt antal mål i omgången",on:!!cfg.malregnEnabled},
     {ico:"🙌",title:"Båda får Jubla",desc:"Gör båda lagen mål i matchen? Ja eller nej",on:!!cfg.jubelEnabled},
+    {ico:"💰",title:"Investeraren",desc:"Placera 1000 kr på lag – bygg din portfölj",on:!!cfg.investerareEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
@@ -2036,6 +2106,26 @@ function renderRulesScreen(){
         ${tip("💡 Snabbaste spelet att tippa – bara 7 klick, ingen exakt gissning behövs!")}
       `):""}
 
+      ${cfg.investerareEnabled?section("💰","Investeraren",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Du startar med <b>1000 kr</b>. Varje omgång placerar du valfri summa på valfria lag – du behöver inte investera allt, och du kan investera i båda lagen i samma match. Din portfölj fortsätter hela säsongen – vinster och förluster läggs på det du redan har.
+        </div>
+        ${table([
+          ["Laget vinner","+10%"],
+          ["Oavgjort","+2%"],
+          ["Laget förlorar","−8%"],
+          ["Hållen nolla (0 insläppta mål)","+2%"],
+          ["Laget gör över 3 mål (4+)","+3%"],
+          ["Vinst med minst 3 måls marginal","+3%"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Staplas:</b> Flera bonusar kan gälla samtidigt – t.ex. vinst (+10%) + hållen nolla (+2%) + minst 3 måls marginal (+3%) = <b>+15%</b> på just den investeringen.<br>
+          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
+          <b>Facit:</b> Räknas fram automatiskt utifrån matchresultaten – inget admin-jobb krävs.
+        </div>
+        ${tip("💡 Sprid riskerna över flera lag, eller satsa stort på ett lag du är säker på – helt upp till dig!")}
+      `):""}
+
       ${cfg.snabbastEnabled!==false?section("⚡","Snabbast vinner",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
           Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
@@ -2192,6 +2282,7 @@ function renderMain(){
     else if(appMode==="duellen") body=renderDuellenTab();
     else if(appMode==="malregn") body=renderMalregnTab();
     else if(appMode==="jubel") body=renderJubelTab();
+    else if(appMode==="investerare") body=renderInvesterareTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -2867,6 +2958,7 @@ function renderStandingsTab(){
     {id:"matchfokus",ico:"⚽",label:"Omgångens Match",enabled:!!cfg.matchfokusEnabled,fn:u=>userMatchfokusTotalPts(u.id)},
     {id:"malregn",ico:"🌧️",label:"Målregn",enabled:!!cfg.malregnEnabled,fn:u=>userMalregnTotalPts(u.id)},
     {id:"jubel",ico:"🙌",label:"Båda får Jubla",enabled:!!cfg.jubelEnabled,fn:u=>userJubelTotalPts(u.id)},
+    {id:"investerare",ico:"💰",label:"Investeraren",enabled:!!cfg.investerareEnabled,unit:"kr",fn:u=>Math.round(investerareCurrentBalance(u.id))},
     {id:"streak",ico:"🔥",label:"Streak",enabled:!!cfg.streakEnabled,unit:"i streak",
       fn:u=>{
         const pubRounds=Object.keys(rounds).map(Number).filter(r=>rounds[String(r)].results_published);
@@ -3275,6 +3367,139 @@ function renderJubelTab(){
     ${lbRows}
   </div>`;
 }
+function renderInvesterareTab(){
+  const rd=rounds[String(cfg.omg)];
+  const locked=rd&&rd.locked;
+  const state=investerareComputeState(currentUser.id,cfg.omg);
+  const lastEntry=state.history[state.history.length-1];
+  const sortedInv=[...users].sort((a,b)=>investerareCurrentBalance(b.id)-investerareCurrentBalance(a.id));
+  const myRank=sortedInv.findIndex(u=>u.id===currentUser.id)+1;
+  const myBalance=investerareCurrentBalance(currentUser.id);
+
+  let card;
+  if(!rd||!rd.matches||!rd.matches.length){
+    card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga matcher inlagda för omgång ${cfg.omg} än.</div></div>`;
+  } else if(!lastEntry || lastEntry.round<cfg.omg){
+    card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Väntar på att en tidigare omgång ska avgöras innan du kan investera för omgång ${cfg.omg}.</div></div>`;
+  } else if(lastEntry.round===cfg.omg && !lastEntry.pending){
+    // Denna omgång är avgjord – visa facit/utfall
+    const rows=lastEntry.details.map(d=>{
+      const team=TEAMS.find(t=>t.id===d.teamId);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1">${esc(team?team.name:"")}</span>
+        <span style="color:var(--color-text-secondary)">${d.amount.toFixed(0)} kr</span>
+        <span style="font-weight:700;color:${d.pct>=0?G_GREEN:'#A32D2D'};min-width:44px;text-align:center">${d.pct>=0?"+":""}${d.pct}%</span>
+        <span style="font-weight:700;min-width:70px;text-align:right">${d.newAmount.toFixed(0)} kr</span>
+      </div>`;
+    }).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">Facit – Omgång ${cfg.omg}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Ej investerat (kontanter): ${lastEntry.uninvested.toFixed(0)} kr</div>
+      ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Du investerade inget denna omgång.</div>'}
+      <div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:6px;border-top:1px solid var(--color-border-secondary);font-weight:700;font-size:15px">
+        <span>Saldo efter omgången</span><span style="color:${G_GREEN}">${lastEntry.balanceEnd.toFixed(0)} kr</span>
+      </div>
+    </div>`;
+  } else if(locked){
+    const pendingDetails=lastEntry.details||[];
+    const rows=pendingDetails.map(d=>{
+      const team=TEAMS.find(t=>t.id===d.teamId);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:13px">
+        <span style="flex:1">${esc(team?team.name:"")}</span><span style="font-weight:600">${d.amount.toFixed(0)} kr</span>
+      </div>`;
+    }).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔒 Omgången är låst</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Dina investeringar för omgång ${cfg.omg}:</div>
+      ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inget investerat.</div>'}
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-top:6px">Väntar på resultat innan portföljen uppdateras.</div>
+    </div>`;
+  } else {
+    const available=lastEntry.balanceStart;
+    const already=lastEntry.details||[];
+    const rows=rd.matches.map(m=>{
+      const h=TEAMS.find(t=>t.id===m.hId), a=TEAMS.find(t=>t.id===m.aId);
+      const hAmt=investerareDraft[m.hId]!==undefined?investerareDraft[m.hId]:(already.find(x=>x.teamId===m.hId)?.amount||0);
+      const aAmt=investerareDraft[m.aId]!==undefined?investerareDraft[m.aId]:(already.find(x=>x.teamId===m.aId)?.amount||0);
+      return `<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="flex:1;font-size:13px;text-align:right">${esc(h?h.name:"")}</span>
+          <input class="fg-input" data-act="investerare-amount" data-team="${m.hId}" type="number" min="0" step="10" value="${hAmt||""}" placeholder="0" style="width:80px;text-align:center;padding:6px 4px"/>
+          <span style="font-size:11px;color:var(--color-text-secondary)">kr</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span style="flex:1;font-size:13px;text-align:right">${esc(a?a.name:"")}</span>
+          <input class="fg-input" data-act="investerare-amount" data-team="${m.aId}" type="number" min="0" step="10" value="${aAmt||""}" placeholder="0" style="width:80px;text-align:center;padding:6px 4px"/>
+          <span style="font-size:11px;color:var(--color-text-secondary)">kr</span>
+        </div>
+      </div>`;
+    }).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:2px">💰 Investeraren – Omgång ${cfg.omg}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Placera valfri summa på valfria lag (även båda lagen i samma match). Du behöver inte investera allt.</div>
+      ${rows}
+      <div id="investerare-status" style="font-size:13px;text-align:center;margin-top:10px;min-height:18px"></div>
+      <button class="fg-btn" style="margin-top:6px" onclick="window.saveInvesterare(${available})">Spara mina investeringar</button>
+    </div>`;
+  }
+
+  const medals=["🥇","🥈","🥉"];
+  const lbRows=sortedInv.map((u,i)=>{
+    const bal=investerareCurrentBalance(u.id);
+    const isMe=u.id===currentUser.id;
+    const diff=bal-INVESTERARE_START;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px`:''}">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?' (du)':''}</span>
+      <span style="font-size:11px;color:${diff>=0?G_GREEN:'#A32D2D'};margin-right:4px">${diff>=0?"+":""}${diff.toFixed(0)}</span>
+      <span style="font-weight:700">${bal.toFixed(0)} kr</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">💰 Investeraren</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Plats ${myRank>0?myRank:"–"} av ${sortedInv.length}</div>
+  <div class="fg-card" style="text-align:center">
+    <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Din portfölj</div>
+    <div style="font-size:32px;font-weight:700;margin:4px 0">${myBalance.toFixed(0)} kr</div>
+    <div style="font-size:12px;color:${myBalance>=INVESTERARE_START?G_GREEN:'#A32D2D'};font-weight:600">${myBalance>=INVESTERARE_START?"+":""}${(myBalance-INVESTERARE_START).toFixed(0)} kr sedan start (${INVESTERARE_START} kr)</div>
+  </div>
+  ${card}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">🏆 Rikaste investerarna</div>
+    ${lbRows}
+  </div>`;
+}
+window.saveInvesterare=async function(available){
+  const statusEl=document.getElementById("investerare-status");
+  const rd=rounds[String(cfg.omg)];
+  if(!rd||!rd.matches){ if(statusEl) statusEl.textContent="Inga matcher."; return; }
+  const teamIds=[];
+  rd.matches.forEach(m=>{ teamIds.push(m.hId,m.aId); });
+  const investments=teamIds.map(teamId=>{
+    const el=document.querySelector(`[data-act="investerare-amount"][data-team="${teamId}"]`);
+    const val=el?Number(el.value)||0:0;
+    return {teamId,amount:val};
+  }).filter(i=>i.amount>0);
+  const total=investments.reduce((s,i)=>s+i.amount,0);
+  if(total>available+0.01){
+    if(statusEl) statusEl.innerHTML=`<span style="color:#A32D2D">Du har bara ${available.toFixed(0)} kr tillgängligt – du försöker investera ${total.toFixed(0)} kr.</span>`;
+    return;
+  }
+  if(statusEl) statusEl.textContent="Sparar…";
+  try{
+    const error=await saveInvesterareRound(cfg.omg,investments);
+    if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+    investerareAllTipsGlobal=investerareAllTipsGlobal.filter(t=>!(t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg)));
+    investments.forEach(i=>{
+      investerareAllTipsGlobal.push({user_id:currentUser.id,round_num:cfg.omg,team_id:i.teamId,amount:i.amount});
+    });
+    investerareDraft={};
+    if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">✓ Investeringar sparade!</span>';
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
+  }
+};
 function renderQuizTab(){
   const rnd=cfg.omg;
   const qs=quizQuestions.filter(q=>q.round_num===rnd); // bara denna omgångs frågor
@@ -4492,6 +4717,7 @@ function renderAdminTab(){
       ["duellen","🥊","Duellen","duellenEnabled","duellen_enabled"],
       ["malregn","🌧️","Målregn","malregnEnabled","malregn_enabled"],
       ["jubel","🙌","Båda får Jubla","jubelEnabled","jubel_enabled"],
+      ["investerare","💰","Investeraren","investerareEnabled","investerare_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -5062,7 +5288,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
       screen="home"; homeMode="start";
       render();
     }
@@ -5088,7 +5314,7 @@ function attachHandlers(){
         users=await fetchUsers();
         rounds=await fetchRounds();
         cfg=await fetchConfig();
-        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
+        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
         const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
         if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
@@ -5251,6 +5477,12 @@ function attachHandlers(){
         jubelMyTips=await fetchMyJubelTips();
         jubelDraft={...(jubelMyTips[cfg.omg]||{})};
         screen="main"; mainTab="hem";
+      } else if(appMode==="investerare"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Investeraren…</div>';
+        investerareAllTipsGlobal=await fetchAllInvesterareTipsAllRounds();
+        investerareDraft={};
+        screen="main"; mainTab="hem";
       } else if(appMode==="standings"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar ställningar…</div>';
@@ -5341,7 +5573,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
       adminSection="round";
       flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
@@ -6287,7 +6519,7 @@ function attachHandlers(){
     users=await fetchUsers();
     rounds=await fetchRounds();
     cfg=await fetchConfig();
-    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds()]);}catch(e){console.error(e);}
+    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
     screen="home";
   } else {
     screen="leagues";
