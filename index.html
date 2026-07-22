@@ -2776,9 +2776,15 @@ function renderMalregnTab(){
       <div style="font-size:13px;color:var(--color-text-secondary)">Ditt tips: <b style="color:var(--color-text-primary)">${myGuess!=null?myGuess:"Inget tips lämnat"}</b>. Facit visas här så fort resultaten är klara.</div>
     </div>`;
   } else {
+    const tippTips=(currentUser.tips&&currentUser.tips[String(cfg.omg)])||[];
+    const tippImplied=tippTips.length?tippTips.reduce((s,t)=>s+(Number(t.predH)||0)+(Number(t.predA)||0),0):null;
     card=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">🌧️ Målregn – Omgång ${cfg.omg}</div>
       <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px">Hur många mål blir det totalt i omgångens 7 matcher? Exakt rätt ger 3 poäng.</div>
+      ${tippImplied!=null?`<div style="background:${G_GREENL};border-radius:8px;padding:9px 12px;font-size:12px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span>💡 Så här många mål har du gissat på i Tippa resultat: <b>${tippImplied}</b></span>
+        <button type="button" onclick="document.getElementById('malregn-input').value='${tippImplied}'" style="background:none;border:1px solid ${G_GREEN};color:${G_GREEN};border-radius:6px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;margin-left:auto">Använd detta</button>
+      </div>`:`<div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:12px">Tippa resultat för omgång ${cfg.omg} hittades inte – tippa där först om du vill ha ett förslag här.</div>`}
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
         <input class="fg-input" id="malregn-input" type="number" min="0" max="60" placeholder="t.ex. 18" value="${myGuess!=null?myGuess:''}" style="width:120px;text-align:center;font-size:22px;font-weight:700;padding:10px"/>
       </div>
