@@ -159,6 +159,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     malregnMyTips={}, malregnAllTipsGlobal=[], malregnDraft=null,
     jubelMyTips={}, jubelAllTipsGlobal=[], jubelDraft={},
     investerareAllTipsGlobal=[], investerareDraft={},
+    ltsSignups=[], ltsConfig={status:"signup",start_round:null,max_rounds:0}, ltsAllPicksGlobal=[], ltsDraftTeam=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -424,7 +425,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -446,7 +447,8 @@ async function fetchConfig(){
     duellenEnabled:!!data.duellen_enabled,
     malregnEnabled:!!data.malregn_enabled,
     jubelEnabled:!!data.jubel_enabled,
-    investerareEnabled:!!data.investerare_enabled
+    investerareEnabled:!!data.investerare_enabled,
+    ltsEnabled:!!data.lts_enabled
   };
 }
 async function setConfig(omg){
@@ -848,6 +850,94 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+
+// ── Last Team Standing ──────────────────────────────────────────────────
+async function fetchLtsSignups(){
+  const {data,error}=await sb.from("lts_signups").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function fetchLtsConfig(){
+  const {data,error}=await sb.from("lts_config").select("*").eq("league_id",currentLeague.id).maybeSingle();
+  if(error){console.error(error);return {status:"signup",start_round:null};}
+  return data||{status:"signup",start_round:null};
+}
+async function fetchAllLtsPicks(){
+  const {data,error}=await sb.from("lts_picks").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function joinLts(tiebreakGuess){
+  const {error}=await sb.from("lts_signups").insert({id:currentUser.id+"-lts",user_id:currentUser.id,league_id:currentLeague.id,tiebreak_guess:Number(tiebreakGuess)});
+  return error;
+}
+async function leaveLts(){
+  const {error}=await sb.from("lts_signups").delete().eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
+  return error;
+}
+async function saveLtsPick(roundNum,teamId){
+  const {error}=await sb.from("lts_picks").upsert({id:currentUser.id+"-lts-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,team_id:teamId});
+  return error;
+}
+async function startLtsCompetition(){
+  const existingRoundNums=Object.keys(rounds).map(Number);
+  const startRound=existingRoundNums.length?Math.max(...existingRoundNums)+1:1;
+  const {error}=await sb.from("lts_config").upsert({league_id:currentLeague.id,status:"active",start_round:startRound,max_rounds:TEAMS.length});
+  return {error,startRound};
+}
+async function resetLts(){
+  await sb.from("lts_picks").delete().eq("league_id",currentLeague.id);
+  await sb.from("lts_signups").delete().eq("league_id",currentLeague.id);
+  const {error}=await sb.from("lts_config").upsert({league_id:currentLeague.id,status:"signup",start_round:null,max_rounds:0});
+  return error;
+}
+// Räknar fram en spelares liv/utslagning live, omgång för omgång
+function ltsComputeState(userId){
+  const startRound=ltsConfig.start_round;
+  if(!startRound) return {lives:3,eliminated:false,eliminatedAtRound:null,usedTeams:new Set(),history:[]};
+  let lives=3, eliminated=false, eliminatedAtRound=null;
+  const usedTeams=new Set();
+  const maxRound=startRound+(ltsConfig.max_rounds||TEAMS.length)-1;
+  const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b).filter(r=>r>=startRound&&r<=maxRound);
+  const history=[];
+  for(const r of roundKeys){
+    if(eliminated) break;
+    const rd=rounds[String(r)];
+    const pick=ltsAllPicksGlobal.find(p=>p.user_id===userId&&Number(p.round_num)===r);
+    if(!rd||!rd.results_published){
+      history.push({round:r,teamId:pick?Number(pick.team_id):null,pending:true});
+      break;
+    }
+    if(!pick){
+      lives--;
+      history.push({round:r,teamId:null,result:"no-pick",livesAfter:lives});
+      if(lives<=0){eliminated=true;eliminatedAtRound=r;}
+      continue;
+    }
+    const teamId=Number(pick.team_id);
+    const m=rd.matches.find(x=>x.hId===teamId||x.aId===teamId);
+    if(!m){ history.push({round:r,teamId,result:"no-match"}); continue; }
+    const isHome=m.hId===teamId;
+    const gf=isHome?m.hMål:m.aMål, ga=isHome?m.aMål:m.hMål;
+    const survived=gf>=ga;
+    usedTeams.add(teamId);
+    if(!survived) lives--;
+    history.push({round:r,teamId,result:survived?"safe":"loss",livesAfter:lives});
+    if(lives<=0){eliminated=true;eliminatedAtRound=r;}
+  }
+  return {lives,eliminated,eliminatedAtRound,usedTeams,history};
+}
+function ltsTotalGoalsSoFar(){
+  const startRound=ltsConfig.start_round;
+  if(!startRound) return 0;
+  const maxRound=startRound+(ltsConfig.max_rounds||TEAMS.length)-1;
+  let total=0;
+  Object.keys(rounds).map(Number).filter(r=>r>=startRound&&r<=maxRound).forEach(r=>{
+    const rd=rounds[String(r)];
+    if(rd&&rd.results_published&&rd.matches) total+=rd.matches.reduce((s,m)=>s+(m.hMål||0)+(m.aMål||0),0);
+  });
+  return total;
+}
 
 // ── Investeraren ─────────────────────────────────────────────────────────
 const INVESTERARE_START=1000;
@@ -1635,6 +1725,11 @@ function renderModeSelect(){
         <div><div style="font-weight:500;font-size:16px">Investeraren</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">Placera 1000 kr på lag – bygg din portfölj hela säsongen</div></div>
       </button>`:""}
+      ${cfg.ltsEnabled?`<button data-act="pick-mode" data-mode="lts" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">💀</span>
+        <div><div style="font-weight:500;font-size:16px">Last Team Standing</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Välj ett lag varje omgång – förlorar du tre gånger är du utslagen</div></div>
+      </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
         <div>
@@ -1806,6 +1901,7 @@ function renderHome(){
     {ico:"🌧️",title:"Målregn",desc:"Gissa totalt antal mål i omgången",on:!!cfg.malregnEnabled},
     {ico:"🙌",title:"Båda får Jubla",desc:"Gör båda lagen mål i matchen? Ja eller nej",on:!!cfg.jubelEnabled},
     {ico:"💰",title:"Investeraren",desc:"Placera 1000 kr på lag – bygg din portfölj",on:!!cfg.investerareEnabled},
+    {ico:"💀",title:"Last Team Standing",desc:"Välj ett lag varje omgång – tre förluster och du är utslagen",on:!!cfg.ltsEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
@@ -2126,6 +2222,24 @@ function renderRulesScreen(){
         ${tip("💡 Sprid riskerna över flera lag, eller satsa stort på ett lag du är säker på – helt upp till dig!")}
       `):""}
 
+      ${cfg.ltsEnabled?section("💀","Last Team Standing",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Klassiskt utslagsspel: varje omgång väljer du <b>ett lag</b> som du tror inte förlorar. Vinst eller oavgjort och du går vidare – bara en <b>förlust</b> kostar dig ett liv. Du har <b>3 liv</b> totalt.
+        </div>
+        ${table([
+          ["Laget vinner eller spelar oavgjort","Du går vidare"],
+          ["Laget förlorar","−1 liv"],
+          ["3 förlorade liv","Utslagen"],
+          ["Max antal omgångar","Lika många som antal lag i serien"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Viktig regel:</b> Varje lag får bara användas <b>en gång</b> under hela tävlingen – när du valt ett lag kan du inte välja det igen.<br>
+          <b>Anmälan:</b> Du gissar totalt antal mål som görs under hela tävlingen redan vid anmälan – används som utslagsfråga om flera klarar sig hela vägen (närmast rätt vinner).<br>
+          <b>Deadline:</b> Samma spelstopp som resten av omgången. Väljer du inget lag räknas det som en förlust.
+        </div>
+        ${tip("💡 Spara dina bästa lag till senare omgångar – ju längre tävlingen pågår, desto viktigare blir varje val!")}
+      `):""}
+
       ${cfg.snabbastEnabled!==false?section("⚡","Snabbast vinner",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
           Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
@@ -2283,6 +2397,7 @@ function renderMain(){
     else if(appMode==="malregn") body=renderMalregnTab();
     else if(appMode==="jubel") body=renderJubelTab();
     else if(appMode==="investerare") body=renderInvesterareTab();
+    else if(appMode==="lts") body=renderLtsTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -3500,6 +3615,144 @@ window.saveInvesterare=async function(available){
     if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
   }
 };
+function renderLtsTab(){
+  const isSignedUp=ltsSignups.some(s=>s.user_id===currentUser.id);
+
+  if(ltsConfig.status!=="active"){
+    const rows=ltsSignups.map(s=>{
+      const u=users.find(x=>x.id===s.user_id);
+      return `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1">${esc(u?u.namn:"?")}</span>
+        <span style="color:var(--color-text-secondary);font-size:12px">Gissning: ${s.tiebreak_guess} mål</span>
+      </div>`;
+    }).join("");
+    return `
+    <div style="font-weight:500;font-size:16px;margin-bottom:4px">💀 Last Team Standing</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Välj ett lag varje omgång som du tror inte förlorar. Förlorar du 3 gånger är du utslagen. Varje lag får bara användas en gång!</div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">Anmälan öppen</div>
+      ${isSignedUp
+        ?`<div style="background:${G_GREENL};color:${G_GREEN};border-radius:8px;padding:10px;font-size:13px;font-weight:500;text-align:center;margin-bottom:10px">✓ Du är anmäld!</div>
+           <button class="fg-outbtn" data-act="lts-leave" style="width:100%">Avanmäl mig</button>`
+        :`<label class="fg-label">Utslagsfråga: Hur många mål görs totalt under hela tävlingen?</label>
+           <input class="fg-input" id="lts-tiebreak" type="number" min="0" placeholder="t.ex. 90" style="margin-bottom:10px"/>
+           <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:12px">Används bara som utslag om flera klarar sig hela vägen – då vinner den som gissat närmast.</div>
+           <button class="fg-btn" data-act="lts-join" style="width:100%">Anmäl mig</button>`}
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Anmälda (${ltsSignups.length})</div>
+      ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld ännu – var först!</div>'}
+    </div>`;
+  }
+
+  const state=ltsComputeState(currentUser.id);
+  const startRound=ltsConfig.start_round;
+  const maxRound=startRound+(ltsConfig.max_rounds||TEAMS.length)-1;
+  const inRange=cfg.omg>=startRound&&cfg.omg<=maxRound;
+  const rd=rounds[String(cfg.omg)];
+  const alreadyPicked=ltsAllPicksGlobal.find(p=>p.user_id===currentUser.id&&Number(p.round_num)===cfg.omg);
+  const locked=rd&&rd.locked;
+
+  let card;
+  if(!isSignedUp){
+    card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Du var inte anmäld när tävlingen startade.</div></div>`;
+  } else if(state.eliminated){
+    card=`<div class="fg-card" style="text-align:center">
+      <div style="font-size:32px;margin-bottom:4px">💀</div>
+      <div style="font-weight:600;font-size:15px;color:#A32D2D">Utslagen efter omgång ${state.eliminatedAtRound}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-top:4px">Du klarade dig ${state.history.filter(h=>h.result==="safe").length} omgångar.</div>
+    </div>`;
+  } else if(!inRange){
+    card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Tävlingen är inte igång för omgång ${cfg.omg} (spelas omgång ${startRound}–${maxRound}).</div></div>`;
+  } else if(!rd||!rd.matches||!rd.matches.length){
+    card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga matcher inlagda för omgång ${cfg.omg} än.</div></div>`;
+  } else if(alreadyPicked||locked){
+    const teamId=alreadyPicked?Number(alreadyPicked.team_id):null;
+    const team=teamId?TEAMS.find(t=>t.id===teamId):null;
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔒 Omgång ${cfg.omg}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary)">${team?`Ditt val: <b style="color:var(--color-text-primary)">${esc(team.name)}</b>`:"Du valde inget lag denna omgång – räknas som en förlust."}</div>
+    </div>`;
+  } else {
+    const usedTeams=state.usedTeams;
+    const roundTeamIds=[...new Set(rd.matches.flatMap(m=>[m.hId,m.aId]))];
+    const options=roundTeamIds.filter(tid=>!usedTeams.has(tid)).map(tid=>{
+      const t=TEAMS.find(x=>x.id===tid);
+      return `<option value="${tid}" ${ltsDraftTeam===tid?"selected":""}>${esc(t?t.name:"")}</option>`;
+    }).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:2px">💀 Omgång ${cfg.omg} – välj ett lag</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Laget måste vinna eller spela oavgjort för att du ska gå vidare. Redan använda lag kan inte väljas igen.</div>
+      <select id="lts-team-select" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:14px;margin-bottom:10px;background:var(--color-background-primary);color:var(--color-text-primary)">
+        <option value="">Välj lag…</option>
+        ${options}
+      </select>
+      <div id="lts-status" style="font-size:13px;text-align:center;margin-bottom:6px;min-height:18px"></div>
+      <button class="fg-btn" onclick="window.saveLts()">Spara mitt val</button>
+    </div>`;
+  }
+
+  const historyRows=state.history.filter(h=>!h.pending).map(h=>{
+    const team=h.teamId?TEAMS.find(t=>t.id===h.teamId):null;
+    const ico=h.result==="safe"?"✅":h.result==="loss"?"❌":"⚠️";
+    return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0">
+      <span>${ico}</span><span style="flex:1">Omgång ${h.round}: ${team?esc(team.name):"Inget val"}</span>
+    </div>`;
+  }).join("");
+
+  const allStates=ltsSignups.map(s=>{
+    const u=users.find(x=>x.id===s.user_id);
+    const st=ltsComputeState(s.user_id);
+    return {u,s,st,roundsSurvived:st.history.filter(h=>h.result==="safe").length};
+  }).filter(x=>x.u);
+  allStates.sort((a,b)=>{
+    if(a.st.eliminated!==b.st.eliminated) return a.st.eliminated?1:-1;
+    if(a.st.lives!==b.st.lives) return b.st.lives-a.st.lives;
+    return b.roundsSurvived-a.roundsSurvived;
+  });
+  const stillAlive=allStates.filter(x=>!x.st.eliminated);
+  const totalGoals=ltsTotalGoalsSoFar();
+  const medals=["🥇","🥈","🥉"];
+  const lbRows=allStates.map((x,i)=>{
+    const isMe=x.u.id===currentUser.id;
+    const lives="❤️".repeat(Math.max(0,x.st.lives))+"🖤".repeat(Math.max(0,3-x.st.lives));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px`:''};${x.st.eliminated?'opacity:0.5':''}">
+      <span style="width:22px;text-align:center;font-size:13px">${!x.st.eliminated&&i<3?medals[i]:(x.st.eliminated?"💀":i+1)}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(x.u.namn)}${isMe?' (du)':''}</span>
+      <span style="font-size:13px">${lives}</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">💀 Last Team Standing</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${stillAlive.length} kvar av ${allStates.length} · Omgång ${cfg.omg} (spelas ${startRound}–${maxRound}) · Totalt ${totalGoals} mål gjorda hittills</div>
+  ${isSignedUp?`<div class="fg-card" style="text-align:center;padding:12px">
+    <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Dina liv</div>
+    <div style="font-size:24px;margin:4px 0">${"❤️".repeat(Math.max(0,state.lives))}${"🖤".repeat(Math.max(0,3-state.lives))}</div>
+  </div>`:""}
+  ${card}
+  ${historyRows?`<div class="fg-card"><div style="font-weight:500;margin-bottom:6px">Din historik</div>${historyRows}</div>`:""}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">🏆 Läget just nu</div>
+    ${lbRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld.</div>'}
+  </div>`;
+}
+window.saveLts=async function(){
+  const statusEl=document.getElementById("lts-status");
+  const sel=document.getElementById("lts-team-select");
+  const teamId=sel?Number(sel.value):0;
+  if(!teamId){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Välj ett lag.</span>'; return; }
+  if(statusEl) statusEl.textContent="Sparar…";
+  try{
+    const error=await saveLtsPick(cfg.omg,teamId);
+    if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+    ltsAllPicksGlobal=[...ltsAllPicksGlobal.filter(p=>!(p.user_id===currentUser.id&&Number(p.round_num)===Number(cfg.omg))),{user_id:currentUser.id,round_num:cfg.omg,team_id:teamId}];
+    if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">✓ Val sparat!</span>';
+    render();
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
+  }
+};
 function renderQuizTab(){
   const rnd=cfg.omg;
   const qs=quizQuestions.filter(q=>q.round_num===rnd); // bara denna omgångs frågor
@@ -4215,7 +4468,7 @@ function renderAdminTab(){
       <button class="fg-btn" onclick="window._doAdminLogin()" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Omgångens Match"],["duellen","🥊 Duellen"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
+  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Omgångens Match"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
   const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
@@ -4718,6 +4971,7 @@ function renderAdminTab(){
       ["malregn","🌧️","Målregn","malregnEnabled","malregn_enabled"],
       ["jubel","🙌","Båda får Jubla","jubelEnabled","jubel_enabled"],
       ["investerare","💰","Investeraren","investerareEnabled","investerare_enabled"],
+      ["lts","💀","Last Team Standing","ltsEnabled","lts_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -5001,6 +5255,44 @@ function renderAdminTab(){
         <div style="font-weight:500;margin-bottom:6px;color:#A32D2D">Nollställ allt</div>
         <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Tar bort alla säsonger, divisioner och matcher permanent. Går inte att ångra.</div>
         <button class="fg-outbtn" data-act="duellen-reset" style="width:100%;border-color:#A32D2D;color:#A32D2D">Nollställ Duellen helt</button>
+      </div>`;
+    }
+  } else if(adminSection==="lts"){
+    const signupRows=ltsSignups.map(s=>{
+      const u=users.find(x=>x.id===s.user_id);
+      return `<div style="display:flex;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="flex:1">${esc(u?u.namn:"?")}</span><span style="color:var(--color-text-secondary);font-size:12px">Gissning: ${s.tiebreak_guess}</span>
+      </div>`;
+    }).join("");
+    if(ltsConfig.status!=="active"){
+      body=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:6px">💀 Last Team Standing – anmälan pågår</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${ltsSignups.length} anmälda. Tävlingen pågår i max ${TEAMS.length} omgångar (lika många som antalet lag i serien).</div>
+        ${signupRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld ännu.</div>'}
+        <button class="fg-btn" data-act="lts-start" style="margin-top:14px">🚀 Starta tävlingen (${ltsSignups.length} anmälda)</button>
+        ${ltsSignups.length<2?'<div style="font-size:12px;color:#A32D2D;margin-top:6px">Behöver minst 2 anmälda.</div>':''}
+      </div>`;
+    } else {
+      const startRound=ltsConfig.start_round, maxRound=startRound+(ltsConfig.max_rounds||TEAMS.length)-1;
+      const rows=ltsSignups.map(s=>{
+        const u=users.find(x=>x.id===s.user_id);
+        if(!u) return "";
+        const st=ltsComputeState(s.user_id);
+        const lives="❤️".repeat(Math.max(0,st.lives))+"🖤".repeat(Math.max(0,3-st.lives));
+        return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px;${st.eliminated?'opacity:0.5':''}">
+          <span style="flex:1">${esc(u.namn)}${st.eliminated?" (utslagen, omg "+st.eliminatedAtRound+")":""}</span>
+          <span>${lives}</span>
+        </div>`;
+      }).join("");
+      body=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:4px">💀 Last Team Standing – aktiv</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Spelas omgång ${startRound}–${maxRound} · Visar status just nu</div>
+        ${rows}
+      </div>
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:6px;color:#A32D2D">Nollställ</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Tar bort alla val och anmälningar permanent. Går inte att ångra.</div>
+        <button class="fg-outbtn" data-act="lts-reset-admin" style="width:100%;border-color:#A32D2D;color:#A32D2D">Nollställ Last Team Standing</button>
       </div>`;
     }
   } else {
@@ -5482,6 +5774,14 @@ function attachHandlers(){
         root2.innerHTML='<div class="fg-loading">Laddar Investeraren…</div>';
         investerareAllTipsGlobal=await fetchAllInvesterareTipsAllRounds();
         investerareDraft={};
+        screen="main"; mainTab="hem";
+      } else if(appMode==="lts"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Last Team Standing…</div>';
+        try{
+          [ltsSignups,ltsConfig,ltsAllPicksGlobal]=await Promise.all([fetchLtsSignups(),fetchLtsConfig(),fetchAllLtsPicks()]);
+        }catch(e){console.error(e);}
+        ltsDraftTeam=null;
         screen="main"; mainTab="hem";
       } else if(appMode==="standings"){
         const root2=document.getElementById("fg-root");
@@ -6009,6 +6309,9 @@ function attachHandlers(){
           duellenDivisionMembers=await fetchDuellenDivisionMembers(duellenDivisions.map(d=>d.id));
         }catch(e){console.error(e);}
       }
+      if(adminSection==="lts"){
+        try{[ltsSignups,ltsConfig,ltsAllPicksGlobal]=await Promise.all([fetchLtsSignups(),fetchLtsConfig(),fetchAllLtsPicks()]);}catch(e){console.error(e);}
+      }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
         try{
@@ -6102,6 +6405,23 @@ function attachHandlers(){
       flash("Duellen nollställd.");
       render();
     }
+    else if(act==="lts-start"){
+      if(!confirm(`Starta Last Team Standing med ${ltsSignups.length} anmälda? Detta går inte att ångra utan att nollställa.`))return;
+      const {error,startRound}=await startLtsCompetition();
+      if(error){flash("Fel: "+error.message);return;}
+      ltsConfig={status:"active",start_round:startRound,max_rounds:TEAMS.length,league_id:currentLeague.id};
+      flash(`✓ Tävlingen startad! Omgång ${startRound}–${startRound+TEAMS.length-1}.`);
+      render();
+    }
+    else if(act==="lts-reset-admin"){
+      if(!confirm("Nollställ hela Last Team Standing (alla val och anmälningar raderas permanent)?"))return;
+      const error=await resetLts();
+      if(error){flash("Fel: "+error.message);return;}
+      ltsConfig={status:"signup",start_round:null,max_rounds:0};
+      ltsSignups=[]; ltsAllPicksGlobal=[];
+      flash("Last Team Standing nollställd.");
+      render();
+    }
     else if(act==="duellen-pick-division"){
       duellenViewDivisionId=el.value;
       duellenShowSchedule=false;
@@ -6109,6 +6429,23 @@ function attachHandlers(){
     }
     else if(act==="duellen-toggle-schedule"){
       duellenShowSchedule=!duellenShowSchedule;
+      render();
+    }
+    else if(act==="lts-join"){
+      const guessEl=document.getElementById("lts-tiebreak");
+      const guess=guessEl?guessEl.value.trim():"";
+      if(!guess||isNaN(Number(guess))||Number(guess)<0){flash("Ange en giltig gissning (0 eller fler).");return;}
+      const error=await joinLts(Number(guess));
+      if(error){flash("Fel: "+error.message);return;}
+      ltsSignups=[...ltsSignups,{id:currentUser.id+"-lts",user_id:currentUser.id,league_id:currentLeague.id,tiebreak_guess:Number(guess)}];
+      flash("✓ Anmäld till Last Team Standing!");
+      render();
+    }
+    else if(act==="lts-leave"){
+      const error=await leaveLts();
+      if(error){flash("Fel: "+error.message);return;}
+      ltsSignups=ltsSignups.filter(s=>s.user_id!==currentUser.id);
+      flash("Du är avanmäld.");
       render();
     }
     else if(act==="duellen-join"){
