@@ -3547,6 +3547,10 @@ function renderLigaTab(sorted){
     getPts=u=>calcUserStreak(streakAllTips,u.id,pubRnds).current;
     subText=u=>{const s=calcUserStreak(streakAllTips,u.id,pubRnds);return`Aktiv: ${s.current}🔥 · Bäst: ${s.best}`;};
   }
+  else if(appMode==="matchfokus"){title="📊 Omgångens Match-ligan";getPts=u=>userMatchfokusTotalPts(u.id);subText=u=>`${userMatchfokusTotalPts(u.id)} p totalt`;}
+  else if(appMode==="duellen"){title="📊 Duellen-tabellen";getPts=u=>duellenStandings(duellenFixtures).find(r=>r.id===u.id)?.pts||0;subText=u=>{const r=duellenStandings(duellenFixtures).find(x=>x.id===u.id);return r?`${r.w}V ${r.d}O ${r.l}F`:"Inte anmäld";};}
+  else if(appMode==="malregn"){title="📊 Målregn-ligan";getPts=u=>userMalregnTotalPts(u.id);subText=u=>`${userMalregnTotalPts(u.id)} p totalt`;}
+  else if(appMode==="jubel"){title="📊 Båda får Jubla-ligan";getPts=u=>userJubelTotalPts(u.id);subText=u=>`${userJubelTotalPts(u.id)} p totalt`;}
   else{title="📊 Fantasyligan";getPts=u=>userTotPts(u);subText=u=>`${pickCount(u)}/${TOTAL_PICKS} spelare valda`;}
 
   const ligaSorted=[...users].sort((a,b)=>getPts(b)-getPts(a));
