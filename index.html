@@ -2947,7 +2947,7 @@ function renderJubelTab(){
       return `<div style="padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="font-size:13px;text-align:center;margin-bottom:6px">${esc(h?h.name:"")} <span style="color:var(--color-text-secondary)">vs</span> ${esc(a?a.name:"")}</div>
         <div style="display:flex;gap:8px;justify-content:center">
-          <button data-act="jubel-answer" data-key="${key}" data-val="J" style="flex:1;max-width:110px;padding:9px 6px;border-radius:8px;border:1.5px solid ${current==="J"?G_GREEN:'var(--color-border-secondary)'};background:${current==="J"?G_GREENL:'var(--color-background-primary)'};color:${current==="J"?G_GREEN:'var(--color-text-primary)'};font-weight:${current==="J"?600:400};font-size:13px;cursor:pointer">Ja 🙌</button>
+          <button data-act="jubel-answer" data-key="${key}" data-val="J" style="flex:1;max-width:110px;padding:9px 6px;border-radius:8px;border:1.5px solid ${current==="J"?G_GREEN:'var(--color-border-secondary)'};background:${current==="J"?G_GREENL:'var(--color-background-primary)'};color:${current==="J"?G_GREEN:'var(--color-text-primary)'};font-weight:${current==="J"?600:400};font-size:13px;cursor:pointer">Ja</button>
           <button data-act="jubel-answer" data-key="${key}" data-val="N" style="flex:1;max-width:110px;padding:9px 6px;border-radius:8px;border:1.5px solid ${current==="N"?G_GREEN:'var(--color-border-secondary)'};background:${current==="N"?G_GREENL:'var(--color-background-primary)'};color:${current==="N"?G_GREEN:'var(--color-text-primary)'};font-weight:${current==="N"?600:400};font-size:13px;cursor:pointer">Nej</button>
         </div>
       </div>`;
