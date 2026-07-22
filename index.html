@@ -1771,6 +1771,39 @@ function renderRulesScreen(){
         ${tip("💡 Exempel: Matchen slutar 2–1, du tippar 2–1 → <b>10p</b>. Du tippar 2–0 → bara hemmalaget stämmer → <b>4p</b>. Du tippar 1–0 → rätt tecken → <b>2p</b>.")}
       `):""}
 
+      ${cfg.duellenEnabled?section("🥊","Duellen",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar Div2NG Play. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.
+        </div>
+        ${table([
+          ["Du får fler poäng än motståndaren","Vinst – 3p"],
+          ["Ni får exakt lika många poäng","Oavgjort – 1p"],
+          ["Motståndaren får fler poäng","Förlust – 0p"],
+          ["Möter en bot","Boten har alltid 0p – lätt vinst!"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Anmälan:</b> Frivillig, egen anmälan i Duellen-fliken. Ingen extra tippning behövs – dina Tippa resultat-poäng används automatiskt.<br>
+          <b>Schema:</b> Säsongen slumpas fram när admin startar den – du möter varje motståndare <b>högst en gång</b> under säsongen. Är ni ett udda antal fyller en bot ut schemat.<br>
+          <b>Tabell:</b> 3 poäng för vinst, 1 för oavgjort, 0 för förlust – precis som i riktig fotboll.
+        </div>
+        ${tip("💡 Kommer inte du eller din motståndare in med tips en omgång räknas det som 0 poäng den matchen – glöm inte att tippa!")}
+      `):""}
+
+      ${cfg.malregnEnabled?section("🌧️","Målregn",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Hur många mål tror du blir det totalt i omgångens 7 matcher? Gissa ett exakt tal – ju bättre koll på formkurvor, desto större chans!
+        </div>
+        ${table([
+          ["Exakt rätt antal mål","3 p"],
+          ["Fel gissning","0 p"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
+          <b>Facit:</b> Räknas fram automatiskt så fort alla resultat är inlagda – summan av målen i omgångens matcher.
+        </div>
+        ${tip("💡 Titta på tabellen – lag i toppen och botten brukar ge fler mål än jämna möten!")}
+      `):""}
+
       ${cfg.snabbastEnabled!==false?section("⚡","Snabbast vinner",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
           Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
@@ -1879,39 +1912,6 @@ function renderRulesScreen(){
           <b>Rättning:</b> Kräver exakt rätt svar per fråga – inga halva poäng.
         </div>
         ${tip("💡 Facit och poäng visas per fråga så fort admin publicerat matchfakta efter matchen.")}
-      `):""}
-
-      ${cfg.duellenEnabled?section("🥊","Duellen",`
-        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar Div2NG Play. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.
-        </div>
-        ${table([
-          ["Du får fler poäng än motståndaren","Vinst – 3p"],
-          ["Ni får exakt lika många poäng","Oavgjort – 1p"],
-          ["Motståndaren får fler poäng","Förlust – 0p"],
-          ["Möter en bot","Boten har alltid 0p – lätt vinst!"]
-        ])}
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Anmälan:</b> Frivillig, egen anmälan i Duellen-fliken. Ingen extra tippning behövs – dina Tippa resultat-poäng används automatiskt.<br>
-          <b>Schema:</b> Säsongen slumpas fram när admin startar den – du möter varje motståndare <b>högst en gång</b> under säsongen. Är ni ett udda antal fyller en bot ut schemat.<br>
-          <b>Tabell:</b> 3 poäng för vinst, 1 för oavgjort, 0 för förlust – precis som i riktig fotboll.
-        </div>
-        ${tip("💡 Kommer inte du eller din motståndare in med tips en omgång räknas det som 0 poäng den matchen – glöm inte att tippa!")}
-      `):""}
-
-      ${cfg.malregnEnabled?section("🌧️","Målregn",`
-        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Hur många mål tror du blir det totalt i omgångens 7 matcher? Gissa ett exakt tal – ju bättre koll på formkurvor, desto större chans!
-        </div>
-        ${table([
-          ["Exakt rätt antal mål","3 p"],
-          ["Fel gissning","0 p"]
-        ])}
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
-          <b>Facit:</b> Räknas fram automatiskt så fort alla resultat är inlagda – summan av målen i omgångens matcher.
-        </div>
-        ${tip("💡 Titta på tabellen – lag i toppen och botten brukar ge fler mål än jämna möten!")}
       `):""}
 
     </div>
