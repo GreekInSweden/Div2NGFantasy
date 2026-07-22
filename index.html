@@ -2890,7 +2890,7 @@ function renderStandingsTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🏆 Ställningar</div>
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Topplistan för varje spelform, samlat på ett ställe.</div>
-  <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:4px">${tabBtns}</div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${tabBtns}</div>
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:10px">${activeMode.ico} ${esc(activeMode.label)}</div>
     ${rowsHtml}
