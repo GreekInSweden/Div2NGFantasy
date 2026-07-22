@@ -867,8 +867,12 @@ async function fetchAllLtsPicks(){
   if(error){console.error(error);return [];}
   return data;
 }
-async function joinLts(tiebreakGuess){
-  const {error}=await sb.from("lts_signups").insert({id:currentUser.id+"-lts",user_id:currentUser.id,league_id:currentLeague.id,tiebreak_guess:Number(tiebreakGuess)});
+async function joinLts(){
+  const {error}=await sb.from("lts_signups").insert({id:currentUser.id+"-lts",user_id:currentUser.id,league_id:currentLeague.id,tiebreak_guess:null});
+  return error;
+}
+async function saveLtsTiebreak(guess){
+  const {error}=await sb.from("lts_signups").update({tiebreak_guess:Number(guess)}).eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
   return error;
 }
 async function leaveLts(){
@@ -3623,7 +3627,7 @@ function renderLtsTab(){
       const u=users.find(x=>x.id===s.user_id);
       return `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${esc(u?u.namn:"?")}</span>
-        <span style="color:var(--color-text-secondary);font-size:12px">Gissning: ${s.tiebreak_guess} mål</span>
+        <span style="color:var(--color-text-secondary);font-size:12px">Anmäld</span>
       </div>`;
     }).join("");
     return `
@@ -3634,10 +3638,7 @@ function renderLtsTab(){
       ${isSignedUp
         ?`<div style="background:${G_GREENL};color:${G_GREEN};border-radius:8px;padding:10px;font-size:13px;font-weight:500;text-align:center;margin-bottom:10px">✓ Du är anmäld!</div>
            <button class="fg-outbtn" data-act="lts-leave" style="width:100%">Avanmäl mig</button>`
-        :`<label class="fg-label">Utslagsfråga: Hur många mål görs totalt under hela tävlingen?</label>
-           <input class="fg-input" id="lts-tiebreak" type="number" min="0" placeholder="t.ex. 90" style="margin-bottom:10px"/>
-           <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:12px">Används bara som utslag om flera klarar sig hela vägen – då vinner den som gissat närmast.</div>
-           <button class="fg-btn" data-act="lts-join" style="width:100%">Anmäl mig</button>`}
+        :`<button class="fg-btn" data-act="lts-join" style="width:100%">Anmäl mig</button>`}
     </div>
     <div class="fg-card">
       <div style="font-weight:500;margin-bottom:8px">Anmälda (${ltsSignups.length})</div>
@@ -3654,8 +3655,18 @@ function renderLtsTab(){
   const locked=rd&&rd.locked;
 
   let card;
+  const mySignup=ltsSignups.find(s=>s.user_id===currentUser.id);
+  const needsTiebreak=isSignedUp&&mySignup&&(mySignup.tiebreak_guess===null||mySignup.tiebreak_guess===undefined)&&!state.eliminated;
   if(!isSignedUp){
     card=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Du var inte anmäld när tävlingen startade.</div></div>`;
+  } else if(needsTiebreak){
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🎯 Sista steget innan du gör ditt första val</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:10px">Gissa totalt antal mål som görs under hela tävlingen (omgång ${startRound}–${maxRound}). Används bara som utslag om flera klarar sig hela vägen – då vinner den som gissat närmast.</div>
+      <input class="fg-input" id="lts-tiebreak" type="number" min="0" placeholder="t.ex. 90" style="margin-bottom:10px"/>
+      <div id="lts-tiebreak-status" style="font-size:13px;text-align:center;min-height:18px;margin-bottom:6px"></div>
+      <button class="fg-btn" onclick="window.saveLtsTiebreakClick()">Spara gissning</button>
+    </div>`;
   } else if(state.eliminated){
     card=`<div class="fg-card" style="text-align:center">
       <div style="font-size:32px;margin-bottom:4px">💀</div>
@@ -3737,6 +3748,24 @@ function renderLtsTab(){
     ${lbRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld.</div>'}
   </div>`;
 }
+window.saveLtsTiebreakClick=async function(){
+  const statusEl=document.getElementById("lts-tiebreak-status");
+  const el=document.getElementById("lts-tiebreak");
+  const val=el?el.value.trim():"";
+  if(!val||isNaN(Number(val))||Number(val)<0){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Ange en giltig gissning (0 eller fler).</span>';
+    return;
+  }
+  if(statusEl) statusEl.textContent="Sparar…";
+  try{
+    const error=await saveLtsTiebreak(val);
+    if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+    ltsSignups=ltsSignups.map(s=>s.user_id===currentUser.id?{...s,tiebreak_guess:Number(val)}:s);
+    render();
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
+  }
+};
 window.saveLts=async function(){
   const statusEl=document.getElementById("lts-status");
   const sel=document.getElementById("lts-team-select");
@@ -5261,7 +5290,7 @@ function renderAdminTab(){
     const signupRows=ltsSignups.map(s=>{
       const u=users.find(x=>x.id===s.user_id);
       return `<div style="display:flex;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
-        <span style="flex:1">${esc(u?u.namn:"?")}</span><span style="color:var(--color-text-secondary);font-size:12px">Gissning: ${s.tiebreak_guess}</span>
+        <span style="flex:1">${esc(u?u.namn:"?")}</span><span style="color:var(--color-text-secondary);font-size:12px">Anmäld</span>
       </div>`;
     }).join("");
     if(ltsConfig.status!=="active"){
@@ -6432,12 +6461,9 @@ function attachHandlers(){
       render();
     }
     else if(act==="lts-join"){
-      const guessEl=document.getElementById("lts-tiebreak");
-      const guess=guessEl?guessEl.value.trim():"";
-      if(!guess||isNaN(Number(guess))||Number(guess)<0){flash("Ange en giltig gissning (0 eller fler).");return;}
-      const error=await joinLts(Number(guess));
+      const error=await joinLts();
       if(error){flash("Fel: "+error.message);return;}
-      ltsSignups=[...ltsSignups,{id:currentUser.id+"-lts",user_id:currentUser.id,league_id:currentLeague.id,tiebreak_guess:Number(guess)}];
+      ltsSignups=[...ltsSignups,{id:currentUser.id+"-lts",user_id:currentUser.id,league_id:currentLeague.id,tiebreak_guess:null}];
       flash("✓ Anmäld till Last Team Standing!");
       render();
     }
