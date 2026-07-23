@@ -160,7 +160,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     jubelMyTips={}, jubelAllTipsGlobal=[], jubelDraft={},
     investerareAllTipsGlobal=[], investerareDraft={},
     ltsSignups=[], ltsConfig={status:"signup",start_round:null,max_rounds:0}, ltsAllPicksGlobal=[], ltsDraftTeam=null,
-    anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={},
+    anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={}, sponsors=[],
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -852,6 +852,37 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+
+// ── Sponsorer ────────────────────────────────────────────────────────────
+async function fetchSponsors(){
+  const {data,error}=await sb.from("sponsors").select("*").eq("league_id",currentLeague.id).order("sort_order");
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function addSponsor(s){
+  const {data:maxRow}=await sb.from("sponsors").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
+  const nextId=(maxRow?.id||0)+1;
+  const {data,error}=await sb.from("sponsors").insert({id:nextId,league_id:currentLeague.id,...s}).select().single();
+  return {data,error};
+}
+async function updateSponsor(id,fields){
+  const {error}=await sb.from("sponsors").update(fields).eq("id",id).eq("league_id",currentLeague.id);
+  return error;
+}
+async function deleteSponsor(id){
+  const {error}=await sb.from("sponsors").delete().eq("id",id).eq("league_id",currentLeague.id);
+  return error;
+}
+function renderSponsorBanner(gameMode){
+  const list=(sponsors||[]).filter(s=>s.active&&s.game_mode===gameMode);
+  if(!list.length) return "";
+  return list.map(s=>`
+    <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;background:var(--color-background-secondary);border-radius:10px;padding:8px 12px;margin-bottom:10px;text-decoration:none;color:var(--color-text-primary)">
+      ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:6px;flex-shrink:0"/>`:""}
+      <span style="font-size:11px;color:var(--color-text-secondary);flex:1">Sponsras av <b style="color:var(--color-text-primary)">${esc(s.name)}</b></span>
+      <span style="font-size:11px;color:${G_GREEN}">Besök →</span>
+    </a>`).join("");
+}
 
 // ── Anytime Målskytt ─────────────────────────────────────────────────────
 const ANYTIME_SLOTS={DEF:1,MID:2,FW:2};
@@ -1677,6 +1708,7 @@ function render(){
     };
   }
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
+  else if(screen==="sponsors")root.innerHTML=renderSponsorsScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
   // Uppdatera push-knapp asynkront när mode-skärmen visas
@@ -1807,6 +1839,15 @@ function renderModeSelect(){
           <div style="font-size:12px;color:var(--color-text-secondary)">Allmänna frågor om Div2 NG</div>
         </div>
       </button>`:""}
+
+    ${sponsors.filter(s=>s.active&&s.show_in_menu).length?`<div style="width:100%;max-width:320px;margin-top:10px">
+      ${sponsors.filter(s=>s.active&&s.show_in_menu).map(s=>`
+        <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:10px;background:var(--color-background-secondary);border-radius:10px;padding:10px 12px;margin-bottom:8px;text-decoration:none;color:var(--color-text-primary)">
+          ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:32px;height:32px;object-fit:contain;border-radius:6px;flex-shrink:0"/>`:""}
+          <span style="font-size:12px;color:var(--color-text-secondary);flex:1">Sponsras av <b style="color:var(--color-text-primary)">${esc(s.name)}</b></span>
+          <span style="font-size:11px;color:${G_GREEN}">Besök →</span>
+        </a>`).join("")}
+    </div>`:""}
 
     <button onclick="window._togglePush()" id="push-btn" style="margin-top:8px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:7px 14px;color:var(--color-text-secondary);font-size:12px;cursor:pointer">🔔 Aktivera notiser</button>
     <button data-act="logout" style="margin-top:6px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
@@ -2005,10 +2046,22 @@ function renderHome(){
       <button data-act="go-rules-home" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline">
         Läs om spelformerna →
       </button>
+      ${sponsors.some(s=>s.active)?`<button data-act="go-sponsors" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline;margin-top:4px">
+        Våra sponsorer →
+      </button>`:""}
     </div>
 
     <!-- Footer -->
     <div style="margin-top:auto;padding:20px;text-align:center;border-top:0.5px solid #222">
+      ${sponsors.filter(s=>s.active&&s.show_in_footer).length?`
+      <div style="font-size:10px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Stöttas av</div>
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:14px">
+        ${sponsors.filter(s=>s.active&&s.show_in_footer).map(s=>`
+          <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:#999;font-size:11px">
+            ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:22px;height:22px;object-fit:contain;border-radius:4px"/>`:""}
+            <span>${esc(s.name)}</span>
+          </a>`).join("")}
+      </div>`:""}
       <div style="font-size:11px;color:#666">${esc(currentLeague.name)} – Liverapportering · Säsong ${currentLeague.season||cfg.omg||""}</div>
     </div>
 
@@ -2130,6 +2183,25 @@ function renderPick(){
   </div>`;
 }
 
+function renderSponsorsScreen(){
+  const active=sponsors.filter(s=>s.active);
+  const rows=active.map(s=>`
+    <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" class="fg-card" style="display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--color-text-primary);margin-bottom:10px">
+      ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:10px;flex-shrink:0;background:var(--color-background-secondary)"/>`:`<div style="width:56px;height:56px;border-radius:10px;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🤝</div>`}
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:15px">${esc(s.name)}</div>
+        ${s.description?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${esc(s.description)}</div>`:""}
+      </div>
+      <span style="color:${G_GREEN};font-size:13px;font-weight:500">Besök →</span>
+    </a>`).join("");
+  return `
+  <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
+    <button data-act="sponsors-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">← Tillbaka</button>
+    <div style="font-family:Georgia,serif;font-style:italic;font-size:24px;margin-bottom:6px">🤝 Våra sponsorer</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">Tack till alla som stöttar ${esc(currentLeague.name)}!</div>
+    ${rows||'<div class="fg-card" style="text-align:center;padding:2rem;font-size:13px;color:var(--color-text-secondary)">Inga sponsorer inlagda ännu.</div>'}
+  </div>`;
+}
 function renderRulesScreen(){
   const rulesRows = POSITIONS.map(pos=>`
     <tr style="border-top:0.5px solid var(--color-border-tertiary)">
@@ -2547,6 +2619,7 @@ function renderHemTab(sorted){
     <div style="flex:1"><div style="font-weight:500;font-size:17px">${esc(user.namn)}</div><div style="font-size:12px;color:var(--color-text-secondary)">${rank>0?`Plats ${rank} av ${sorted.length}`:"Inte rankad"}</div></div>
     <button data-act="logout" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Logga ut</button>
   </div>
+  ${renderSponsorBanner("fantasy")}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
     <div style="background:${G_GREENL};border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:${G_GREEN}">Omgång ${cfg.omg}</div><div style="font-size:28px;font-weight:500;color:${G_GREEN}">${omgP}</div></div>
     <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:var(--color-text-secondary)">Totalt</div><div style="font-size:28px;font-weight:500">${totP}</div></div>
@@ -2684,6 +2757,7 @@ function renderTippTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">🎯 Tippa resultat</div>
+  ${renderSponsorBanner("tipp")}
   ${roundPicker}
   ${inputSection}
   <div class="fg-card">
@@ -2763,6 +2837,7 @@ function renderMåljaktenTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">\uD83C\uDFAF Måljakten – Omgång ${cfg.omg}</div>
+  ${renderSponsorBanner("måljakten")}
   ${renderRoundMatches(rd)}
 
   <div class="fg-card">
@@ -2861,6 +2936,7 @@ function renderSnabbastTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">⚡ Snabbast vinner – Omgång ${cfg.omg}</div>
+  ${renderSponsorBanner("snabbast")}
   ${renderRoundMatches(rd)}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
@@ -2944,6 +3020,7 @@ function renderLigatippTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">📊 Tippa serien</div>
+  ${renderSponsorBanner("ligatipp")}
   <div class="fg-card" style="padding:10px">
     ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">🔒 Tippning är stängd – säsongen har börjat</div>`:""}
     <div style="display:flex;gap:6px;margin-bottom:12px">${cpTabs}</div>
@@ -3128,6 +3205,7 @@ function renderMatchfokusTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">⚽ Omgångens Match – Omgång ${cfg.omg}</div>
+  ${renderSponsorBanner("matchfokus")}
   ${body}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Omgångens Match</div>
@@ -3260,6 +3338,7 @@ function renderDuellenTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen</div>
+  ${renderSponsorBanner("duellen")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Säsong 1 (fritt seriespel) · Plats ${myRank>0?myRank:"–"} av ${standings.length} · Omgång ${cfg.omg} av ${duellenConfig.total_rounds}</div>
   ${matchCard}
   <div class="fg-card">
@@ -3377,6 +3456,7 @@ function renderDuellenDivisionView(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen – Säsong ${season}</div>
+  ${renderSponsorBanner("duellen")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${esc(viewDivision.name)} · Omgång ${cfg.omg}</div>
   ${divisionPicker}
   ${matchCard}
@@ -3465,6 +3545,7 @@ function renderMalregnTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🌧️ Målregn</div>
+  ${renderSponsorBanner("malregn")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${sortedMr.length} · ${userMalregnTotalPts(currentUser.id)} p totalt</div>
   ${card}
   <div class="fg-card">
@@ -3546,6 +3627,7 @@ function renderJubelTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🙌 Båda får Jubla</div>
+  ${renderSponsorBanner("jubel")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${sortedJb.length} · ${userJubelTotalPts(currentUser.id)} p totalt</div>
   ${card}
   <div class="fg-card">
@@ -3644,6 +3726,7 @@ function renderInvesterareTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">💰 Investeraren</div>
+  ${renderSponsorBanner("investerare")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Plats ${myRank>0?myRank:"–"} av ${sortedInv.length}</div>
   <div class="fg-card" style="text-align:center">
     <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Din portfölj</div>
@@ -3803,6 +3886,7 @@ function renderLtsTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">💀 Last Team Standing</div>
+  ${renderSponsorBanner("lts")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${stillAlive.length} kvar av ${allStates.length} · Omgång ${cfg.omg} (spelas ${startRound}–${maxRound}) · Totalt ${totalGoals} mål gjorda hittills</div>
   ${isSignedUp?`<div class="fg-card" style="text-align:center;padding:12px">
     <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Dina liv</div>
@@ -3930,6 +4014,7 @@ function renderAnytimeTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🎯 Anytime Målskytt</div>
+  ${renderSponsorBanner("anytime")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${sortedAt.length} · ${userAnytimeTotalPts(currentUser.id)} p totalt</div>
   ${card}
   <div class="fg-card">
@@ -4055,6 +4140,7 @@ function renderQuizTab(){
 
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">🧠 Div2NG Quiz – Omgång ${rnd}</div>
+  ${renderSponsorBanner("quiz")}
   ${!qs.length?`<div class="fg-card" style="text-align:center;padding:24px"><div style="font-size:36px;margin-bottom:8px">🧠</div><div style="font-weight:500">Inga frågor den här omgången ännu</div></div>`:""}
   ${qs.length&&!done?`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:10px;padding:10px 16px;margin-bottom:12px">
     <div style="font-size:13px;color:var(--color-text-secondary)">⏱ Tid kvar</div>
@@ -4691,7 +4777,7 @@ function renderAdminTab(){
     </div>`;
   }
   const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Omgångens Match"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
-  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
+  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -5518,6 +5604,42 @@ function renderAdminTab(){
         <button class="fg-outbtn" data-act="lts-reset-admin" style="width:100%;border-color:#A32D2D;color:#A32D2D">Nollställ Last Team Standing</button>
       </div>`;
     }
+  } else if(adminSection==="sponsorer"){
+    const modeOpts=[["","Ingen specifik (visas ej på en spelform)"],["fantasy","Fantasy"],["tipp","Tippa resultat"],["snabbast","Snabbast vinner"],["måljakten","Måljakten"],["ligatipp","Tippa serien"],["quiz","Quiz"],["streak","Streak"],["matchfokus","Omgångens Match"],["duellen","Duellen"],["malregn","Målregn"],["jubel","Båda får Jubla"],["investerare","Investeraren"],["lts","Last Team Standing"],["anytime","Anytime Målskytt"]];
+    const rows=sponsors.map(s=>`
+      <div class="fg-card" style="margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:8px;flex-shrink:0"/>`:'<div style="width:40px;height:40px;border-radius:8px;background:var(--color-background-secondary);flex-shrink:0"></div>'}
+          <div style="flex:1">
+            <div style="font-weight:500;font-size:14px">${esc(s.name)}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)">${s.game_mode?"Kopplad till: "+esc(s.game_mode):"Ingen specifik spelform"}</div>
+          </div>
+          <button data-act="sponsor-toggle-active" data-id="${s.id}" data-active="${s.active?"0":"1"}" style="background:${s.active?G_GREENL:'#f0f0f0'};color:${s.active?G_GREEN:'#888'};border:none;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:500;cursor:pointer">${s.active?"Aktiv":"Inaktiv"}</button>
+        </div>
+        <div style="display:flex;gap:12px;font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" data-act="sponsor-toggle-footer" data-id="${s.id}" ${s.show_in_footer?"checked":""}/> Footer</label>
+          <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" data-act="sponsor-toggle-menu" data-id="${s.id}" ${s.show_in_menu?"checked":""}/> Startmeny</label>
+        </div>
+        <button data-act="sponsor-delete" data-id="${s.id}" style="background:none;border:none;color:#A32D2D;font-size:12px;cursor:pointer;padding:0">Ta bort</button>
+      </div>`).join("");
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">➕ Ny sponsor</div>
+      <label class="fg-label">Namn</label>
+      <input class="fg-input" id="sponsor-name" placeholder="t.ex. Lokala Sportbutiken" style="margin-bottom:10px"/>
+      <label class="fg-label">Logga (bild-URL, valfritt)</label>
+      <input class="fg-input" id="sponsor-logo" placeholder="https://..." style="margin-bottom:10px"/>
+      <label class="fg-label">Länk</label>
+      <input class="fg-input" id="sponsor-link" placeholder="https://..." style="margin-bottom:10px"/>
+      <label class="fg-label">Kort beskrivning (valfritt, visas på sponsorsidan)</label>
+      <input class="fg-input" id="sponsor-desc" placeholder="t.ex. 10% rabatt för medlemmar" style="margin-bottom:10px"/>
+      <label class="fg-label">Koppla till en specifik spelform (valfritt)</label>
+      <select id="sponsor-mode" style="width:100%;padding:9px 10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:12px;background:var(--color-background-primary);color:var(--color-text-primary)">
+        ${modeOpts.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join("")}
+      </select>
+      <button class="fg-btn" data-act="sponsor-add" style="width:100%">Lägg till sponsor</button>
+    </div>
+    <div style="font-weight:500;margin:14px 0 8px">Alla sponsorer (${sponsors.length})</div>
+    ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga sponsorer inlagda ännu.</div>'}`;
   } else {
     const rndVal = document.getElementById("goals-rnd-input") ? document.getElementById("goals-rnd-input").value : String(cfg.omg);
     const goalSearch = document.getElementById("goals-search") ? document.getElementById("goals-search").value.toLowerCase() : "";
@@ -5804,6 +5926,7 @@ function attachHandlers(){
       rounds=await fetchRounds();
       cfg=await fetchConfig();
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+      try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       screen="home"; homeMode="start";
       render();
     }
@@ -5830,6 +5953,7 @@ function attachHandlers(){
         rounds=await fetchRounds();
         cfg=await fetchConfig();
         try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+      try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
         const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
         if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
@@ -5864,6 +5988,8 @@ function attachHandlers(){
     else if(act==="go-reg"){homeMode="reg";errMsg="";screen="reg";render();}
     else if(act==="go-home"){screen="home";homeMode="start";render();}
     else if(act==="go-rules-home"){ rulesFrom="home"; screen="rules"; render(); }
+    else if(act==="go-sponsors"){ screen="sponsors"; render(); }
+    else if(act==="sponsors-back"){ screen="home"; homeMode="start"; render(); }
     else if(act==="rules-back-home"){ screen="home"; homeMode="start"; render(); }
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
@@ -6103,6 +6229,7 @@ function attachHandlers(){
       rounds=await fetchRounds();
       cfg=await fetchConfig();
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+      try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       adminSection="round";
       flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
@@ -6541,6 +6668,9 @@ function attachHandlers(){
       if(adminSection==="lts"){
         try{[ltsSignups,ltsConfig,ltsAllPicksGlobal]=await Promise.all([fetchLtsSignups(),fetchLtsConfig(),fetchAllLtsPicks()]);}catch(e){console.error(e);}
       }
+      if(adminSection==="sponsorer"){
+        try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
+      }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
         try{
@@ -6649,6 +6779,50 @@ function attachHandlers(){
       ltsConfig={status:"signup",start_round:null,max_rounds:0};
       ltsSignups=[]; ltsAllPicksGlobal=[];
       flash("Last Team Standing nollställd.");
+      render();
+    }
+    else if(act==="sponsor-add"){
+      const name=document.getElementById("sponsor-name").value.trim();
+      const logo=document.getElementById("sponsor-logo").value.trim();
+      const link=document.getElementById("sponsor-link").value.trim();
+      const desc=document.getElementById("sponsor-desc").value.trim();
+      const mode=document.getElementById("sponsor-mode").value;
+      if(!name||!link){flash("Namn och länk krävs.");return;}
+      const {data,error}=await addSponsor({name,logo_url:logo||null,link_url:link,description:desc||null,game_mode:mode||null,active:true,show_in_footer:false,show_in_menu:false,sort_order:sponsors.length});
+      if(error){flash("Fel: "+error.message);return;}
+      sponsors=[...sponsors,data];
+      flash(`✓ "${name}" tillagd!`);
+      render();
+    }
+    else if(act==="sponsor-toggle-active"){
+      const id=Number(el.dataset.id);
+      const active=el.dataset.active==="1";
+      const error=await updateSponsor(id,{active});
+      if(error){flash("Fel: "+error.message);return;}
+      sponsors=sponsors.map(s=>s.id===id?{...s,active}:s);
+      render();
+    }
+    else if(act==="sponsor-toggle-footer"){
+      const id=Number(el.dataset.id);
+      const show_in_footer=el.checked;
+      const error=await updateSponsor(id,{show_in_footer});
+      if(error){flash("Fel: "+error.message);return;}
+      sponsors=sponsors.map(s=>s.id===id?{...s,show_in_footer}:s);
+    }
+    else if(act==="sponsor-toggle-menu"){
+      const id=Number(el.dataset.id);
+      const show_in_menu=el.checked;
+      const error=await updateSponsor(id,{show_in_menu});
+      if(error){flash("Fel: "+error.message);return;}
+      sponsors=sponsors.map(s=>s.id===id?{...s,show_in_menu}:s);
+    }
+    else if(act==="sponsor-delete"){
+      const id=Number(el.dataset.id);
+      if(!confirm("Ta bort denna sponsor permanent?"))return;
+      const error=await deleteSponsor(id);
+      if(error){flash("Fel: "+error.message);return;}
+      sponsors=sponsors.filter(s=>s.id!==id);
+      flash("Sponsor borttagen.");
       render();
     }
     else if(act==="duellen-pick-division"){
@@ -7091,6 +7265,7 @@ function attachHandlers(){
     rounds=await fetchRounds();
     cfg=await fetchConfig();
     try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+      try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
     screen="home";
   } else {
     screen="leagues";
