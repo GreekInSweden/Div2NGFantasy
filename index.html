@@ -877,10 +877,16 @@ function renderSponsorBanner(gameMode){
   const list=(sponsors||[]).filter(s=>s.active&&s.game_mode===gameMode);
   if(!list.length) return "";
   return list.map(s=>`
-    <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:12px;background:var(--color-background-secondary);border-radius:12px;padding:12px 16px;margin-bottom:12px;text-decoration:none;color:var(--color-text-primary)">
-      ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:8px;flex-shrink:0"/>`:""}
-      <span style="font-size:13px;color:var(--color-text-secondary);flex:1">Sponsras av <b style="color:var(--color-text-primary);font-size:14px">${esc(s.name)}</b></span>
-      <span style="font-size:12px;color:${G_GREEN};font-weight:500">Besök →</span>
+    <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:block;background:var(--color-background-secondary);border-radius:14px;padding:16px;margin-bottom:14px;text-decoration:none;color:var(--color-text-primary)">
+      <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;text-align:center">Sponsras av</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+        ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:88px;height:88px;object-fit:contain;border-radius:10px;flex-shrink:0;background:var(--color-background-primary)"/>`:""}
+        <div>
+          <div style="font-weight:700;font-size:18px">${esc(s.name)}</div>
+          ${s.description?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${esc(s.description)}</div>`:""}
+          <div style="font-size:12px;color:${G_GREEN};font-weight:600;margin-top:4px">Besök →</div>
+        </div>
+      </div>
     </a>`).join("");
 }
 
@@ -1842,10 +1848,16 @@ function renderModeSelect(){
 
     ${sponsors.filter(s=>s.active&&s.show_in_menu).length?`<div style="width:100%;max-width:320px;margin-top:10px">
       ${sponsors.filter(s=>s.active&&s.show_in_menu).map(s=>`
-        <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:12px;background:var(--color-background-secondary);border-radius:12px;padding:12px 16px;margin-bottom:10px;text-decoration:none;color:var(--color-text-primary)">
-          ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:48px;height:48px;object-fit:contain;border-radius:8px;flex-shrink:0"/>`:""}
-          <span style="font-size:13px;color:var(--color-text-secondary);flex:1">Sponsras av <b style="color:var(--color-text-primary);font-size:14px">${esc(s.name)}</b></span>
-          <span style="font-size:12px;color:${G_GREEN};font-weight:500">Besök →</span>
+        <a href="${esc(s.link_url)}" target="_blank" rel="noopener noreferrer" style="display:block;background:var(--color-background-secondary);border-radius:14px;padding:16px;margin-bottom:10px;text-decoration:none;color:var(--color-text-primary)">
+          <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;text-align:center">Sponsras av</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:14px">
+            ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:88px;height:88px;object-fit:contain;border-radius:10px;flex-shrink:0;background:var(--color-background-primary)"/>`:""}
+            <div>
+              <div style="font-weight:700;font-size:18px">${esc(s.name)}</div>
+              ${s.description?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${esc(s.description)}</div>`:""}
+              <div style="font-size:12px;color:${G_GREEN};font-weight:600;margin-top:4px">Besök →</div>
+            </div>
+          </div>
         </a>`).join("")}
     </div>`:""}
 
