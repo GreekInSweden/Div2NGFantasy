@@ -160,7 +160,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     jubelMyTips={}, jubelAllTipsGlobal=[], jubelDraft={},
     investerareAllTipsGlobal=[], investerareDraft={},
     ltsSignups=[], ltsConfig={status:"signup",start_round:null,max_rounds:0}, ltsAllPicksGlobal=[], ltsDraftTeam=null,
-    anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={}, sponsors=[],
+    anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={}, sponsors=[], editingSponsorId=null,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -5606,7 +5606,29 @@ function renderAdminTab(){
     }
   } else if(adminSection==="sponsorer"){
     const modeOpts=[["","Ingen specifik (visas ej på en spelform)"],["fantasy","Fantasy"],["tipp","Tippa resultat"],["snabbast","Snabbast vinner"],["måljakten","Måljakten"],["ligatipp","Tippa serien"],["quiz","Quiz"],["streak","Streak"],["matchfokus","Omgångens Match"],["duellen","Duellen"],["malregn","Målregn"],["jubel","Båda får Jubla"],["investerare","Investeraren"],["lts","Last Team Standing"],["anytime","Anytime Målskytt"]];
-    const rows=sponsors.map(s=>`
+    const rows=sponsors.map(s=>{
+      if(editingSponsorId===s.id){
+        return `<div class="fg-card" style="margin-bottom:10px">
+          <div style="font-weight:500;margin-bottom:8px">Redigera sponsor</div>
+          <label class="fg-label">Namn</label>
+          <input class="fg-input" id="sponsor-edit-name" value="${esc(s.name)}" style="margin-bottom:10px"/>
+          <label class="fg-label">Logga (bild-URL, valfritt)</label>
+          <input class="fg-input" id="sponsor-edit-logo" value="${esc(s.logo_url||"")}" placeholder="https://..." style="margin-bottom:10px"/>
+          <label class="fg-label">Länk</label>
+          <input class="fg-input" id="sponsor-edit-link" value="${esc(s.link_url||"")}" style="margin-bottom:10px"/>
+          <label class="fg-label">Kort beskrivning (valfritt)</label>
+          <input class="fg-input" id="sponsor-edit-desc" value="${esc(s.description||"")}" style="margin-bottom:10px"/>
+          <label class="fg-label">Koppla till en specifik spelform (valfritt)</label>
+          <select id="sponsor-edit-mode" style="width:100%;padding:9px 10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:12px;background:var(--color-background-primary);color:var(--color-text-primary)">
+            ${modeOpts.map(([v,l])=>`<option value="${v}" ${s.game_mode===v?"selected":""}>${esc(l)}</option>`).join("")}
+          </select>
+          <div style="display:flex;gap:8px">
+            <button class="fg-outbtn" data-act="sponsor-edit-cancel" style="flex:1">Avbryt</button>
+            <button class="fg-btn" data-act="sponsor-edit-save" data-id="${s.id}" style="flex:1">Spara ändringar</button>
+          </div>
+        </div>`;
+      }
+      return `
       <div class="fg-card" style="margin-bottom:10px">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
           ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:40px;height:40px;object-fit:contain;border-radius:8px;flex-shrink:0"/>`:'<div style="width:40px;height:40px;border-radius:8px;background:var(--color-background-secondary);flex-shrink:0"></div>'}
@@ -5620,8 +5642,12 @@ function renderAdminTab(){
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" data-act="sponsor-toggle-footer" data-id="${s.id}" ${s.show_in_footer?"checked":""}/> Footer</label>
           <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" data-act="sponsor-toggle-menu" data-id="${s.id}" ${s.show_in_menu?"checked":""}/> Startmeny</label>
         </div>
-        <button data-act="sponsor-delete" data-id="${s.id}" style="background:none;border:none;color:#A32D2D;font-size:12px;cursor:pointer;padding:0">Ta bort</button>
-      </div>`).join("");
+        <div style="display:flex;gap:14px">
+          <button data-act="sponsor-edit-start" data-id="${s.id}" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer;padding:0">Redigera</button>
+          <button data-act="sponsor-delete" data-id="${s.id}" style="background:none;border:none;color:#A32D2D;font-size:12px;cursor:pointer;padding:0">Ta bort</button>
+        </div>
+      </div>`;
+    }).join("");
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">➕ Ny sponsor</div>
       <label class="fg-label">Namn</label>
@@ -6779,6 +6805,30 @@ function attachHandlers(){
       ltsConfig={status:"signup",start_round:null,max_rounds:0};
       ltsSignups=[]; ltsAllPicksGlobal=[];
       flash("Last Team Standing nollställd.");
+      render();
+    }
+    else if(act==="sponsor-edit-start"){
+      editingSponsorId=Number(el.dataset.id);
+      render();
+    }
+    else if(act==="sponsor-edit-cancel"){
+      editingSponsorId=null;
+      render();
+    }
+    else if(act==="sponsor-edit-save"){
+      const id=Number(el.dataset.id);
+      const name=document.getElementById("sponsor-edit-name").value.trim();
+      const logo=document.getElementById("sponsor-edit-logo").value.trim();
+      const link=document.getElementById("sponsor-edit-link").value.trim();
+      const desc=document.getElementById("sponsor-edit-desc").value.trim();
+      const mode=document.getElementById("sponsor-edit-mode").value;
+      if(!name||!link){flash("Namn och länk krävs.");return;}
+      const fields={name,logo_url:logo||null,link_url:link,description:desc||null,game_mode:mode||null};
+      const error=await updateSponsor(id,fields);
+      if(error){flash("Fel: "+error.message);return;}
+      sponsors=sponsors.map(s=>s.id===id?{...s,...fields}:s);
+      editingSponsorId=null;
+      flash("✓ Sponsor uppdaterad!");
       render();
     }
     else if(act==="sponsor-add"){
