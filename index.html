@@ -888,7 +888,7 @@ function renderSponsorBanner(gameMode){
     </a>`).join("");
 }
 
-// ── Anytime Målskytt ─────────────────────────────────────────────────────
+// ── Skyttekung ─────────────────────────────────────────────────────
 const ANYTIME_SLOTS={DEF:1,MID:2,FW:2};
 async function fetchMyAnytimeTips(){
   const {data,error}=await sb.from("anytime_tips").select("*").eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
@@ -1814,7 +1814,7 @@ function renderModeSelect(){
       </button>`:""}
       ${cfg.anytimeEnabled?`<button data-act="pick-mode" data-mode="anytime" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🎯</span>
-        <div><div style="font-weight:500;font-size:16px">Anytime Målskytt</div>
+        <div><div style="font-weight:500;font-size:16px">Skyttekung</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål</div></div>
       </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
@@ -2002,7 +2002,7 @@ function renderHome(){
     {ico:"🙌",title:"Båda får Jubla",desc:"Gör båda lagen mål i matchen? Ja eller nej",on:!!cfg.jubelEnabled},
     {ico:"💰",title:"Investeraren",desc:"Placera 1000 kr på lag – bygg din portfölj",on:!!cfg.investerareEnabled},
     {ico:"💀",title:"Last Team Standing",desc:"Välj ett lag varje omgång – tre förluster och du är utslagen",on:!!cfg.ltsEnabled},
-    {ico:"🎯",title:"Anytime Målskytt",desc:"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",on:!!cfg.anytimeEnabled},
+    {ico:"🎯",title:"Skyttekung",desc:"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",on:!!cfg.anytimeEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
@@ -2372,7 +2372,7 @@ function renderRulesScreen(){
         ${tip("💡 Spara dina bästa lag till senare omgångar – ju längre tävlingen pågår, desto viktigare blir varje val!")}
       `):""}
 
-      ${cfg.anytimeEnabled?section("🎯","Anytime Målskytt",`
+      ${cfg.anytimeEnabled?section("🎯","Skyttekung",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
           Välj <b>1 försvarare, 2 mittfältare och 2 anfallare</b> som du tror gör mål i omgången. Samma poängvikt som i Fantasy – ovanligare mål (från försvarare) ger mer.
         </div>
@@ -3229,7 +3229,7 @@ function renderStandingsTab(){
     {id:"matchfokus",ico:"⚽",label:"Omgångens Match",enabled:!!cfg.matchfokusEnabled,fn:u=>userMatchfokusTotalPts(u.id)},
     {id:"malregn",ico:"🌧️",label:"Målregn",enabled:!!cfg.malregnEnabled,fn:u=>userMalregnTotalPts(u.id)},
     {id:"jubel",ico:"🙌",label:"Båda får Jubla",enabled:!!cfg.jubelEnabled,fn:u=>userJubelTotalPts(u.id)},
-    {id:"anytime",ico:"🎯",label:"Anytime Målskytt",enabled:!!cfg.anytimeEnabled,fn:u=>userAnytimeTotalPts(u.id)},
+    {id:"anytime",ico:"🎯",label:"Skyttekung",enabled:!!cfg.anytimeEnabled,fn:u=>userAnytimeTotalPts(u.id)},
     {id:"investerare",ico:"💰",label:"Investeraren",enabled:!!cfg.investerareEnabled,unit:"kr",fn:u=>Math.round(investerareCurrentBalance(u.id))},
     {id:"streak",ico:"🔥",label:"Streak",enabled:!!cfg.streakEnabled,unit:"i streak",
       fn:u=>{
@@ -3986,13 +3986,13 @@ function renderAnytimeTab(){
       const opts=players.filter(p=>p.pos===pos&&(p.id===current||!chosenIds.has(p.id)))
         .sort((a,b)=>a.namn.localeCompare(b.namn,"sv"))
         .map(p=>`<option value="${p.id}" ${p.id===current?"selected":""}>${esc(p.namn)} (${esc(teamName(p.teamId))})</option>`).join("");
-      return `<select data-act="anytime-pick" data-pos="${pos}" data-slot="${slotIdx}" style="width:100%;padding:9px 8px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:8px;background:var(--color-background-primary);color:var(--color-text-primary)">
+      return `<select data-pos="${pos}" data-slot="${slotIdx}" onchange="window._anytimePickChange(this)" style="width:100%;padding:9px 8px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:8px;background:var(--color-background-primary);color:var(--color-text-primary)">
         <option value="">Välj ${posLabel[pos].toLowerCase()}…</option>
         ${opts}
       </select>`;
     };
     card=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:2px">🎯 Anytime Målskytt – Omgång ${cfg.omg}</div>
+      <div style="font-weight:500;margin-bottom:2px">🎯 Skyttekung – Omgång ${cfg.omg}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Välj 1 försvarare, 2 mittfältare och 2 anfallare som du tror gör mål. Poäng per mål: försvarare 7p, mittfältare/anfallare 5p.</div>
       <label class="fg-label">🛡️ Försvarare</label>
       ${slotSelect("DEF",0)}
@@ -4021,20 +4021,28 @@ function renderAnytimeTab(){
   }).join("");
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🎯 Anytime Målskytt</div>
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🎯 Skyttekung</div>
   ${renderSponsorBanner("anytime")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${sortedAt.length} · ${userAnytimeTotalPts(currentUser.id)} p totalt</div>
   ${card}
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Anytime Målskytt</div>
+    <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Skyttekung</div>
     ${lbRows}
   </div>`;
 }
+window._anytimePickChange=function(sel){
+  const pos=sel.dataset.pos, slot=Number(sel.dataset.slot);
+  const val=sel.value?Number(sel.value):null;
+  const arr=[...(anytimeDraft[pos]||[])];
+  arr[slot]=val;
+  anytimeDraft={...anytimeDraft,[pos]:arr};
+  render();
+};
 window.saveAnytime=async function(){
   const statusEl=document.getElementById("anytime-status");
   const picks={DEF:[],MID:[],FW:[]};
   let missing=0;
-  document.querySelectorAll('[data-act="anytime-pick"]').forEach(sel=>{
+  document.querySelectorAll('select[data-pos]').forEach(sel=>{
     const pos=sel.dataset.pos, slot=Number(sel.dataset.slot);
     const val=sel.value?Number(sel.value):null;
     if(!val) missing++;
@@ -4466,11 +4474,11 @@ function renderStatistikTab(){
   ${cfg.matchfokusEnabled?modeCard("⚽","Omgångens Match",mfTotal,mfBest,lockedRounds[mfPts.indexOf(mfBest)],(lockedRounds.length?(mfTotal/lockedRounds.length).toFixed(1):0),""):""}
   ${cfg.malregnEnabled?modeCard("🌧️","Målregn",mrTotal,mrBest,lockedRounds[mrPts.indexOf(mrBest)],(lockedRounds.length?(mrTotal/lockedRounds.length).toFixed(1):0),""):""}
   ${cfg.jubelEnabled?modeCard("🙌","Båda får Jubla",jbTotal,jbBest,lockedRounds[jbPts.indexOf(jbBest)],(lockedRounds.length?(jbTotal/lockedRounds.length).toFixed(1):0),""):""}
-  ${cfg.anytimeEnabled?modeCard("🎯","Anytime Målskytt",atTotal,atBest,lockedRounds[atPts.indexOf(atBest)],(lockedRounds.length?(atTotal/lockedRounds.length).toFixed(1):0),""):""}
+  ${cfg.anytimeEnabled?modeCard("🎯","Skyttekung",atTotal,atBest,lockedRounds[atPts.indexOf(atBest)],(lockedRounds.length?(atTotal/lockedRounds.length).toFixed(1):0),""):""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
-    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled],["⚽ Omgångens Match",mfTotal,!!cfg.matchfokusEnabled],["🌧️ Målregn",mrTotal,!!cfg.malregnEnabled],["🙌 Båda får Jubla",jbTotal,!!cfg.jubelEnabled],["🎯 Anytime Målskytt",atTotal,!!cfg.anytimeEnabled]].filter(([,,on])=>on).map(([n,p])=>`
+    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled],["⚽ Omgångens Match",mfTotal,!!cfg.matchfokusEnabled],["🌧️ Målregn",mrTotal,!!cfg.malregnEnabled],["🙌 Båda får Jubla",jbTotal,!!cfg.jubelEnabled],["🎯 Skyttekung",atTotal,!!cfg.anytimeEnabled]].filter(([,,on])=>on).map(([n,p])=>`
       <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${n}</span>
         <span style="font-weight:500">${p} p</span>
@@ -5288,7 +5296,7 @@ function renderAdminTab(){
       ["jubel","🙌","Båda får Jubla","jubelEnabled","jubel_enabled"],
       ["investerare","💰","Investeraren","investerareEnabled","investerare_enabled"],
       ["lts","💀","Last Team Standing","ltsEnabled","lts_enabled"],
-      ["anytime","🎯","Anytime Målskytt","anytimeEnabled","anytime_enabled"],
+      ["anytime","🎯","Skyttekung","anytimeEnabled","anytime_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -5613,7 +5621,7 @@ function renderAdminTab(){
       </div>`;
     }
   } else if(adminSection==="sponsorer"){
-    const modeOpts=[["","Ingen specifik (visas ej på en spelform)"],["fantasy","Fantasy"],["tipp","Tippa resultat"],["snabbast","Snabbast vinner"],["måljakten","Måljakten"],["ligatipp","Tippa serien"],["quiz","Quiz"],["streak","Streak"],["matchfokus","Omgångens Match"],["duellen","Duellen"],["malregn","Målregn"],["jubel","Båda får Jubla"],["investerare","Investeraren"],["lts","Last Team Standing"],["anytime","Anytime Målskytt"]];
+    const modeOpts=[["","Ingen specifik (visas ej på en spelform)"],["fantasy","Fantasy"],["tipp","Tippa resultat"],["snabbast","Snabbast vinner"],["måljakten","Måljakten"],["ligatipp","Tippa serien"],["quiz","Quiz"],["streak","Streak"],["matchfokus","Omgångens Match"],["duellen","Duellen"],["malregn","Målregn"],["jubel","Båda får Jubla"],["investerare","Investeraren"],["lts","Last Team Standing"],["anytime","Skyttekung"]];
     const rows=sponsors.map(s=>{
       if(editingSponsorId===s.id){
         return `<div class="fg-card" style="margin-bottom:10px">
@@ -6168,7 +6176,7 @@ function attachHandlers(){
         screen="main"; mainTab="hem";
       } else if(appMode==="anytime"){
         const root2=document.getElementById("fg-root");
-        root2.innerHTML='<div class="fg-loading">Laddar Anytime Målskytt…</div>';
+        root2.innerHTML='<div class="fg-loading">Laddar Skyttekung…</div>';
         anytimeMyTips=await fetchMyAnytimeTips();
         anytimeDraft={...(anytimeMyTips[cfg.omg]||{DEF:[],MID:[],FW:[]})};
         screen="main"; mainTab="hem";
@@ -6890,14 +6898,6 @@ function attachHandlers(){
     }
     else if(act==="duellen-toggle-schedule"){
       duellenShowSchedule=!duellenShowSchedule;
-      render();
-    }
-    else if(act==="anytime-pick"){
-      const pos=el.dataset.pos, slot=Number(el.dataset.slot);
-      const val=el.value?Number(el.value):null;
-      const arr=[...(anytimeDraft[pos]||[])];
-      arr[slot]=val;
-      anytimeDraft={...anytimeDraft,[pos]:arr};
       render();
     }
     else if(act==="lts-join"){
