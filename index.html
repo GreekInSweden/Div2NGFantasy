@@ -2131,12 +2131,13 @@ function renderReg(){
     <button class="fg-outbtn" data-act="go-home" style="margin-bottom:20px;padding:7px 14px">← Tillbaka</button>
     <div style="font-size:18px;font-weight:500;margin-bottom:16px">Ny spelare</div>
     <label class="fg-label">Ditt namn</label>
-    <input class="fg-input" id="reg-namn" placeholder="T.ex. Marcus N" autofocus style="margin-bottom:14px"/>
+    <input class="fg-input" id="reg-namn" placeholder="T.ex. Marcus N" autofocus style="margin-bottom:4px"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px">Spelar du redan i en annan serie? Skriv exakt samma namn som där.</div>
     <label class="fg-label">Välj en 5-siffrig PIN-kod</label>
     <input class="fg-input" id="reg-pin" placeholder="T.ex. 48215" inputmode="numeric" maxlength="5" pattern="[0-9]*"/>
     <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Du behöver PIN-koden varje gång du loggar in – kom ihåg den!</div>
     <div style="background:#fce8e8;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:500;margin-top:10px;line-height:1.5">
-      🔑 Spelar du redan i en annan serie? Ange <b>samma PIN</b> som där så känner vi igen dig!
+      🔑 Spelar du redan i en annan serie? Ange <b>samma namn och samma PIN</b> som där, så kopplas kontona ihop automatiskt – du slipper logga in på nytt nästa gång du byter serie.
     </div>
     ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:6px">${esc(errMsg)}</div>`:""}
     <button class="fg-btn" data-act="submit-reg" style="margin-top:14px">Registrera →</button>
