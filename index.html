@@ -350,6 +350,25 @@ async function fetchUsers(){
 // skrev in stämmer (då länkas de ihop – "samma person, flera serier").
 // Hittas inget: skapa ett nytt gemensamt konto, återanvänd samma id/hash som
 // redan finns på deras fantasy_users-rad (ingen omhashning behövs).
+// "Kom ihåg mig" – kopplat till det delade kontot, funkar över alla serier
+function rememberAccount(accountId){
+  try{ if(accountId) localStorage.setItem("div2ng_account_id",accountId); }catch(e){}
+}
+function forgetAccount(){
+  try{ localStorage.removeItem("div2ng_account_id"); }catch(e){}
+}
+function getRememberedAccountId(){
+  try{ return localStorage.getItem("div2ng_account_id"); }catch(e){ return null; }
+}
+// Försöker logga in automatiskt i currentLeague om vi känner igen ett sparat konto
+function tryAutoLoginViaAccount(){
+  const accId=getRememberedAccountId();
+  if(!accId) return false;
+  const u=users.find(x=>x.account_id===accId);
+  if(!u) return false;
+  currentUser=u;
+  return true;
+}
 async function ensureAccountLink(u,rawPin){
   if(u.account_id) return u.account_id;
   try{
@@ -5999,7 +6018,13 @@ function attachHandlers(){
       cfg=await fetchConfig();
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
-      screen="home"; homeMode="start";
+      if(tryAutoLoginViaAccount()){
+        screen="mode";
+        try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
+        loadMyRoundStatus().then(render);
+      } else {
+        screen="home"; homeMode="start";
+      }
       render();
     }
     else if(act==="entry-pick-user"){
@@ -6034,7 +6059,7 @@ function attachHandlers(){
         currentUser=u; pendingCrossLeagueUser=null; loginErr="";
         try{
           const accId=await ensureAccountLink(u,pin);
-          if(accId) currentUser={...currentUser,account_id:accId};
+          if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
         }catch(e){console.error(e);}
         screen="mode";
         try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
@@ -6090,7 +6115,7 @@ function attachHandlers(){
         currentUser=u; pendingLoginUser=null; loginErr="";
         try{
           const accId=await ensureAccountLink(u,val);
-          if(accId) currentUser={...currentUser,account_id:accId};
+          if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
         }catch(e){console.error(e);}
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       } else {
@@ -6120,7 +6145,7 @@ function attachHandlers(){
       if(recognized) flash("✓ Välkommen tillbaka! Samma PIN funkar här också.");
       try{
         const accId=await ensureAccountLink(ny,pin);
-        if(accId){ currentUser={...currentUser,account_id:accId}; users=users.map(u=>u.id===ny.id?{...u,account_id:accId}:u); }
+        if(accId){ currentUser={...currentUser,account_id:accId}; users=users.map(u=>u.id===ny.id?{...u,account_id:accId}:u); rememberAccount(accId); }
       }catch(e){console.error(e);}
     }
     else if(act==="pick-mode"){
@@ -6710,7 +6735,7 @@ function attachHandlers(){
       pickState={picks: currentUser.picks ? {GK:[...(currentUser.picks.GK||[])],DEF:[...(currentUser.picks.DEF||[])],MID:[...(currentUser.picks.MID||[])],FW:[...(currentUser.picks.FW||[])]} : {GK:[],DEF:[],MID:[],FW:[]}, kapten:currentUser.kapten||null};
       pickPos="GK"; pickErr=""; screen="pick"; render();
     }
-    else if(act==="logout"){currentUser=null;appMode=null;screen="home";homeMode="start";render();}
+    else if(act==="logout"){currentUser=null;appMode=null;screen="home";homeMode="start";forgetAccount();render();}
     else if(act==="main-tab"){
       const tab=el.dataset.tab;
       if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
@@ -7366,7 +7391,13 @@ function attachHandlers(){
     cfg=await fetchConfig();
     try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
-    screen="home";
+    if(tryAutoLoginViaAccount()){
+      screen="mode";
+      try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
+      loadMyRoundStatus().then(render);
+    } else {
+      screen="home";
+    }
   } else {
     screen="leagues";
   }
