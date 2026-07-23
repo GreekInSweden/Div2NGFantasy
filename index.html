@@ -160,6 +160,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     jubelMyTips={}, jubelAllTipsGlobal=[], jubelDraft={},
     investerareAllTipsGlobal=[], investerareDraft={},
     ltsSignups=[], ltsConfig={status:"signup",start_round:null,max_rounds:0}, ltsAllPicksGlobal=[], ltsDraftTeam=null,
+    anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={},
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -425,7 +426,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -448,7 +449,8 @@ async function fetchConfig(){
     malregnEnabled:!!data.malregn_enabled,
     jubelEnabled:!!data.jubel_enabled,
     investerareEnabled:!!data.investerare_enabled,
-    ltsEnabled:!!data.lts_enabled
+    ltsEnabled:!!data.lts_enabled,
+    anytimeEnabled:!!data.anytime_enabled
   };
 }
 async function setConfig(omg){
@@ -850,6 +852,46 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+
+// ── Anytime Målskytt ─────────────────────────────────────────────────────
+const ANYTIME_SLOTS={DEF:1,MID:2,FW:2};
+async function fetchMyAnytimeTips(){
+  const {data,error}=await sb.from("anytime_tips").select("*").eq("user_id",currentUser.id).eq("league_id",currentLeague.id);
+  if(error){console.error(error);return {};}
+  const out={};
+  data.forEach(t=>{out[t.round_num]=t.picks||{DEF:[],MID:[],FW:[]};});
+  return out;
+}
+async function fetchAllAnytimeTipsAllRounds(){
+  const {data,error}=await sb.from("anytime_tips").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function saveAnytimeTip(roundNum,picks){
+  const {error}=await sb.from("anytime_tips").upsert({id:currentUser.id+"-at-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
+  return error;
+}
+function calcAnytimePts(picks,rd){
+  if(!picks||!rd||!rd.results_published) return 0;
+  let pts=0;
+  ["DEF","MID","FW"].forEach(pos=>{
+    (picks[pos]||[]).forEach(pid=>{
+      const goals=(rd.goals&&rd.goals[pid])||0;
+      pts+=goals*POS_PTS[pos].goal;
+    });
+  });
+  return pts;
+}
+function userAnytimeRoundPts(userId,roundNum){
+  const rd=rounds[String(roundNum)];
+  if(!rd||!rd.results_published) return 0;
+  const tip=anytimeAllTipsGlobal.find(t=>t.user_id===userId&&Number(t.round_num)===Number(roundNum));
+  if(!tip) return 0;
+  return calcAnytimePts(tip.picks||{},rd);
+}
+function userAnytimeTotalPts(userId){
+  return Object.keys(rounds).reduce((s,r)=>s+userAnytimeRoundPts(userId,Number(r)),0);
+}
 
 // ── Last Team Standing ──────────────────────────────────────────────────
 async function fetchLtsSignups(){
@@ -1734,6 +1776,11 @@ function renderModeSelect(){
         <div><div style="font-weight:500;font-size:16px">Last Team Standing</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">Välj ett lag varje omgång – förlorar du tre gånger är du utslagen</div></div>
       </button>`:""}
+      ${cfg.anytimeEnabled?`<button data-act="pick-mode" data-mode="anytime" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🎯</span>
+        <div><div style="font-weight:500;font-size:16px">Anytime Målskytt</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål</div></div>
+      </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
         <div>
@@ -1906,6 +1953,7 @@ function renderHome(){
     {ico:"🙌",title:"Båda får Jubla",desc:"Gör båda lagen mål i matchen? Ja eller nej",on:!!cfg.jubelEnabled},
     {ico:"💰",title:"Investeraren",desc:"Placera 1000 kr på lag – bygg din portfölj",on:!!cfg.investerareEnabled},
     {ico:"💀",title:"Last Team Standing",desc:"Välj ett lag varje omgång – tre förluster och du är utslagen",on:!!cfg.ltsEnabled},
+    {ico:"🎯",title:"Anytime Målskytt",desc:"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",on:!!cfg.anytimeEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
@@ -2238,10 +2286,27 @@ function renderRulesScreen(){
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
           <b>Viktig regel:</b> Varje lag får bara användas <b>en gång</b> under hela tävlingen – när du valt ett lag kan du inte välja det igen.<br>
-          <b>Anmälan:</b> Du gissar totalt antal mål som görs under hela tävlingen redan vid anmälan – används som utslagsfråga om flera klarar sig hela vägen (närmast rätt vinner).<br>
+          <b>Utslagsfråga:</b> Du gissar totalt antal mål som görs under hela tävlingen innan ditt första val – används som utslag om flera klarar sig hela vägen (närmast rätt vinner).<br>
           <b>Deadline:</b> Samma spelstopp som resten av omgången. Väljer du inget lag räknas det som en förlust.
         </div>
         ${tip("💡 Spara dina bästa lag till senare omgångar – ju längre tävlingen pågår, desto viktigare blir varje val!")}
+      `):""}
+
+      ${cfg.anytimeEnabled?section("🎯","Anytime Målskytt",`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          Välj <b>1 försvarare, 2 mittfältare och 2 anfallare</b> som du tror gör mål i omgången. Samma poängvikt som i Fantasy – ovanligare mål (från försvarare) ger mer.
+        </div>
+        ${table([
+          ["Mål av din försvarare","7 p/mål"],
+          ["Mål av din mittfältare","5 p/mål"],
+          ["Mål av din anfallare","5 p/mål"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Val:</b> Fem olika spelare, en per position enligt kraven ovan – ingen får väljas dubbelt.<br>
+          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
+          <b>Facit:</b> Räknas fram från samma målstatistik som redan används för Fantasy – ingen ny inmatning krävs.
+        </div>
+        ${tip("💡 Skyttekungen är säker men ger mindre – en chansning på en målsugen försvarare kan ge betydligt fler poäng!")}
       `):""}
 
       ${cfg.snabbastEnabled!==false?section("⚡","Snabbast vinner",`
@@ -2402,6 +2467,7 @@ function renderMain(){
     else if(appMode==="jubel") body=renderJubelTab();
     else if(appMode==="investerare") body=renderInvesterareTab();
     else if(appMode==="lts") body=renderLtsTab();
+    else if(appMode==="anytime") body=renderAnytimeTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -3077,6 +3143,7 @@ function renderStandingsTab(){
     {id:"matchfokus",ico:"⚽",label:"Omgångens Match",enabled:!!cfg.matchfokusEnabled,fn:u=>userMatchfokusTotalPts(u.id)},
     {id:"malregn",ico:"🌧️",label:"Målregn",enabled:!!cfg.malregnEnabled,fn:u=>userMalregnTotalPts(u.id)},
     {id:"jubel",ico:"🙌",label:"Båda får Jubla",enabled:!!cfg.jubelEnabled,fn:u=>userJubelTotalPts(u.id)},
+    {id:"anytime",ico:"🎯",label:"Anytime Målskytt",enabled:!!cfg.anytimeEnabled,fn:u=>userAnytimeTotalPts(u.id)},
     {id:"investerare",ico:"💰",label:"Investeraren",enabled:!!cfg.investerareEnabled,unit:"kr",fn:u=>Math.round(investerareCurrentBalance(u.id))},
     {id:"streak",ico:"🔥",label:"Streak",enabled:!!cfg.streakEnabled,unit:"i streak",
       fn:u=>{
@@ -3782,6 +3849,127 @@ window.saveLts=async function(){
     if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
   }
 };
+function renderAnytimeTab(){
+  const rd=rounds[String(cfg.omg)];
+  const locked=rd&&rd.locked;
+  const resultsShown=rd&&rd.results_published;
+  const savedPicks=anytimeMyTips[cfg.omg]||{DEF:[],MID:[],FW:[]};
+  const sortedAt=[...users].sort((a,b)=>userAnytimeTotalPts(b.id)-userAnytimeTotalPts(a.id));
+  const myRank=sortedAt.findIndex(u=>u.id===currentUser.id)+1;
+  const myPts=userAnytimeRoundPts(currentUser.id,cfg.omg);
+
+  const teamName=tid=>{const t=TEAMS.find(x=>x.id===tid);return t?t.name:"";};
+  const posLabel={DEF:"Försvarare",MID:"Mittfältare",FW:"Anfallare"};
+  const posIco={DEF:"🛡️",MID:"⚙️",FW:"⚡"};
+
+  let card;
+  if(resultsShown){
+    const tip=anytimeAllTipsGlobal.find(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
+    const myPicks=tip?tip.picks||{}:{};
+    const rows=["DEF","MID","FW"].flatMap(pos=>(myPicks[pos]||[]).map(pid=>{
+      const pl=players.find(p=>p.id===pid);
+      const goals=(rd.goals&&rd.goals[pid])||0;
+      const pts=goals*POS_PTS[pos].goal;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        <span style="font-size:14px">${posIco[pos]}</span>
+        <div style="flex:1"><div style="font-weight:500">${esc(pl?pl.namn:"?")}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(pl?teamName(pl.teamId):"")}</div></div>
+        <span style="font-size:12px;color:var(--color-text-secondary)">${goals} mål</span>
+        <span style="font-weight:700;color:${pts>0?G_GREEN:'var(--color-text-secondary)'};min-width:36px;text-align:right">${pts}p</span>
+      </div>`;
+    })).join("");
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Facit – Omgång ${cfg.omg}</div>
+      <div style="font-size:20px;font-weight:700;text-align:center;margin-bottom:8px;color:${G_GREEN}">${myPts}p totalt</div>
+      ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Du gjorde inga val denna omgång.</div>'}
+    </div>`;
+  } else if(locked){
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔒 Omgången är låst</div>
+      <div style="font-size:13px;color:var(--color-text-secondary)">Dina val är sparade. Facit visas här så fort resultaten är klara.</div>
+    </div>`;
+  } else {
+    const chosenIds=new Set([...(anytimeDraft.DEF||savedPicks.DEF||[]),...(anytimeDraft.MID||savedPicks.MID||[]),...(anytimeDraft.FW||savedPicks.FW||[])]);
+    const slotSelect=(pos,slotIdx)=>{
+      const current=(anytimeDraft[pos]&&anytimeDraft[pos][slotIdx]!==undefined)?anytimeDraft[pos][slotIdx]:((savedPicks[pos]||[])[slotIdx]);
+      const opts=players.filter(p=>p.pos===pos&&(p.id===current||!chosenIds.has(p.id)))
+        .sort((a,b)=>a.namn.localeCompare(b.namn,"sv"))
+        .map(p=>`<option value="${p.id}" ${p.id===current?"selected":""}>${esc(p.namn)} (${esc(teamName(p.teamId))})</option>`).join("");
+      return `<select data-act="anytime-pick" data-pos="${pos}" data-slot="${slotIdx}" style="width:100%;padding:9px 8px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:8px;background:var(--color-background-primary);color:var(--color-text-primary)">
+        <option value="">Välj ${posLabel[pos].toLowerCase()}…</option>
+        ${opts}
+      </select>`;
+    };
+    card=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:2px">🎯 Anytime Målskytt – Omgång ${cfg.omg}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Välj 1 försvarare, 2 mittfältare och 2 anfallare som du tror gör mål. Poäng per mål: försvarare 7p, mittfältare/anfallare 5p.</div>
+      <label class="fg-label">🛡️ Försvarare</label>
+      ${slotSelect("DEF",0)}
+      <label class="fg-label">⚙️ Mittfältare 1</label>
+      ${slotSelect("MID",0)}
+      <label class="fg-label">⚙️ Mittfältare 2</label>
+      ${slotSelect("MID",1)}
+      <label class="fg-label">⚡ Anfallare 1</label>
+      ${slotSelect("FW",0)}
+      <label class="fg-label">⚡ Anfallare 2</label>
+      ${slotSelect("FW",1)}
+      <div id="anytime-status" style="font-size:13px;text-align:center;margin-top:6px;min-height:18px"></div>
+      <button class="fg-btn" style="margin-top:6px" onclick="window.saveAnytime()">Spara mina val</button>
+    </div>`;
+  }
+
+  const medals=["🥇","🥈","🥉"];
+  const lbRows=sortedAt.map((u,i)=>{
+    const pts=userAnytimeTotalPts(u.id);
+    const isMe=u.id===currentUser.id;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px`:''}">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?' (du)':''}</span>
+      <span style="font-weight:500">${pts} p</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🎯 Anytime Målskytt</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Plats ${myRank>0?myRank:"–"} av ${sortedAt.length} · ${userAnytimeTotalPts(currentUser.id)} p totalt</div>
+  ${card}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Anytime Målskytt</div>
+    ${lbRows}
+  </div>`;
+}
+window.saveAnytime=async function(){
+  const statusEl=document.getElementById("anytime-status");
+  const picks={DEF:[],MID:[],FW:[]};
+  let missing=0;
+  document.querySelectorAll('[data-act="anytime-pick"]').forEach(sel=>{
+    const pos=sel.dataset.pos, slot=Number(sel.dataset.slot);
+    const val=sel.value?Number(sel.value):null;
+    if(!val) missing++;
+    picks[pos][slot]=val;
+  });
+  if(missing>0){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fyll i alla 5 platser innan du sparar.</span>';
+    return;
+  }
+  const allIds=[...picks.DEF,...picks.MID,...picks.FW];
+  if(new Set(allIds).size!==allIds.length){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Du kan inte välja samma spelare två gånger.</span>';
+    return;
+  }
+  if(statusEl) statusEl.textContent="Sparar…";
+  try{
+    const error=await saveAnytimeTip(cfg.omg,picks);
+    if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+    anytimeMyTips={...anytimeMyTips,[cfg.omg]:picks};
+    const idx=anytimeAllTipsGlobal.findIndex(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
+    const row={user_id:currentUser.id,round_num:cfg.omg,picks};
+    if(idx>=0) anytimeAllTipsGlobal[idx]=row; else anytimeAllTipsGlobal=[...anytimeAllTipsGlobal,row];
+    anytimeDraft={...picks};
+    if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">✓ Val sparade!</span>';
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+e.message+'</span>';
+  }
+};
 function renderQuizTab(){
   const rnd=cfg.omg;
   const qs=quizQuestions.filter(q=>q.round_num===rnd); // bara denna omgångs frågor
@@ -4138,6 +4326,10 @@ function renderStatistikTab(){
   const jbPts=lockedRounds.map(r=>userJubelRoundPts(u.id,r));
   const jbTotal=jbPts.reduce((s,p)=>s+p,0);
   const jbBest=lockedRounds.length?Math.max(...jbPts):0;
+
+  const atPts=lockedRounds.map(r=>userAnytimeRoundPts(u.id,r));
+  const atTotal=atPts.reduce((s,p)=>s+p,0);
+  const atBest=lockedRounds.length?Math.max(...atPts):0;
   const mfRank=[...users].sort((a,b)=>userMatchfokusTotalPts(b.id)-userMatchfokusTotalPts(a.id)).findIndex(x=>x.id===u.id)+1;
 
   // Gruppsnitt
@@ -4180,17 +4372,18 @@ function renderStatistikTab(){
   ${cfg.matchfokusEnabled?modeCard("⚽","Omgångens Match",mfTotal,mfBest,lockedRounds[mfPts.indexOf(mfBest)],(lockedRounds.length?(mfTotal/lockedRounds.length).toFixed(1):0),""):""}
   ${cfg.malregnEnabled?modeCard("🌧️","Målregn",mrTotal,mrBest,lockedRounds[mrPts.indexOf(mrBest)],(lockedRounds.length?(mrTotal/lockedRounds.length).toFixed(1):0),""):""}
   ${cfg.jubelEnabled?modeCard("🙌","Båda får Jubla",jbTotal,jbBest,lockedRounds[jbPts.indexOf(jbBest)],(lockedRounds.length?(jbTotal/lockedRounds.length).toFixed(1):0),""):""}
+  ${cfg.anytimeEnabled?modeCard("🎯","Anytime Målskytt",atTotal,atBest,lockedRounds[atPts.indexOf(atBest)],(lockedRounds.length?(atTotal/lockedRounds.length).toFixed(1):0),""):""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Totalt alla spelformer</div>
-    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled],["⚽ Omgångens Match",mfTotal,!!cfg.matchfokusEnabled],["🌧️ Målregn",mrTotal,!!cfg.malregnEnabled],["🙌 Båda får Jubla",jbTotal,!!cfg.jubelEnabled]].filter(([,,on])=>on).map(([n,p])=>`
+    ${[["⚽ Fantasy",fantasyTotal,cfg.fantasyEnabled!==false],["🎯 Tippa",tippTotal,cfg.tippEnabled!==false],["⚡ Snabbast",snabbTotal,cfg.snabbastEnabled!==false],["🎯 Måljakten",malTotal,cfg.maljaktenEnabled!==false],["🧠 Quiz",quizTotal,!!cfg.quizEnabled],["⚽ Omgångens Match",mfTotal,!!cfg.matchfokusEnabled],["🌧️ Målregn",mrTotal,!!cfg.malregnEnabled],["🙌 Båda får Jubla",jbTotal,!!cfg.jubelEnabled],["🎯 Anytime Målskytt",atTotal,!!cfg.anytimeEnabled]].filter(([,,on])=>on).map(([n,p])=>`
       <div style="display:flex;align-items:center;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span style="flex:1">${n}</span>
         <span style="font-weight:500">${p} p</span>
       </div>`).join("")}
     <div style="display:flex;justify-content:space-between;padding-top:8px;font-weight:600">
       <span>Grand total</span>
-      <span style="color:${G_GREEN}">${(cfg.fantasyEnabled!==false?fantasyTotal:0)+(cfg.tippEnabled!==false?tippTotal:0)+(cfg.snabbastEnabled!==false?snabbTotal:0)+(cfg.maljaktenEnabled!==false?malTotal:0)+(cfg.quizEnabled?quizTotal:0)+(cfg.matchfokusEnabled?mfTotal:0)+(cfg.malregnEnabled?mrTotal:0)+(cfg.jubelEnabled?jbTotal:0)} p</span>
+      <span style="color:${G_GREEN}">${(cfg.fantasyEnabled!==false?fantasyTotal:0)+(cfg.tippEnabled!==false?tippTotal:0)+(cfg.snabbastEnabled!==false?snabbTotal:0)+(cfg.maljaktenEnabled!==false?malTotal:0)+(cfg.quizEnabled?quizTotal:0)+(cfg.matchfokusEnabled?mfTotal:0)+(cfg.malregnEnabled?mrTotal:0)+(cfg.jubelEnabled?jbTotal:0)+(cfg.anytimeEnabled?atTotal:0)} p</span>
     </div>
   </div>
 
@@ -5001,6 +5194,7 @@ function renderAdminTab(){
       ["jubel","🙌","Båda får Jubla","jubelEnabled","jubel_enabled"],
       ["investerare","💰","Investeraren","investerareEnabled","investerare_enabled"],
       ["lts","💀","Last Team Standing","ltsEnabled","lts_enabled"],
+      ["anytime","🎯","Anytime Målskytt","anytimeEnabled","anytime_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -5609,7 +5803,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       screen="home"; homeMode="start";
       render();
     }
@@ -5635,7 +5829,7 @@ function attachHandlers(){
         users=await fetchUsers();
         rounds=await fetchRounds();
         cfg=await fetchConfig();
-        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
+        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
         const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
         if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
@@ -5812,6 +6006,12 @@ function attachHandlers(){
         }catch(e){console.error(e);}
         ltsDraftTeam=null;
         screen="main"; mainTab="hem";
+      } else if(appMode==="anytime"){
+        const root2=document.getElementById("fg-root");
+        root2.innerHTML='<div class="fg-loading">Laddar Anytime Målskytt…</div>';
+        anytimeMyTips=await fetchMyAnytimeTips();
+        anytimeDraft={...(anytimeMyTips[cfg.omg]||{DEF:[],MID:[],FW:[]})};
+        screen="main"; mainTab="hem";
       } else if(appMode==="standings"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar ställningar…</div>';
@@ -5902,7 +6102,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       adminSection="round";
       flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
@@ -6460,6 +6660,14 @@ function attachHandlers(){
       duellenShowSchedule=!duellenShowSchedule;
       render();
     }
+    else if(act==="anytime-pick"){
+      const pos=el.dataset.pos, slot=Number(el.dataset.slot);
+      const val=el.value?Number(el.value):null;
+      const arr=[...(anytimeDraft[pos]||[])];
+      arr[slot]=val;
+      anytimeDraft={...anytimeDraft,[pos]:arr};
+      render();
+    }
     else if(act==="lts-join"){
       const error=await joinLts();
       if(error){flash("Fel: "+error.message);return;}
@@ -6882,7 +7090,7 @@ function attachHandlers(){
     users=await fetchUsers();
     rounds=await fetchRounds();
     cfg=await fetchConfig();
-    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds()]);}catch(e){console.error(e);}
+    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
     screen="home";
   } else {
     screen="leagues";
