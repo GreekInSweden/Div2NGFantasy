@@ -339,9 +339,39 @@ async function deletePlayer(id){
   if(error)console.error(error);
 }
 async function fetchUsers(){
-  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at").eq("league_id",currentLeague.id).order("created_at");
+  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at}));
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null}));
+}
+// Väg A: gemensamt konto (namn+PIN) över alla serier.
+// Körs varje gång någon loggar in eller registrerar sig – helt osynligt för användaren.
+// Om deras fantasy_users-rad redan är kopplad till ett konto görs inget.
+// Annars: leta efter ett befintligt konto med samma namn där PIN-koden de just
+// skrev in stämmer (då länkas de ihop – "samma person, flera serier").
+// Hittas inget: skapa ett nytt gemensamt konto, återanvänd samma id/hash som
+// redan finns på deras fantasy_users-rad (ingen omhashning behövs).
+async function ensureAccountLink(u,rawPin){
+  if(u.account_id) return u.account_id;
+  try{
+    const {data:candidates}=await sb.from("player_accounts").select("id,namn").ilike("namn",u.namn);
+    if(candidates&&candidates.length){
+      for(const cand of candidates){
+        const hash=await hashPin(rawPin,cand.id);
+        const {data:match}=await sb.rpc("verify_account_pin",{p_account_id:cand.id,p_pin_hash:hash});
+        if(match){
+          await sb.from("fantasy_users").update({account_id:cand.id}).eq("id",u.id);
+          return cand.id;
+        }
+      }
+    }
+    const ownHash=await hashPin(rawPin,u.id);
+    const {error:accErr}=await sb.from("player_accounts").insert({id:u.id,namn:u.namn,pin:ownHash});
+    if(!accErr){
+      await sb.from("fantasy_users").update({account_id:u.id}).eq("id",u.id);
+      return u.id;
+    }
+  }catch(e){console.error("ensureAccountLink error:",e);}
+  return null;
 }
 // Väg B: kolla om samma namn+PIN redan finns i en ANNAN serie, så vi kan
 // bekräfta för spelaren att de "känns igen" istället för att tvinga en ny PIN.
@@ -6002,6 +6032,10 @@ function attachHandlers(){
         const u=users.find(x=>x.id===pendingCrossLeagueUser.id);
         if(!u){loginErr="Kunde inte hitta kontot.";render();return;}
         currentUser=u; pendingCrossLeagueUser=null; loginErr="";
+        try{
+          const accId=await ensureAccountLink(u,pin);
+          if(accId) currentUser={...currentUser,account_id:accId};
+        }catch(e){console.error(e);}
         screen="mode";
         try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
         loadMyRoundStatus().then(render);
@@ -6054,6 +6088,10 @@ function attachHandlers(){
       }catch(e){console.error("Hash error:",e);}
       if(match){
         currentUser=u; pendingLoginUser=null; loginErr="";
+        try{
+          const accId=await ensureAccountLink(u,val);
+          if(accId) currentUser={...currentUser,account_id:accId};
+        }catch(e){console.error(e);}
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       } else {
         loginErr="Fel PIN-kod."; render();
@@ -6080,6 +6118,10 @@ function attachHandlers(){
       users=[...users,ny];
       currentUser=ny; errMsg=""; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       if(recognized) flash("✓ Välkommen tillbaka! Samma PIN funkar här också.");
+      try{
+        const accId=await ensureAccountLink(ny,pin);
+        if(accId){ currentUser={...currentUser,account_id:accId}; users=users.map(u=>u.id===ny.id?{...u,account_id:accId}:u); }
+      }catch(e){console.error(e);}
     }
     else if(act==="pick-mode"){
       appMode=el.dataset.mode;
