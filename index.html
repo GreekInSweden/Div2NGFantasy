@@ -3056,7 +3056,6 @@ function renderSnabbastTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">⚡ Snabbast vinner – Omgång ${cfg.omg}</div>
   ${renderSponsorBanner("snabbast")}
-  ${renderRoundMatches(rd)}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
     <table style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:10px">
@@ -3072,6 +3071,7 @@ function renderSnabbastTab(){
       <b>Lag som inte gör mål:</b> Lag utan mål under omgången räknas ändå med i topp 7 – de placeras efter alla lag som gjort mål, rangordnade efter <b>tabellplacering</b> (bäst placerade lag går före).
     </div>
   </div>
+  ${renderRoundMatches(rd)}
   <div class="fg-card">
     ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">🔒 Omgången är låst – tippning stängd</div>`:""}
     <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Välj de 7 lag du tror gör snabbast mål. Plats 1 = snabbast, plats 7 = 7:e snabbast.</div>
