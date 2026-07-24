@@ -5167,6 +5167,18 @@ function renderAdminTab(){
         has:u=>(window._statsQuizAnswers||[]).some(a=>a.user_id===u.id&&Number(a.round_num)===Number(rnd))},
       {ico:"⚽",label:"Matchexperten",roundBound:true,enabled:!!cfg.matchfokusEnabled,
         has:u=>matchfokusAllTipsGlobal.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&t.answers&&Object.keys(t.answers).length>0)},
+      {ico:"🥊",label:"Duellen",roundBound:false,enabled:!!cfg.duellenEnabled,
+        has:u=>duellenSignups.some(s=>s.user_id===u.id)},
+      {ico:"🌧️",label:"Målregn",roundBound:true,enabled:!!cfg.malregnEnabled,
+        has:u=>malregnAllTipsGlobal.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&t.guess!=null)},
+      {ico:"🙌",label:"Båda får Jubla",roundBound:true,enabled:!!cfg.jubelEnabled,
+        has:u=>jubelAllTipsGlobal.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&t.picks&&Object.keys(t.picks).length>0)},
+      {ico:"💰",label:"Investeraren",roundBound:true,enabled:!!cfg.investerareEnabled,
+        has:u=>investerareAllTipsGlobal.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd))},
+      {ico:"💀",label:"Last Team Standing",roundBound:false,enabled:!!cfg.ltsEnabled,
+        has:u=>ltsSignups.some(s=>s.user_id===u.id)},
+      {ico:"🎯",label:"Skyttekung",roundBound:true,enabled:!!cfg.anytimeEnabled,
+        has:u=>anytimeAllTipsGlobal.some(t=>t.user_id===u.id&&Number(t.round_num)===Number(rnd)&&t.picks&&((t.picks.DEF||[]).length+(t.picks.MID||[]).length+(t.picks.FW||[]).length)>0)},
     ].filter(m=>m.enabled);
 
     const headerCells = modes.map(m=>`<div style="width:56px;text-align:center;font-size:16px" title="${esc(m.label)}${m.roundBound?'':' (ej per omgång)'}">${m.ico}</div>`).join("");
@@ -5195,7 +5207,7 @@ function renderAdminTab(){
           <button data-act="stat-round-nav" data-dir="1" style="border:0.5px solid var(--color-border-secondary);background:none;border-radius:6px;width:28px;height:28px;cursor:pointer">›</button>
         </div>
       </div>
-      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">⚽ Fantasy och 📊 Tippa serien är ej bundna till omgången – de visar aktuellt status oavsett vilken omgång du bläddrar till.</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">⚽ Fantasy, 📊 Tippa serien, 🥊 Duellen och 💀 Last Team Standing är ej bundna till omgången – de visar aktuell anmälan/status oavsett vilken omgång du bläddrar till.</div>
       <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px">${summaryHtml}</div>
       <div style="display:flex;align-items:center;padding:4px 0 8px;border-bottom:1px solid var(--color-border-secondary)">
         <div style="flex:1;font-size:11px;font-weight:600;color:var(--color-text-secondary);letter-spacing:.5px">ANVÄNDARE (${sorted.length})</div>
@@ -6908,12 +6920,16 @@ function attachHandlers(){
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
         try{
-          [snabbastAllTips,måljaktenAllTips,window._statsQuizAnswers,streakAllTips,allLeagueTips] = await Promise.all([
+          [snabbastAllTips,måljaktenAllTips,window._statsQuizAnswers,streakAllTips,allLeagueTips,ltsAllPicksGlobal,ltsSignups,duellenSignups,duellenFixtures] = await Promise.all([
             fetchAllSnabbastTips(statsRound),
             fetchAllMåljaktenTips(statsRound),
             fetchAllQuizAnswers(statsRound),
             fetchAllStreakTips(),
-            fetchAllLigatips()
+            fetchAllLigatips(),
+            fetchAllLtsPicks(),
+            fetchLtsSignups(),
+            fetchDuellenSignups(),
+            fetchDuellenFixtures()
           ]);
         }catch(e){console.error(e);}
       }
