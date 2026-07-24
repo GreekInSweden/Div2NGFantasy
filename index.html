@@ -1085,37 +1085,47 @@ async function resetLts(){
   return error;
 }
 // Räknar fram en spelares liv/utslagning live, omgång för omgång
+function ltsLifeCap(compRound){
+  if(compRound<=5) return 3;
+  if(compRound<=10) return 2;
+  return 1;
+}
 function ltsComputeState(userId){
   const startRound=ltsConfig.start_round;
   if(!startRound) return {lives:3,eliminated:false,eliminatedAtRound:null,usedTeams:new Set(),history:[]};
-  let lives=3, eliminated=false, eliminatedAtRound=null;
+  let rawLives=3, lives=3, eliminated=false, eliminatedAtRound=null;
   const usedTeams=new Set();
   const maxRound=startRound+(ltsConfig.max_rounds||TEAMS.length)-1;
   const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b).filter(r=>r>=startRound&&r<=maxRound);
   const history=[];
   for(const r of roundKeys){
     if(eliminated) break;
+    const compRound=r-startRound+1;
+    const cap=ltsLifeCap(compRound);
     const rd=rounds[String(r)];
     const pick=ltsAllPicksGlobal.find(p=>p.user_id===userId&&Number(p.round_num)===r);
     if(!rd||!rd.results_published){
-      history.push({round:r,teamId:pick?Number(pick.team_id):null,pending:true});
+      lives=Math.min(rawLives,cap);
+      history.push({round:r,teamId:pick?Number(pick.team_id):null,pending:true,cap});
       break;
     }
     if(!pick){
-      lives--;
-      history.push({round:r,teamId:null,result:"no-pick",livesAfter:lives});
+      rawLives--;
+      lives=Math.min(rawLives,cap);
+      history.push({round:r,teamId:null,result:"no-pick",livesAfter:lives,cap});
       if(lives<=0){eliminated=true;eliminatedAtRound=r;}
       continue;
     }
     const teamId=Number(pick.team_id);
     const m=rd.matches.find(x=>x.hId===teamId||x.aId===teamId);
-    if(!m){ history.push({round:r,teamId,result:"no-match"}); continue; }
+    if(!m){ lives=Math.min(rawLives,cap); history.push({round:r,teamId,result:"no-match",cap}); continue; }
     const isHome=m.hId===teamId;
     const gf=isHome?m.hMål:m.aMål, ga=isHome?m.aMål:m.hMål;
     const survived=gf>=ga;
     usedTeams.add(teamId);
-    if(!survived) lives--;
-    history.push({round:r,teamId,result:survived?"safe":"loss",livesAfter:lives});
+    if(!survived) rawLives--;
+    lives=Math.min(rawLives,cap);
+    history.push({round:r,teamId,result:survived?"safe":"loss",livesAfter:lives,cap});
     if(lives<=0){eliminated=true;eliminatedAtRound=r;}
   }
   return {lives,eliminated,eliminatedAtRound,usedTeams,history};
@@ -2470,20 +2480,29 @@ function renderRulesScreen(){
 
       ${cfg.ltsEnabled?section("💀","Last Team Standing",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Klassiskt utslagsspel: varje omgång väljer du <b>ett lag</b> som du tror inte förlorar. Vinst eller oavgjort och du går vidare – bara en <b>förlust</b> kostar dig ett liv. Du har <b>3 liv</b> totalt.
+          Klassiskt utslagsspel: varje omgång väljer du <b>ett lag</b> som du tror inte förlorar. Vinst eller oavgjort och du går vidare – bara en <b>förlust</b> kostar dig ett liv.
         </div>
         ${table([
           ["Laget vinner eller spelar oavgjort","Du går vidare"],
           ["Laget förlorar","−1 liv"],
-          ["3 förlorade liv","Utslagen"],
+          ["0 liv kvar","Utslagen"],
           ["Max antal omgångar","Lika många som antal lag i serien"]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          <b>Liven minskar ju längre tävlingen pågår</b> – så det alltid finns något att spela för på slutet:
+        </div>
+        ${table([
+          ["Omgång 1–5","Max 3 liv"],
+          ["Omgång 6–10","Max 2 liv"],
+          ["Omgång 11 och framåt","Max 1 liv"]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          Har du färre liv kvar än taket (för att du redan förlorat) gäller förstås det verkliga, lägre antalet – taket kan bara sänka, aldrig ge dig extra liv.<br><br>
           <b>Viktig regel:</b> Varje lag får bara användas <b>en gång</b> under hela tävlingen – när du valt ett lag kan du inte välja det igen.<br>
           <b>Utslagsfråga:</b> Du gissar totalt antal mål som görs under hela tävlingen innan ditt första val – används som utslag om flera klarar sig hela vägen (närmast rätt vinner).<br>
           <b>Deadline:</b> Samma spelstopp som resten av omgången. Väljer du inget lag räknas det som en förlust.
         </div>
-        ${tip("💡 Spara dina bästa lag till senare omgångar – ju längre tävlingen pågår, desto viktigare blir varje val!")}
+        ${tip("💡 Spara dina bästa lag till senare omgångar – från omgång 11 räcker EN förlust för att slå ut dig, oavsett hur många liv du haft tidigare!")}
       `):""}
 
       ${cfg.anytimeEnabled?section("🎯","Skyttekung",`
@@ -3999,7 +4018,8 @@ function renderLtsTab(){
   const medals=["🥇","🥈","🥉"];
   const lbRows=allStates.map((x,i)=>{
     const isMe=x.u.id===currentUser.id;
-    const lives="❤️".repeat(Math.max(0,x.st.lives))+"🖤".repeat(Math.max(0,3-x.st.lives));
+    const curCap=ltsLifeCap(cfg.omg-startRound+1);
+    const lives="❤️".repeat(Math.max(0,x.st.lives))+"🖤".repeat(Math.max(0,curCap-x.st.lives));
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px`:''};${x.st.eliminated?'opacity:0.5':''}">
       <span style="width:22px;text-align:center;font-size:13px">${!x.st.eliminated&&i<3?medals[i]:(x.st.eliminated?"💀":i+1)}</span>
       <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(x.u.namn)}${isMe?' (du)':''}</span>
@@ -4013,7 +4033,8 @@ function renderLtsTab(){
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${stillAlive.length} kvar av ${allStates.length} · Omgång ${cfg.omg} (spelas ${startRound}–${maxRound}) · Totalt ${totalGoals} mål gjorda hittills</div>
   ${isSignedUp?`<div class="fg-card" style="text-align:center;padding:12px">
     <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Dina liv</div>
-    <div style="font-size:24px;margin:4px 0">${"❤️".repeat(Math.max(0,state.lives))}${"🖤".repeat(Math.max(0,3-state.lives))}</div>
+    <div style="font-size:24px;margin:4px 0">${"❤️".repeat(Math.max(0,state.lives))}${"🖤".repeat(Math.max(0,ltsLifeCap(cfg.omg-startRound+1)-state.lives))}</div>
+    <div style="font-size:11px;color:var(--color-text-secondary)">Max just nu: ${ltsLifeCap(cfg.omg-startRound+1)} liv${ltsLifeCap(cfg.omg-startRound+1)<3?" (taket sänks ju längre tävlingen pågår)":""}</div>
   </div>`:""}
   ${card}
   ${historyRows?`<div class="fg-card"><div style="font-weight:500;margin-bottom:6px">Din historik</div>${historyRows}</div>`:""}
@@ -5745,7 +5766,8 @@ function renderAdminTab(){
         const u=users.find(x=>x.id===s.user_id);
         if(!u) return "";
         const st=ltsComputeState(s.user_id);
-        const lives="❤️".repeat(Math.max(0,st.lives))+"🖤".repeat(Math.max(0,3-st.lives));
+        const curCap=ltsLifeCap(cfg.omg-startRound+1);
+        const lives="❤️".repeat(Math.max(0,st.lives))+"🖤".repeat(Math.max(0,curCap-st.lives));
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px;${st.eliminated?'opacity:0.5':''}">
           <span style="flex:1">${esc(u.namn)}${st.eliminated?" (utslagen, omg "+st.eliminatedAtRound+")":""}</span>
           <span>${lives}</span>
