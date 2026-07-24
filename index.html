@@ -165,7 +165,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     investerareAllTipsGlobal=[], investerareDraft={},
     ltsSignups=[], ltsConfig={status:"signup",start_round:null,max_rounds:0}, ltsAllPicksGlobal=[], ltsDraftTeam=null,
     anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={}, sponsors=[], editingSponsorId=null, sponsorClickCounts={},
-    presenceSessionId=null, presenceHeartbeatTimer=null, todaySessions=[], todayModeVisits=[], aktivitetPeriod="today", aktivitetDrillUserId=null, statDrillUserId=null,
+    presenceSessionId=null, presenceHeartbeatTimer=null, todaySessions=[], todayModeVisits=[], aktivitetPeriod="today", aktivitetDrillUserId=null, statDrillUserId=null, streakEditing=false,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -1628,7 +1628,7 @@ async function loadMyRoundStatus(){
       round:rnd,
       snabbast:!!(snb[rnd]&&snb[rnd].length),
       maljakten:!!(mlj[rnd]&&mlj[rnd].length),
-      streak:str.some(t=>Number(t.round_num)===Number(rnd)&&(t.picks||[]).length>0),
+      streak:str.some(t=>Number(t.round_num)===Number(rnd)&&t.picks&&Object.keys(t.picks).length>0),
       quiz:Object.keys(qz||{}).length>0
     };
   }catch(e){console.error(e);myRoundStatus={round:rnd};}
@@ -4428,7 +4428,7 @@ function renderStreakTab(){
   }
 
   // Välj matcher
-  if(myTip&&!published){
+  if(myTip&&!published&&!streakEditing){
     const picks=myTip.picks||{};
     const picksHtml=Object.entries(picks).map(([mIdx,sign])=>{
       const m=matches[Number(mIdx)];
@@ -4441,6 +4441,7 @@ function renderStreakTab(){
     <div class="fg-card" style="background:${S_GREENL};border:1px solid ${S_GREEN}">
       <div style="font-weight:500;margin-bottom:8px;color:${S_GREEN}">✅ Tips inlämnat – Omgång ${cfg.omg}</div>
       ${picksHtml}
+      ${!locked?`<button data-act="streak-edit" style="margin-top:12px;background:none;border:0.5px solid ${S_GREEN};color:${S_GREEN};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;width:100%">✏️ Ändra mitt tips</button>`:""}
     </div>`;
   }
 
@@ -6656,11 +6657,19 @@ function attachHandlers(){
       else streakDraft[idx]=sign;
       render();
     }
+    else if(act==="streak-edit"){
+      const rd=rounds[String(cfg.omg)];
+      const myTip=streakMyTips.find(t=>Number(t.round_num)===Number(cfg.omg));
+      streakDraft=myTip?{...myTip.picks}:{};
+      streakEditing=true;
+      render();
+    }
     else if(act==="submit-streak"){
       if(Object.keys(streakDraft).length<3){flash("Välj 3 matcher.");return;}
       const error=await saveStreakTip(cfg.omg,streakDraft);
       if(error){flash("Fel: "+error.message);return;}
       streakMyTips=await fetchStreakTips();
+      streakEditing=false;
       loadMyRoundStatus();
       flash("✅ Streak-tips inlämnat!");
       render();
@@ -6918,7 +6927,7 @@ function attachHandlers(){
       const arr=[...ligatippDraft[key]]; arr.splice(idx,1);
       ligatippDraft[key]=arr; render();
     }
-    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; viewingTeamUserId=null; viewingTeamRound=null; viewingTippUserId=null; viewingTippRound=null; render(); loadMyRoundStatus().then(render); }
+    else if(act==="switch-mode"){ stopQuizTimer(); screen="mode"; viewingTeamUserId=null; viewingTeamRound=null; viewingTippUserId=null; viewingTippRound=null; streakEditing=false; render(); loadMyRoundStatus().then(render); }
     else if(act==="back-to-main"){screen="main";render();}
     else if(act==="pos-tab"){pickPos=el.dataset.pos;render();}
     else if(act==="pick-player"){
