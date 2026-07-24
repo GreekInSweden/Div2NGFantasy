@@ -4900,24 +4900,21 @@ function renderAdminTab(){
       <button class="fg-btn" onclick="window._doAdminLogin()" style="margin-top:12px">Logga in</button>
     </div>`;
   }
-  const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
-  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
-  const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
+  const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"]];
+  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
+  const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
 
   const adminNavHtml = adminLevel==="super" ? `
     <div class="fg-card" style="padding:8px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-        <div>
-          <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">SPELHANTERING</div>
-          <div style="display:flex;flex-direction:column;gap:4px">${leftSections.map(tabBtn).join("")}</div>
-        </div>
-        <div>
-          <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">ADMINISTRATION</div>
-          <div style="display:flex;flex-direction:column;gap:4px">${rightSections.map(tabBtn).join("")}</div>
-        </div>
-      </div>
+      <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">OMGÅNG</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px">${catOmgang.map(tabBtn).join("")}</div>
+      <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">UPPSÄTTNING</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px">${catUppsattning.map(tabBtn).join("")}</div>
+      <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">ANVÄNDARE</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">${catAnvandare.map(tabBtn).join("")}</div>
     </div>` :
     `<div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${adminSections.map(tabBtn).join("")}</div>`;
 
