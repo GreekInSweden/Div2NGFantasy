@@ -2956,7 +2956,6 @@ function renderMåljaktenTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">\uD83C\uDFAF Måljakten – Omgång ${cfg.omg}</div>
   ${renderSponsorBanner("måljakten")}
-  ${renderRoundMatches(rd)}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:10px">Hur funkar Måljakten?</div>
@@ -2977,6 +2976,8 @@ function renderMåljaktenTab(){
       <b>Strategi:</b> Vinner du på att välja säkra favoriter eller chansa på ett bortaformstarkt lag?
     </div>
   </div>
+
+  ${renderRoundMatches(rd)}
 
   <div class="fg-card">
     ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">\uD83D\uDD12 Omgången är låst – tippning stängd</div>`:""}
