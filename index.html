@@ -631,6 +631,7 @@ window.saveMåljakten=async function(){
     const idxG=måljaktenAllTipsGlobal.findIndex(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
     if(idxG>=0)måljaktenAllTipsGlobal[idxG]={...måljaktenAllTipsGlobal[idxG],picks:[...måljaktenDraft]};
     else måljaktenAllTipsGlobal=[...måljaktenAllTipsGlobal,{user_id:currentUser.id,round_num:cfg.omg,picks:[...måljaktenDraft]}];
+    myRoundStatus={...myRoundStatus,maljakten:true};
     if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
@@ -1690,6 +1691,7 @@ window.saveSnabbast=async function(){
     const existingG=snabbastAllTipsGlobal.findIndex(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
     if(existingG>=0) snabbastAllTipsGlobal[existingG]={...snabbastAllTipsGlobal[existingG],picks:[...snabbastDraft]};
     else snabbastAllTipsGlobal=[...snabbastAllTipsGlobal,{user_id:currentUser.id,round_num:cfg.omg,picks:[...snabbastDraft]}];
+    myRoundStatus={...myRoundStatus,snabbast:true};
     if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
@@ -6488,6 +6490,7 @@ function attachHandlers(){
       const error=await submitQuizAnswer(qid,ans,rnd);
       if(error){flash("Fel: "+error.message);return;}
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
+      myRoundStatus={...myRoundStatus,quiz:true};
       render();
     }
     else if(act==="create-league"){
@@ -6635,6 +6638,7 @@ function attachHandlers(){
       const error=await saveStreakTip(cfg.omg,streakDraft);
       if(error){flash("Fel: "+error.message);return;}
       streakMyTips=await fetchStreakTips();
+      loadMyRoundStatus();
       flash("✅ Streak-tips inlämnat!");
       render();
     }
