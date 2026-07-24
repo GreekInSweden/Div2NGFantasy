@@ -5766,19 +5766,13 @@ function renderAdminTab(){
       if(!!a.info.online!==!!b.info.online) return a.info.online?-1:1;
       return b.lastSeen-a.lastSeen;
     });
-    const avgModes=rows.length?(rows.reduce((s,r)=>s+r.info.modes.size,0)/rows.length).toFixed(1):0;
-    const oneModeOnly=rows.filter(r=>r.info.modes.size<=1).length;
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">🟢 Aktivitet idag</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Uppdateras ungefär varje minut medan någon har appen öppen. "Online" = signal senaste 2 minuterna. Spelformer räknas första gången man klickar in på dem denna dag.</div>
-      <div style="display:flex;gap:16px;background:var(--color-background-secondary);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
-        <div><b style="font-size:16px;display:block;color:var(--color-text-primary)">${avgModes}</b>snitt spelformer/besökare</div>
-        <div><b style="font-size:16px;display:block;color:var(--color-text-primary)">${oneModeOnly}/${rows.length}</b>kollade bara 1 spelform</div>
-      </div>
       ${rows.length?rows.map(r=>`
         <div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
           <div style="display:flex;align-items:center;gap:8px">
-            <span style="width:8px;height:8px;border-radius:50%;background:${r.info.online?G_GREEN:'#ccc'};flex-shrink:0"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:${r.info.online?'#22c55e':'#ccc'};flex-shrink:0"></span>
             <span style="font-weight:500;font-size:14px;flex:1">${esc(r.u.namn)}</span>
             <span style="font-size:12px;color:var(--color-text-secondary)">${r.info.online?"Online nu":"Senast: "+fmtAgo(r.lastSeen)}</span>
           </div>
