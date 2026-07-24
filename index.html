@@ -909,9 +909,13 @@ function allPickedIds(u){
 function pickCount(u){ return allPickedIds(u).length; }
 
 // ── Närvaro / sessionslängd ──────────────────────────────────────────────
-async function pingPresence(){
+let lastPresencePingAt=0;
+async function pingPresence(force){
   if(!currentUser||!currentLeague) return;
   if(document.visibilityState!=="visible") return;
+  const now=Date.now();
+  if(!force && now-lastPresencePingAt<15000) return; // spärr: max var 15:e sekund vid aktivitet
+  lastPresencePingAt=now;
   try{
     if(!presenceSessionId){
       presenceSessionId=currentUser.id+"-"+Date.now();
@@ -922,9 +926,9 @@ async function pingPresence(){
   }catch(e){console.error("presence ping error:",e);}
 }
 function startPresenceHeartbeat(){
-  pingPresence();
+  pingPresence(true);
   if(presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
-  presenceHeartbeatTimer=setInterval(pingPresence,60000);
+  presenceHeartbeatTimer=setInterval(()=>pingPresence(true),60000);
 }
 async function fetchAllSessions(){
   const {data,error}=await sb.from("user_sessions").select("*").eq("league_id",currentLeague.id).order("session_start",{ascending:false});
@@ -6212,6 +6216,7 @@ function attachHandlers(){
     const el=e.target.closest("[data-act]");
     if(!el)return;
     const act=el.dataset.act;
+    pingPresence();
 
     if(act==="choose-league"){
       currentLeague=leagues.find(l=>l.id===Number(el.dataset.id));
