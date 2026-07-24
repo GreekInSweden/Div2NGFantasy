@@ -165,6 +165,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     investerareAllTipsGlobal=[], investerareDraft={},
     ltsSignups=[], ltsConfig={status:"signup",start_round:null,max_rounds:0}, ltsAllPicksGlobal=[], ltsDraftTeam=null,
     anytimeMyTips={}, anytimeAllTipsGlobal=[], anytimeDraft={}, sponsors=[], editingSponsorId=null, sponsorClickCounts={},
+    presenceSessionId=null, presenceHeartbeatTimer=null, todaySessions=[], todayModeVisits=[],
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
@@ -905,6 +906,42 @@ function allPickedIds(u){
   return arr;
 }
 function pickCount(u){ return allPickedIds(u).length; }
+
+// ── Närvaro / sessionslängd ──────────────────────────────────────────────
+async function pingPresence(){
+  if(!currentUser||!currentLeague) return;
+  if(document.visibilityState!=="visible") return;
+  try{
+    if(!presenceSessionId){
+      presenceSessionId=currentUser.id+"-"+Date.now();
+      await sb.from("user_sessions").insert({id:presenceSessionId,user_id:currentUser.id,league_id:currentLeague.id,session_start:new Date().toISOString(),last_seen:new Date().toISOString()});
+    } else {
+      await sb.from("user_sessions").update({last_seen:new Date().toISOString()}).eq("id",presenceSessionId);
+    }
+  }catch(e){console.error("presence ping error:",e);}
+}
+function startPresenceHeartbeat(){
+  pingPresence();
+  if(presenceHeartbeatTimer) clearInterval(presenceHeartbeatTimer);
+  presenceHeartbeatTimer=setInterval(pingPresence,60000);
+}
+async function fetchTodaySessions(){
+  const startOfDay=new Date(); startOfDay.setHours(0,0,0,0);
+  const {data,error}=await sb.from("user_sessions").select("*").eq("league_id",currentLeague.id).gte("session_start",startOfDay.toISOString()).order("session_start",{ascending:false});
+  if(error){console.error(error);return [];}
+  return data;
+}
+const MODE_LABELS={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:"Quiz",streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"};
+async function logModeVisit(mode){
+  if(!presenceSessionId||!MODE_LABELS[mode]) return;
+  try{ await sb.from("session_mode_visits").insert({session_id:presenceSessionId,user_id:currentUser.id,league_id:currentLeague.id,mode}); }catch(e){console.error(e);}
+}
+async function fetchTodayModeVisits(){
+  const startOfDay=new Date(); startOfDay.setHours(0,0,0,0);
+  const {data,error}=await sb.from("session_mode_visits").select("user_id,mode,session_id").eq("league_id",currentLeague.id).gte("visited_at",startOfDay.toISOString());
+  if(error){console.error(error);return [];}
+  return data;
+}
 
 // ── Sponsorer ────────────────────────────────────────────────────────────
 async function fetchSponsors(){
@@ -4866,7 +4903,7 @@ function renderAdminTab(){
     </div>`;
   }
   const leftSections=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["spelformer","🎛 Spelformer"],["quiz","🧠 Quiz"],["push","🔔 Notiser"],["hof","🏆 Hall of Fame"]];
-  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
+  const rightSections=[["players","👤 Spelare"],["teams","🏟 Lag"],["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["season","🔄 Säsong"]];
   const adminSections=adminLevel==="super"?[...leftSections,...rightSections]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -5693,6 +5730,64 @@ function renderAdminTab(){
         <button class="fg-outbtn" data-act="lts-reset-admin" style="width:100%;border-color:#A32D2D;color:#A32D2D">Nollställ Last Team Standing</button>
       </div>`;
     }
+  } else if(adminSection==="aktivitet"){
+    const now=new Date();
+    const byUser={};
+    todaySessions.forEach(s=>{
+      if(!byUser[s.user_id]) byUser[s.user_id]={sessions:[],totalMs:0,modes:new Set()};
+      const start=new Date(s.session_start), last=new Date(s.last_seen);
+      const dur=Math.max(0,last-start);
+      const isOnline=(now-last)<=2*60*1000; // senaste 2 min
+      byUser[s.user_id].sessions.push({start,last,dur,isOnline});
+      byUser[s.user_id].totalMs+=dur;
+      if(isOnline) byUser[s.user_id].online=true;
+    });
+    todayModeVisits.forEach(v=>{
+      if(!byUser[v.user_id]) byUser[v.user_id]={sessions:[],totalMs:0,modes:new Set()};
+      byUser[v.user_id].modes.add(v.mode);
+    });
+    const fmtDur=ms=>{
+      const mins=Math.floor(ms/60000);
+      if(mins<60) return mins+" min";
+      return Math.floor(mins/60)+"t "+(mins%60)+"min";
+    };
+    const fmtAgo=d=>{
+      const diffMin=Math.floor((now-d)/60000);
+      if(diffMin<1) return "just nu";
+      if(diffMin<60) return diffMin+" min sedan";
+      return Math.floor(diffMin/60)+" tim sedan";
+    };
+    const rows=Object.entries(byUser).map(([uid,info])=>{
+      const u=users.find(x=>x.id===uid);
+      if(!u||!info.sessions.length) return null;
+      const lastSession=info.sessions[0];
+      return {u,info,lastSeen:lastSession.last};
+    }).filter(Boolean).sort((a,b)=>{
+      if(!!a.info.online!==!!b.info.online) return a.info.online?-1:1;
+      return b.lastSeen-a.lastSeen;
+    });
+    const avgModes=rows.length?(rows.reduce((s,r)=>s+r.info.modes.size,0)/rows.length).toFixed(1):0;
+    const oneModeOnly=rows.filter(r=>r.info.modes.size<=1).length;
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🟢 Aktivitet idag</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Uppdateras ungefär varje minut medan någon har appen öppen. "Online" = signal senaste 2 minuterna. Spelformer räknas första gången man klickar in på dem denna dag.</div>
+      <div style="display:flex;gap:16px;background:var(--color-background-secondary);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:12px">
+        <div><b style="font-size:16px;display:block;color:var(--color-text-primary)">${avgModes}</b>snitt spelformer/besökare</div>
+        <div><b style="font-size:16px;display:block;color:var(--color-text-primary)">${oneModeOnly}/${rows.length}</b>kollade bara 1 spelform</div>
+      </div>
+      ${rows.length?rows.map(r=>`
+        <div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="width:8px;height:8px;border-radius:50%;background:${r.info.online?G_GREEN:'#ccc'};flex-shrink:0"></span>
+            <span style="font-weight:500;font-size:14px;flex:1">${esc(r.u.namn)}</span>
+            <span style="font-size:12px;color:var(--color-text-secondary)">${r.info.online?"Online nu":"Senast: "+fmtAgo(r.lastSeen)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-left:16px;margin-top:2px">Idag totalt: <b style="color:var(--color-text-primary)">${fmtDur(r.info.totalMs)}</b> · ${r.info.sessions.length} session${r.info.sessions.length!==1?"er":""}</div>
+          <div style="margin-left:16px;margin-top:5px;display:flex;flex-wrap:wrap;gap:5px">
+            ${r.info.modes.size?[...r.info.modes].map(m=>`<span style="background:${G_GREENL};color:${G_GREEN};border-radius:12px;padding:2px 8px;font-size:10px;font-weight:500">${esc(MODE_LABELS[m]||m)}</span>`).join(""):'<span style="font-size:11px;color:var(--color-text-secondary)">Inga spelformer besökta</span>'}
+          </div>
+        </div>`).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen aktivitet loggad idag ännu.</div>'}
+    </div>`;
   } else if(adminSection==="sponsorer"){
     const modeOpts=[["","Ingen specifik (visas ej på en spelform)"],["fantasy","Fantasy"],["tipp","Tippa resultat"],["snabbast","Snabbast vinner"],["måljakten","Måljakten"],["ligatipp","Tippa serien"],["quiz","Quiz"],["streak","Streak"],["matchfokus","Matchexperten"],["duellen","Duellen"],["malregn","Målregn"],["jubel","Båda får Jubla"],["investerare","Investeraren"],["lts","Last Team Standing"],["anytime","Skyttekung"]];
     const rows=sponsors.map(s=>{
@@ -6047,6 +6142,7 @@ function attachHandlers(){
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       if(tryAutoLoginViaAccount()){
+        presenceSessionId=null; startPresenceHeartbeat();
         screen="mode";
         try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
         loadMyRoundStatus().then(render);
@@ -6088,6 +6184,7 @@ function attachHandlers(){
         try{
           const accId=await ensureAccountLink(u,pin);
           if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
+          presenceSessionId=null; startPresenceHeartbeat();
         }catch(e){console.error(e);}
         screen="mode";
         try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
@@ -6144,6 +6241,7 @@ function attachHandlers(){
         try{
           const accId=await ensureAccountLink(u,val);
           if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
+          presenceSessionId=null; startPresenceHeartbeat();
         }catch(e){console.error(e);}
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       } else {
@@ -6174,10 +6272,12 @@ function attachHandlers(){
       try{
         const accId=await ensureAccountLink(ny,pin);
         if(accId){ currentUser={...currentUser,account_id:accId}; users=users.map(u=>u.id===ny.id?{...u,account_id:accId}:u); rememberAccount(accId); }
+        presenceSessionId=null; startPresenceHeartbeat();
       }catch(e){console.error(e);}
     }
     else if(act==="pick-mode"){
       appMode=el.dataset.mode;
+      logModeVisit(appMode);
       if(appMode==="ligatipp"){
         const root2=document.getElementById("fg-root");
         root2.innerHTML='<div class="fg-loading">Laddar ligatipp…</div>';
@@ -6763,7 +6863,7 @@ function attachHandlers(){
       pickState={picks: currentUser.picks ? {GK:[...(currentUser.picks.GK||[])],DEF:[...(currentUser.picks.DEF||[])],MID:[...(currentUser.picks.MID||[])],FW:[...(currentUser.picks.FW||[])]} : {GK:[],DEF:[],MID:[],FW:[]}, kapten:currentUser.kapten||null};
       pickPos="GK"; pickErr=""; screen="pick"; render();
     }
-    else if(act==="logout"){currentUser=null;appMode=null;screen="home";homeMode="start";forgetAccount();render();}
+    else if(act==="logout"){currentUser=null;appMode=null;screen="home";homeMode="start";forgetAccount();if(presenceHeartbeatTimer){clearInterval(presenceHeartbeatTimer);presenceHeartbeatTimer=null;}presenceSessionId=null;render();}
     else if(act==="main-tab"){
       const tab=el.dataset.tab;
       if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
@@ -6807,6 +6907,9 @@ function attachHandlers(){
       }
       if(adminSection==="sponsorer"){
         try{ [sponsors,sponsorClickCounts]=await Promise.all([fetchSponsors(),fetchSponsorClickCounts()]); }catch(e){console.error(e);}
+      }
+      if(adminSection==="aktivitet"){
+        try{ [todaySessions,todayModeVisits]=await Promise.all([fetchTodaySessions(),fetchTodayModeVisits()]); }catch(e){console.error(e);}
       }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
@@ -7420,6 +7523,7 @@ function attachHandlers(){
     try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
     if(tryAutoLoginViaAccount()){
+      presenceSessionId=null; startPresenceHeartbeat();
       screen="mode";
       try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
       loadMyRoundStatus().then(render);
