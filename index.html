@@ -976,6 +976,15 @@ function mergeSessionsWithPings(sessions,pings){
     return {...s,last_seen:new Date(bestMs).toISOString()};
   });
 }
+// Hämtar färsk aktivitetsdata – anropas när admin öppnar/uppdaterar Aktivitet-fliken.
+// OBS: panelen uppdaterar sig INTE automatiskt i bakgrunden, bara när denna körs.
+async function refreshAktivitetData(){
+  try{
+    const [sessions,visits,pings]=await Promise.all([fetchAllSessions(),fetchAllModeVisits(),fetchAllPresencePings()]);
+    todaySessions=mergeSessionsWithPings(sessions,pings);
+    todayModeVisits=visits;
+  }catch(e){console.error(e);}
+}
 const MODE_LABELS={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:"Quiz",streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"};
 async function logModeVisit(mode){
   if(!presenceSessionId||!MODE_LABELS[mode]) return;
@@ -5911,7 +5920,10 @@ function renderAdminTab(){
       const allTimeModes=new Set(myVisits.map(v=>v.mode));
 
       body=`<div class="fg-card">
-        <button data-act="aktivitet-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Tillbaka till alla</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+          <button data-act="aktivitet-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0">← Tillbaka till alla</button>
+          <button data-act="aktivitet-refresh" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">🔄 Uppdatera</button>
+        </div>
         <div style="font-weight:500;font-size:16px;margin-bottom:2px">${esc(u?u.namn:"Okänd")}</div>
         <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Totalt ${fmtDur(allTimeMs)} inne, ${mySessions.length} session${mySessions.length!==1?"er":""}, ${days.length} dag${days.length!==1?"ar":""} med aktivitet</div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px">
@@ -5968,7 +5980,10 @@ function renderAdminTab(){
       const periodBtn=(key,label)=>`<button data-act="aktivitet-period" data-period="${key}" style="border:0.5px solid ${aktivitetPeriod===key?G_GREEN:'var(--color-border-secondary)'};background:${aktivitetPeriod===key?G_GREENL:'none'};color:${aktivitetPeriod===key?G_GREEN:'var(--color-text-primary)'};border-radius:20px;padding:5px 12px;font-size:12px;font-weight:500;cursor:pointer">${label}</button>`;
 
       body=`<div class="fg-card">
-        <div style="font-weight:500;margin-bottom:10px">🟢 Aktivitet</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-weight:500">🟢 Aktivitet</div>
+          <button data-act="aktivitet-refresh" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">🔄 Uppdatera</button>
+        </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
           ${periodBtn("today","Idag")}${periodBtn("week","7 dagar")}${periodBtn("month","30 dagar")}${periodBtn("all","Allt")}
         </div>
@@ -7121,11 +7136,7 @@ function attachHandlers(){
         try{ [sponsors,sponsorClickCounts]=await Promise.all([fetchSponsors(),fetchSponsorClickCounts()]); }catch(e){console.error(e);}
       }
       if(adminSection==="aktivitet"){
-        try{
-          const [sessions,visits,pings]=await Promise.all([fetchAllSessions(),fetchAllModeVisits(),fetchAllPresencePings()]);
-          todaySessions=mergeSessionsWithPings(sessions,pings);
-          todayModeVisits=visits;
-        }catch(e){console.error(e);}
+        await refreshAktivitetData();
       }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
@@ -7275,6 +7286,12 @@ function attachHandlers(){
     }
     else if(act==="aktivitet-period"){
       aktivitetPeriod=el.dataset.period;
+      await refreshAktivitetData();
+      render();
+    }
+    else if(act==="aktivitet-refresh"){
+      el.textContent="Uppdaterar…";
+      await refreshAktivitetData();
       render();
     }
     else if(act==="aktivitet-drill"){
