@@ -4,10 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Div2NG Play</title>
-<meta property="og:title" content="Div2NG Play">
-<meta property="og:description" content="Fantasy, tips och spel kopplat till din serie – bygg lag, tippa resultat och tävla mot dina vänner.">
-<meta property="og:type" content="website">
-<meta name="description" content="Fantasy, tips och spel kopplat till din serie – bygg lag, tippa resultat och tävla mot dina vänner.">
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
 </script>
@@ -1538,6 +1534,12 @@ function duellenStandings(fixtures){
     h.pts+=result.homeRes; a.pts+=result.awayRes;
   });
   return Object.values(table).filter(r=>!r.isBot).sort((x,y)=>y.pts-x.pts||y.gd-x.gd||x.namn.localeCompare(y.namn,"sv"));
+}
+
+function duellenSeasonList(){
+  const s=new Set(duellenAllDivisions.map(d=>d.season_num));
+  s.add(1); // säsong 1 har inga divisioner men ska ändå gå att bläddra till
+  return [...s].sort((a,b)=>b-a);
 }
 
 // ── Matchexperten ──────────────────────────────────────────────────────
@@ -3498,19 +3500,54 @@ function renderDuellenTab(){
 
 function renderDuellenDivisionView(){
   const season=duellenViewSeason||duellenConfig.season_num||1;
+  const seasonList=duellenSeasonList();
+  const seasonPicker=seasonList.length>1?`<select data-act="duellen-pick-season" style="width:100%;padding:9px 10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:8px;background:var(--color-background-primary);color:var(--color-text-primary);font-weight:600">
+    ${seasonList.map(s=>`<option value="${s}" ${s===season?"selected":""}>Säsong ${s}${s===(duellenConfig.season_num||1)&&duellenConfig.status==="active"?" (pågående)":""}</option>`).join("")}
+  </select>`:"";
+  const isCurrentSeason=season===(duellenConfig.season_num||1)&&duellenConfig.status==="active";
+
   const myMembership=duellenDivisionMembers.find(m=>m.user_id===currentUser.id);
   const myDivision=myMembership?duellenDivisions.find(d=>d.id===myMembership.division_id):null;
   const viewDivisionId=duellenViewDivisionId||(myDivision?myDivision.id:(duellenDivisions[0]&&duellenDivisions[0].id));
   const viewDivision=duellenDivisions.find(d=>d.id===viewDivisionId);
   const isMyDivision=myDivision&&viewDivision&&myDivision.id===viewDivision.id;
 
+  if(!viewDivision){
+    // Säsong 1 har inga divisioner (fritt seriespel) – visa slutställningen istället för felmeddelande
+    if(season===1){
+      const s1Fixtures=duellenFixtures.filter(fx=>!fx.division_id && (fx.season_num||1)===1);
+      const standings=duellenStandings(s1Fixtures);
+      const tableRows=standings.map((r,i)=>{
+        const isMe=r.id===currentUser.id;
+        return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;${isMe?`background:${G_GREENL};border-radius:6px;padding-left:6px`:""}">
+          <span style="width:20px;text-align:center;color:var(--color-text-secondary)">${i+1}</span>
+          <span style="flex:1;font-weight:${isMe?500:400}">${esc(r.namn)}</span>
+          <span style="width:24px;text-align:center;color:var(--color-text-secondary)">${r.played}</span>
+          <span style="width:20px;text-align:center;color:${G_GREEN}">${r.w}</span>
+          <span style="width:20px;text-align:center;color:${G_GOLD}">${r.d}</span>
+          <span style="width:20px;text-align:center;color:#A32D2D">${r.l}</span>
+          <span style="width:28px;text-align:center;font-weight:700">${r.pts}</span>
+        </div>`;
+      }).join("");
+      return `
+      <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen – Säsong 1</div>
+      ${renderSponsorBanner("duellen")}
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Fritt seriespel${isCurrentSeason?"":" · Avslutad"}</div>
+      ${seasonPicker}
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:8px">${isCurrentSeason?"Ställning":"Slutställning"} – Säsong 1</div>
+        <div style="display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--color-border-secondary);font-size:10px;color:var(--color-text-secondary);font-weight:600">
+          <span style="width:20px"></span><span style="flex:1">SPELARE</span><span style="width:24px;text-align:center">S</span><span style="width:20px;text-align:center">V</span><span style="width:20px;text-align:center">O</span><span style="width:20px;text-align:center">F</span><span style="width:28px;text-align:center">P</span>
+        </div>
+        ${tableRows||'<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga resultat.</div>'}
+      </div>`;
+    }
+    return `<div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen – Säsong ${season}</div>${seasonPicker}<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga divisioner hittades för denna säsong.</div></div>`;
+  }
+
   const divisionPicker=`<select data-act="duellen-pick-division" style="width:100%;padding:9px 10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:13px;margin-bottom:12px;background:var(--color-background-primary);color:var(--color-text-primary)">
     ${duellenDivisions.map(d=>`<option value="${d.id}" ${d.id===viewDivisionId?"selected":""}>${esc(d.name)}${myDivision&&d.id===myDivision.id?" (din division)":""}</option>`).join("")}
   </select>`;
-
-  if(!viewDivision){
-    return `<div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen – Säsong ${season}</div>${divisionPicker}<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Inga divisioner hittades.</div></div>`;
-  }
 
   const divFixtures=duellenFixtures.filter(fx=>fx.division_id===viewDivision.id);
   const standings=duellenStandings(divFixtures);
@@ -3519,7 +3556,7 @@ function renderDuellenDivisionView(){
   const n=standings.length;
 
   let matchCard="";
-  if(isMyDivision){
+  if(isMyDivision&&isCurrentSeason){
     const myFixtures=divFixtures.filter(fx=>fx.home_user_id===currentUser.id||fx.away_user_id===currentUser.id);
     const currentFx=myFixtures.find(fx=>fx.round_num===cfg.omg);
     if(currentFx){
@@ -3543,16 +3580,15 @@ function renderDuellenDivisionView(){
     }
   }
 
-  // Färgmarkering för upp-/nedflyttning
   const zoneFor=(i)=>{
     if(!isTopTier && i<2) return "up";
-    if(viewDivision.tier===4 && i===2) return "lucky"; // 3:a i Div2 kan bli "lucky" uppflyttad
+    if(viewDivision.tier===4 && i===2) return "lucky";
     if(!isBottomTier && i>=n-2) return "down";
     return null;
   };
   const tableRows=standings.map((r,i)=>{
     const isMe=r.id===currentUser.id;
-    const zone=zoneFor(i);
+    const zone=isCurrentSeason?zoneFor(i):null;
     const zoneColor=zone==="up"?G_GREEN:zone==="down"?"#A32D2D":zone==="lucky"?G_GOLD:null;
     return `<div style="display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;${isMe?`background:${G_GREENL};border-radius:6px;padding-left:6px`:""}">
       <span style="width:20px;text-align:center;position:relative">${zoneColor?`<span style="position:absolute;left:0;top:0;bottom:0;width:3px;background:${zoneColor};border-radius:2px"></span>`:""}${i+1}</span>
@@ -3565,11 +3601,11 @@ function renderDuellenDivisionView(){
     </div>`;
   }).join("");
 
-  const zoneLegend=`<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--color-text-secondary);margin-top:8px">
+  const zoneLegend=isCurrentSeason?`<div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--color-text-secondary);margin-top:8px">
     ${!isTopTier?`<span>🟩 Uppflyttning</span>`:""}
     ${viewDivision.tier===4?`<span>🟨 Chans till "lucky"-uppflyttning</span>`:""}
     ${!isBottomTier?`<span>🟥 Nedflyttning</span>`:""}
-  </div>`;
+  </div>`:`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:8px">🏁 Säsongen är avslutad – detta var slutställningen.</div>`;
 
   const scheduleBtn=`<button class="fg-outbtn" data-act="duellen-toggle-schedule" style="width:100%;margin-top:10px">${duellenShowSchedule?"Dölj spelschema":"Visa spelschema"}</button>`;
 
@@ -3581,7 +3617,7 @@ function renderDuellenDivisionView(){
     scheduleHtml=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:8px">Spelschema – ${esc(viewDivision.name)}</div>
       ${roundNums.map(rn=>{
-        const isCur=rn===cfg.omg;
+        const isCur=rn===cfg.omg&&isCurrentSeason;
         return `<div style="margin-bottom:8px">
           <div style="font-size:11px;font-weight:600;color:${isCur?G_GREEN:'var(--color-text-secondary)'};margin-bottom:3px">Omgång ${rn}${isCur?" (aktuell)":""}</div>
           ${roundsMap[rn].map(fx=>{
@@ -3601,13 +3637,14 @@ function renderDuellenDivisionView(){
   }
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen – Säsong ${season}</div>
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🥊 Duellen – Säsong ${season}${isCurrentSeason?"":" (avslutad)"}</div>
   ${renderSponsorBanner("duellen")}
-  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${esc(viewDivision.name)} · Omgång ${cfg.omg}</div>
+  <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${esc(viewDivision.name)}${isCurrentSeason?" · Omgång "+cfg.omg:""}</div>
+  ${seasonPicker}
   ${divisionPicker}
   ${matchCard}
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">Tabell – ${esc(viewDivision.name)}</div>
+    <div style="font-weight:500;margin-bottom:8px">${isCurrentSeason?"Tabell":"Slutställning"} – ${esc(viewDivision.name)}</div>
     <div style="display:flex;align-items:center;gap:6px;padding-bottom:6px;border-bottom:1px solid var(--color-border-secondary);font-size:10px;color:var(--color-text-secondary);font-weight:600">
       <span style="width:20px"></span><span style="flex:1">SPELARE</span><span style="width:24px;text-align:center">S</span><span style="width:20px;text-align:center">V</span><span style="width:20px;text-align:center">O</span><span style="width:20px;text-align:center">F</span><span style="width:28px;text-align:center">P</span>
     </div>
@@ -6451,6 +6488,7 @@ function attachHandlers(){
         try{
           [duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);
           const dSeason=duellenViewSeason||duellenConfig.season_num||1;
+          duellenViewSeason=dSeason;
           if(dSeason>1||duellenConfig.status==="active"){
             duellenDivisions=await fetchDuellenDivisions(dSeason);
             duellenDivisionMembers=await fetchDuellenDivisionMembers(duellenDivisions.map(d=>d.id));
@@ -7241,6 +7279,17 @@ function attachHandlers(){
     else if(act==="duellen-pick-division"){
       duellenViewDivisionId=el.value;
       duellenShowSchedule=false;
+      render();
+    }
+    else if(act==="duellen-pick-season"){
+      const newSeason=Number(el.value);
+      duellenViewSeason=newSeason;
+      duellenViewDivisionId=null;
+      duellenShowSchedule=false;
+      try{
+        duellenDivisions=await fetchDuellenDivisions(newSeason);
+        duellenDivisionMembers=await fetchDuellenDivisionMembers(duellenDivisions.map(d=>d.id));
+      }catch(err){console.error(err);}
       render();
     }
     else if(act==="duellen-toggle-schedule"){
