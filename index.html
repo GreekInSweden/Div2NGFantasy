@@ -836,7 +836,7 @@ async function adminCreatePrivateLeague(name,gameMode){
   return{error,code};
 }
 async function adminCreateLeagueGroup(groupName){
-  const modes=["fantasy","tipp","snabbast","måljakten","ligatipp"];
+  const modes=["fantasy","tipp","snabbast","måljakten","ligatipp","quiz","streak","matchfokus","duellen","malregn","jubel","investerare","lts","anytime"];
   const codes={};
   for(const mode of modes){
     const id=Math.random().toString(36).slice(2,10);
@@ -854,21 +854,45 @@ async function deletePrivateLeague(id){
   const {error}=await sb.from("private_leagues").delete().eq("id",id);
   return error;
 }
+// Gemensam poängväljare för privata ligor – används både här och i spelarvyn,
+// så att alla 14 spelformer stöds konsekvent på ett och samma ställe.
+function privateLeagueGetPts(gm,u){
+  if(gm==="fantasy")return userTotPts(u);
+  if(gm==="tipp")return userTipTotalPts(u);
+  if(gm==="snabbast")return userSnabbastTotalPts(u.id);
+  if(gm==="måljakten")return userMåljaktenTotalPts(u.id);
+  if(gm==="ligatipp")return userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});
+  if(gm==="quiz")return userQuizTotalPts(u.id,window._quizAllAnswers||[],quizQuestions);
+  if(gm==="streak"){
+    const pubRounds=Object.keys(rounds).map(Number).filter(r=>rounds[String(r)].results_published);
+    return calcUserStreak(streakAllTips,u.id,pubRounds).best;
+  }
+  if(gm==="matchfokus")return userMatchfokusTotalPts(u.id);
+  if(gm==="duellen")return duellenStandings(duellenFixtures).find(r=>r.id===u.id)?.pts||0;
+  if(gm==="malregn")return userMalregnTotalPts(u.id);
+  if(gm==="jubel")return userJubelTotalPts(u.id);
+  if(gm==="investerare")return Math.round(investerareCurrentBalance(u.id));
+  if(gm==="lts")return userLtsRoundsSurvived(u.id);
+  if(gm==="anytime")return userAnytimeTotalPts(u.id);
+  if(gm==="alla")return userTotPts(u)+userTipTotalPts(u)+userSnabbastTotalPts(u.id)+userMåljaktenTotalPts(u.id);
+  return 0;
+}
 async function updatePrivateLeagueSnapshots(){
+  // Se till att nödvändig data är laddad för de spelformer som faktiskt har privata ligor,
+  // oavsett vilken flik admin råkar stå på just nu.
+  const modesInUse=new Set(allPrivateLeagues.filter(pl=>pl.approved).map(pl=>pl.game_mode));
+  try{
+    if(modesInUse.has("quiz")&&!quizQuestions.length){ quizQuestions=await fetchAllQuizAdmin(); window._quizAllAnswers=await fetchAllQuizAnswersAll(); }
+    if(modesInUse.has("streak")&&!streakAllTips.length){ streakAllTips=await fetchAllStreakTips(); }
+    if(modesInUse.has("duellen")&&!duellenFixtures.length){ duellenFixtures=await fetchDuellenFixtures(); }
+    if(modesInUse.has("lts")&&!ltsAllPicksGlobal.length){ ltsConfig=await fetchLtsConfig(); ltsAllPicksGlobal=await fetchAllLtsPicks(); }
+  }catch(e){console.error("updatePrivateLeagueSnapshots preload error:",e);}
   for(const pl of allPrivateLeagues){
     if(!pl.approved||!pl.private_league_members)continue;
     const memberIds=(pl.private_league_members||[]).map(m=>m.user_id);
     const memberUsers=users.filter(u=>memberIds.includes(u.id));
     const gm=pl.game_mode;
-    const getPts=u=>{
-      if(gm==="fantasy")return userTotPts(u);
-      if(gm==="tipp")return userTipTotalPts(u);
-      if(gm==="snabbast")return userSnabbastTotalPts(u.id);
-      if(gm==="måljakten")return userMåljaktenTotalPts(u.id);
-      if(gm==="ligatipp")return userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});
-      return userTotPts(u)+userTipTotalPts(u)+userSnabbastTotalPts(u.id)+userMåljaktenTotalPts(u.id);
-    };
-    const sorted=[...memberUsers].sort((a,b)=>getPts(b)-getPts(a));
+    const sorted=[...memberUsers].sort((a,b)=>privateLeagueGetPts(gm,b)-privateLeagueGetPts(gm,a));
     const snapshot={};
     sorted.forEach((u,i)=>{snapshot[u.id]=i+1;});
     await sb.from("private_leagues").update({standings_snapshot:snapshot}).eq("id",pl.id);
@@ -1190,6 +1214,10 @@ function ltsTotalGoalsSoFar(){
     if(rd&&rd.results_published&&rd.matches) total+=rd.matches.reduce((s,m)=>s+(m.hMål||0)+(m.aMål||0),0);
   });
   return total;
+}
+function userLtsRoundsSurvived(userId){
+  const state=ltsComputeState(userId);
+  return state.history.filter(h=>h.result==="safe").length;
 }
 
 // ── Investeraren ─────────────────────────────────────────────────────────
@@ -3079,7 +3107,8 @@ function renderMåljaktenTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Poängställning – totalt</div>
     ${lbRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>'}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("måljakten")}`;
 }
 function renderSnabbastTab(){
 
@@ -3247,24 +3276,17 @@ function renderLigatippTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Tippa serienen – poängställning</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("ligatipp")}`;
 }
 
 function renderPrivateLeagueSection(gameMode){
-  const gameModeLabel={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien"}[gameMode]||gameMode;
+  const gameModeLabel=MODE_LABELS[gameMode]||gameMode;
   const myLeagues=allPrivateLeagues.filter(l=>(l.game_mode===gameMode||l.game_mode==="alla")&&l.approved&&l.private_league_members&&l.private_league_members.some(m=>m.user_id===currentUser.id));
   const pending=allPrivateLeagues.filter(l=>l.game_mode===gameMode&&!l.approved&&l.created_by===currentUser.id);
 
   // Get points function for this game mode
-  const getPts=(u)=>{
-    if(gameMode==="fantasy") return userTotPts(u);
-    if(gameMode==="tipp") return userTipTotalPts(u);
-    if(gameMode==="snabbast") return userSnabbastTotalPts(u.id);
-    if(gameMode==="måljakten") return userMåljaktenTotalPts(u.id);
-    if(gameMode==="ligatipp") return userLigatippTotalPts(allLeagueTips.find(t=>t.user_id===u.id)||{});
-    if(gameMode==="alla") return userTotPts(u)+userTipTotalPts(u)+userSnabbastTotalPts(u.id)+userMåljaktenTotalPts(u.id);
-    return 0;
-  };
+  const getPts=(u)=>privateLeagueGetPts(gameMode,u);
 
   // Standings for selected private league
   let standingsHtml="";
@@ -3417,7 +3439,8 @@ function renderMatchfokusTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Matchexperten</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("matchfokus")}`;
 }
 function renderStandingsTab(){
   const modes=[
@@ -3554,7 +3577,8 @@ function renderDuellenTab(){
       <span style="width:20px"></span><span style="flex:1">SPELARE</span><span style="width:24px;text-align:center">S</span><span style="width:20px;text-align:center">V</span><span style="width:20px;text-align:center">O</span><span style="width:20px;text-align:center">F</span><span style="width:28px;text-align:center">P</span>
     </div>
     ${tableRows||'<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga resultat än.</div>'}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("duellen")}`;
 }
 
 function renderDuellenDivisionView(){
@@ -3716,7 +3740,8 @@ function renderDuellenDivisionView(){
     <div style="font-weight:500;margin-bottom:4px">🏛 Maratontabell – ${esc(viewDivision.name.replace(/ (Norra|Södra|Västra|Norrland)?.*$/,""))||esc(viewDivision.name)}</div>
     <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">Ackumulerat över alla säsonger i just den här divisionen.</div>
     ${renderDuellenMarathonRows(viewDivision.name)}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("duellen")}`;
 }
 function renderDuellenMarathonRows(divisionName){
   const relevantDivs=duellenAllDivisions.filter(d=>d.name===divisionName);
@@ -3793,7 +3818,8 @@ function renderMalregnTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Målregn</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("malregn")}`;
 }
 function renderJubelTab(){
   const rd=rounds[String(cfg.omg)];
@@ -3875,7 +3901,8 @@ function renderJubelTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Båda får Jubla</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("jubel")}`;
 }
 function renderInvesterareTab(){
   const rd=rounds[String(cfg.omg)];
@@ -3979,7 +4006,8 @@ function renderInvesterareTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Rikaste investerarna</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("investerare")}`;
 }
 window.saveInvesterare=async function(available){
   const statusEl=document.getElementById("investerare-status");
@@ -4141,7 +4169,8 @@ function renderLtsTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Läget just nu</div>
     ${lbRows||'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen anmäld.</div>'}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("lts")}`;
 }
 window.saveLtsTiebreakClick=async function(){
   const statusEl=document.getElementById("lts-tiebreak-status");
@@ -4264,7 +4293,8 @@ function renderAnytimeTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Skyttekung</div>
     ${lbRows}
-  </div>`;
+  </div>
+  ${renderPrivateLeagueSection("anytime")}`;
 }
 window._anytimePickChange=function(sel){
   const pos=sel.dataset.pos, slot=Number(sel.dataset.slot);
@@ -4405,7 +4435,8 @@ function renderQuizTab(){
     <div style="font-size:13px;color:var(--color-text-secondary);margin-top:4px">${timedOut&&!answeredAll?"Tiden tog slut!":"Quiz klar!"}</div>
   </div>`:""}
   ${questionCards}
-  ${quizLeaderboard}`;
+  ${quizLeaderboard}
+  ${renderPrivateLeagueSection("quiz")}`;
 }
 
 function renderProfilTab(){
@@ -4545,7 +4576,8 @@ function renderStreakTab(){
       <div style="padding-top:8px;font-weight:600;color:${myTip.correct?G_GREEN:"#c1272d"}">
         ${myTip.correct?"✅ Alla 3 rätt – streak fortsätter!":"❌ Streak nollställd"}
       </div>
-    </div>`;
+    </div>
+    ${renderPrivateLeagueSection("streak")}`;
   }
 
   // Välj matcher
@@ -4563,7 +4595,8 @@ function renderStreakTab(){
       <div style="font-weight:500;margin-bottom:8px;color:${S_GREEN}">✅ Tips inlämnat – Omgång ${cfg.omg}</div>
       ${picksHtml}
       ${!locked?`<button data-act="streak-edit" style="margin-top:12px;background:none;border:0.5px solid ${S_GREEN};color:${S_GREEN};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer;width:100%">✏️ Ändra mitt tips</button>`:""}
-    </div>`;
+    </div>
+    ${renderPrivateLeagueSection("streak")}`;
   }
 
   if(locked&&!myTip){
@@ -5364,8 +5397,8 @@ function renderAdminTab(){
     const showHistory=window._privligaTab==="history";
     const pending=allPrivateLeagues.filter(l=>!l.approved);
     const approved=allPrivateLeagues.filter(l=>l.approved);
-    const modeLabel={fantasy:"⚽ Fantasy",tipp:"🎯 Tippa",snabbast:"⚡ Snabbast",måljakten:"🎯 Måljakten",ligatipp:"📊 Tippa serien"};
-    const gameModes=Object.entries({fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien"}).map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+    const modeLabel={fantasy:"⚽ Fantasy",tipp:"🎯 Tippa",snabbast:"⚡ Snabbast",måljakten:"🎯 Måljakten",ligatipp:"📊 Tippa serien",quiz:"🧠 Quiz",streak:"🔥 Streak",matchfokus:"⚽ Matchexperten",duellen:"🥊 Duellen",malregn:"🌧️ Målregn",jubel:"🙌 Båda får Jubla",investerare:"💰 Investeraren",lts:"💀 Last Team Standing",anytime:"🎯 Skyttekung"};
+    const gameModes=Object.entries({fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:"Div2NG Quiz",streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"}).map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
 
     // Sub-navigation
     const subNav=`<div style="display:flex;gap:6px;margin-bottom:12px">
