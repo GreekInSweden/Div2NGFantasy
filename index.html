@@ -910,20 +910,38 @@ function pickCount(u){ return allPickedIds(u).length; }
 
 // ── Närvaro / sessionslängd ──────────────────────────────────────────────
 let lastPresencePingAt=0;
+async function logPresenceDebug(event,detail){
+  try{
+    await sb.from("presence_debug_log").insert({
+      user_id:currentUser?currentUser.id:null,
+      league_id:currentLeague?currentLeague.id:null,
+      event,
+      detail:detail||{}
+    });
+  }catch(e){/* best effort – ska aldrig störa appen om loggtabellen saknas */}
+}
 async function pingPresence(force){
   if(!currentUser||!currentLeague) return;
-  if(document.visibilityState!=="visible") return;
+  if(document.visibilityState!=="visible"){
+    logPresenceDebug("skipped_hidden",{force,visibilityState:document.visibilityState});
+    return;
+  }
   const now=Date.now();
   if(!force && now-lastPresencePingAt<15000) return; // spärr: max var 15:e sekund vid aktivitet
   lastPresencePingAt=now;
   try{
     if(!presenceSessionId){
       presenceSessionId=currentUser.id+"-"+Date.now();
-      await sb.from("user_sessions").insert({id:presenceSessionId,user_id:currentUser.id,league_id:currentLeague.id,session_start:new Date().toISOString(),last_seen:new Date().toISOString()});
+      const {error}=await sb.from("user_sessions").insert({id:presenceSessionId,user_id:currentUser.id,league_id:currentLeague.id,session_start:new Date().toISOString(),last_seen:new Date().toISOString()});
+      if(error){ console.warn("🔴 presence INSERT error:",error); logPresenceDebug("insert_error",{message:error.message,code:error.code,details:error.details}); }
+      else { console.warn("🟢 presence session skapad:",presenceSessionId); logPresenceDebug("insert_ok",{sessionId:presenceSessionId}); }
     } else {
-      await sb.from("user_sessions").update({last_seen:new Date().toISOString()}).eq("id",presenceSessionId);
+      const {data,error}=await sb.from("user_sessions").update({last_seen:new Date().toISOString()}).eq("id",presenceSessionId).select();
+      if(error){ console.warn("🔴 presence UPDATE error:",error); logPresenceDebug("update_error",{message:error.message,code:error.code,details:error.details,sessionId:presenceSessionId}); }
+      else if(!data||!data.length){ console.warn("🟠 presence UPDATE gav 0 träffar för id:",presenceSessionId); logPresenceDebug("update_zero_rows",{sessionId:presenceSessionId}); }
+      else { console.warn("🟢 presence UPDATE lyckades, ny last_seen:",data[0].last_seen); }
     }
-  }catch(e){console.error("presence ping error:",e);}
+  }catch(e){ console.error("presence ping error:",e); logPresenceDebug("exception",{message:e.message}); }
 }
 function startPresenceHeartbeat(){
   pingPresence(true);
