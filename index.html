@@ -5828,6 +5828,8 @@ function renderAdminTab(){
   } else if(adminSection==="aktivitet"){
     const now=new Date();
     const fmtDur=ms=>{
+      const secs=Math.floor(ms/1000);
+      if(secs<60) return secs+" sek";
       const mins=Math.floor(ms/60000);
       if(mins<60) return mins+" min";
       return Math.floor(mins/60)+"t "+(mins%60)+"min";
