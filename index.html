@@ -2700,16 +2700,16 @@ function renderRulesScreen(){
 function renderMain(){
   const sorted=sortedUsers();
   const tabsDef = appMode==="statistik"
-    ? [["statistik","📈","Statistik"],["adm","🔒","Admin"],["spelformer","🎮","Spelformer"]]
+    ? [["spelformer","🎮","Spelformer"],["statistik","📈","Statistik"],["adm","🔒","Admin"]]
     : appMode==="streak"
-    ? [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"],["spelformer","🎮","Spelformer"]]
+    ? [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]]
     : appMode==="hof"
-    ? [["hof","🏆","Hall of Fame"],["adm","🔒","Admin"],["spelformer","🎮","Spelformer"]]
+    ? [["spelformer","🎮","Spelformer"],["hof","🏆","Hall of Fame"],["adm","🔒","Admin"]]
     : appMode==="standings"
-    ? [["standings","🏆","Ställningar"],["adm","🔒","Admin"],["spelformer","🎮","Spelformer"]]
+    ? [["spelformer","🎮","Spelformer"],["standings","🏆","Ställningar"],["adm","🔒","Admin"]]
     : appMode==="profil"
-    ? [["profil","👤","Profil"],["adm","🔒","Admin"],["spelformer","🎮","Spelformer"]]
-    : [["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"],["spelformer","🎮","Spelformer"]];
+    ? [["spelformer","🎮","Spelformer"],["profil","👤","Profil"],["adm","🔒","Admin"]]
+    : [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
   const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&appMode!=="hof"&&appMode!=="standings"&&allRoundKeys.length>0;
