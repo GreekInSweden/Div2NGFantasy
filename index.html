@@ -5238,12 +5238,14 @@ function renderAdminTab(){
       ${makeStandingsInput(2,cp2)}
     </div>`;
   } else if(adminSection==="users"){
-    const sorted=sortedUsers();
+    const userSearch = document.getElementById("users-search") ? document.getElementById("users-search").value.toLowerCase() : "";
+    const allUsersSorted=[...users].sort((a,b)=>a.namn.localeCompare(b.namn,"sv"));
+    const filteredUsers = userSearch ? allUsersSorted.filter(u=>u.namn.toLowerCase().includes(userSearch)) : allUsersSorted;
     let rowsHtml="";
-    if(!sorted.length){
-      rowsHtml=`<div style="font-size:13px;color:var(--color-text-secondary)">Inga registrerade användare ännu.</div>`;
+    if(!filteredUsers.length){
+      rowsHtml=`<div style="font-size:13px;color:var(--color-text-secondary)">${userSearch?"Ingen spelare matchade sökningen.":"Inga registrerade användare ännu."}</div>`;
     } else {
-      rowsHtml = sorted.map((u,i)=>{
+      rowsHtml = filteredUsers.map((u,i)=>{
         const cnt=pickCount(u);
         const pts=userTotPts(u);
         const complete = cnt===TOTAL_PICKS && u.kapten;
@@ -5254,7 +5256,7 @@ function renderAdminTab(){
             <div style="width:36px;height:36px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
             <div style="flex:1">
               <div style="font-weight:500">${esc(u.namn)}</div>
-              <div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare ${complete?'· lag klart':'· ofullständigt lag'} · ${pts} p totalt</div>
+              <div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare ${complete?'· lag klart':(cnt>0?'· ofullständigt lag':'· inget Fantasy-lag valt')} · ${pts} p totalt</div>
             </div>
             ${confirming
               ? `<button data-act="cancel-remove" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Avbryt</button>
@@ -5267,12 +5269,14 @@ function renderAdminTab(){
     }
     body = `<div class="fg-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <div style="font-weight:500">Registrerade användare (${users.length})</div>
+        <div style="font-weight:500">Registrerade användare (${users.length}${userSearch?`, visar ${filteredUsers.length}`:""})</div>
         <button data-act="toggle-registration" style="background:${cfg.registrationOpen?'#FCEBEB':G_GREENL};color:${cfg.registrationOpen?'#A32D2D':G_GREEN};border:0.5px solid ${cfg.registrationOpen?'#A32D2D':G_GREEN};border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;font-weight:500">
           ${cfg.registrationOpen?'🔒 Stäng registrering':'🔓 Öppna registrering'}
         </button>
       </div>
-      <div style="font-size:12px;color:var(--color-text-secondary)">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
+      <input class="fg-input" id="users-search" placeholder="🔍 Sök spelare…" value="${esc(userSearch)}" oninput="document.getElementById('users-search-trigger').click()"/>
+      <button id="users-search-trigger" data-act="users-search-update" style="display:none"></button>
     </div>
     ${rowsHtml}`;
   } else if(adminSection==="statistik"){
@@ -7410,6 +7414,13 @@ function attachHandlers(){
       const pos=inp?inp.selectionStart:null;
       render();
       const inp2=document.getElementById("goals-search");
+      if(inp2){ inp2.focus(); if(pos!=null){ try{inp2.setSelectionRange(pos,pos);}catch(e){} } }
+    }
+    else if(act==="users-search-update"){
+      const inp=document.getElementById("users-search");
+      const pos=inp?inp.selectionStart:null;
+      render();
+      const inp2=document.getElementById("users-search");
       if(inp2){ inp2.focus(); if(pos!=null){ try{inp2.setSelectionRange(pos,pos);}catch(e){} } }
     }
     else if(act==="admin-jump-round"){
