@@ -1,22 +1,44 @@
-const CACHE='div2ng-v2';
+const CACHE='div2ng-v3'; // bumpa denna siffra om du någon gång vill tvinga en total cache-rensning hos alla
 
 self.addEventListener('install',e=>{
   self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/index.html'])));
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(['/','/index.html'])).catch(()=>{}));
 });
 
 self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(
-    keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))
-  )));
+  e.waitUntil(
+    caches.keys()
+      .then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
+      .then(()=>self.clients.claim()) // ta över redan öppna flikar direkt, ingen omladdning krävs
+  );
 });
 
 self.addEventListener('fetch',e=>{
-  if(e.request.url.includes('supabase')){
-    e.respondWith(fetch(e.request));
+  const req=e.request;
+  if(req.method!=='GET') return; // rör inte POST/PATCH osv
+
+  if(req.url.includes('supabase')){
+    e.respondWith(fetch(req));
     return;
   }
-  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)));
+
+  // Appens huvudfil (index.html / "/"): hämta alltid färskast möjliga version från
+  // nätverket först, så nya deployer syns direkt utan att någon behöver rensa cache.
+  // Faller bara tillbaka på den sparade cachen om användaren är offline.
+  const isAppShell = req.mode==='navigate' || req.url.endsWith('/') || req.url.endsWith('/index.html');
+  if(isAppShell){
+    e.respondWith(
+      fetch(req).then(res=>{
+        const resClone=res.clone();
+        caches.open(CACHE).then(c=>c.put(req,resClone));
+        return res;
+      }).catch(()=>caches.match(req))
+    );
+    return;
+  }
+
+  // Övriga statiska resurser (ikoner m.m.): cache först, som tidigare – snabbt och sällan ändrat
+  e.respondWith(caches.match(req).then(r=>r||fetch(req)));
 });
 
 // ── Push-notiser ─────────────────────────────────────────────────────────
