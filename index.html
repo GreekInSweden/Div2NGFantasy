@@ -1721,9 +1721,15 @@ function userRoundPts(u,r){
   if(!u)return 0;
   const rd=rounds[String(r)];
   if(!rd||!rd.results_published)return 0;
+  const snapshotMap=rd.picks_snapshot||{};
+  const hasAnySnapshot=Object.keys(snapshotMap).length>0;
+  const snapshot=snapshotMap[u.id];
+  // Om omgången har en ögonblicksbild (dvs publicerad på vanligt sätt) men just den här
+  // spelaren saknas i den, fanns spelaren inte med då – ska inte få poäng för omgången.
+  if(hasAnySnapshot&&!snapshot)return 0;
   if(rd.locked_at&&u.created_at&&new Date(rd.locked_at)<new Date(u.created_at))return 0;
-  // Använd ögonblicksbilden om den finns, annars nuvarande lag
-  const snapshot=rd.picks_snapshot&&rd.picks_snapshot[u.id];
+  // Använd ögonblicksbilden om den finns, annars nuvarande lag (endast relevant för äldre
+  // omgångar från innan ögonblicksbilder infördes, då picks_snapshot är helt tomt)
   const picks=snapshot?snapshot.picks:u.picks;
   const kapten=snapshot?snapshot.kapten:u.kapten;
   if(!picks)return 0;
@@ -4250,7 +4256,7 @@ function renderAnytimeTab(){
 }
 window._anytimePickChange=function(sel){
   const pos=sel.dataset.pos, slot=Number(sel.dataset.slot);
-  const val=sel.value?Number(sel.value):null;
+  const val=sel.value?sel.value:null;
   const arr=[...(anytimeDraft[pos]||[])];
   arr[slot]=val;
   anytimeDraft={...anytimeDraft,[pos]:arr};
@@ -4262,7 +4268,7 @@ window.saveAnytime=async function(){
   let missing=0;
   document.querySelectorAll('select[data-pos]').forEach(sel=>{
     const pos=sel.dataset.pos, slot=Number(sel.dataset.slot);
-    const val=sel.value?Number(sel.value):null;
+    const val=sel.value?sel.value:null;
     if(!val) missing++;
     picks[pos][slot]=val;
   });
