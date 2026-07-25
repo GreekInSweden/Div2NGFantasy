@@ -936,10 +936,12 @@ async function pingPresence(force){
       if(error){ console.warn("🔴 presence INSERT error:",error); logPresenceDebug("insert_error",{message:error.message,code:error.code,details:error.details}); }
       else { console.warn("🟢 presence session skapad:",presenceSessionId); logPresenceDebug("insert_ok",{sessionId:presenceSessionId}); }
     } else {
-      const {data,error}=await sb.from("user_sessions").update({last_seen:new Date().toISOString()}).eq("id",presenceSessionId).select();
-      if(error){ console.warn("🔴 presence UPDATE error:",error); logPresenceDebug("update_error",{message:error.message,code:error.code,details:error.details,sessionId:presenceSessionId}); }
-      else if(!data||!data.length){ console.warn("🟠 presence UPDATE gav 0 träffar för id:",presenceSessionId); logPresenceDebug("update_zero_rows",{sessionId:presenceSessionId}); }
-      else { console.warn("🟢 presence UPDATE lyckades, ny last_seen:",data[0].last_seen); }
+      // Append-only istället för UPDATE (UPDATE mot user_sessions visade sig ge 0 träffar
+      // trots öppen policy och korrekta rättigheter – oklart varför, så vi kringgår det
+      // helt genom att bara lägga till en ny rad varje gång istället).
+      const {error}=await sb.from("presence_pings").insert({session_id:presenceSessionId,user_id:currentUser.id,league_id:currentLeague.id,ts:new Date().toISOString()});
+      if(error){ console.warn("🔴 presence PING INSERT error:",error); logPresenceDebug("ping_insert_error",{message:error.message,code:error.code,details:error.details,sessionId:presenceSessionId}); }
+      else { console.warn("🟢 presence ping sparad"); }
     }
   }catch(e){ console.error("presence ping error:",e); logPresenceDebug("exception",{message:e.message}); }
 }
@@ -952,6 +954,27 @@ async function fetchAllSessions(){
   const {data,error}=await sb.from("user_sessions").select("*").eq("league_id",currentLeague.id).order("session_start",{ascending:false});
   if(error){console.error(error);return [];}
   return data;
+}
+async function fetchAllPresencePings(){
+  const {data,error}=await sb.from("presence_pings").select("session_id,ts").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+// Slår ihop user_sessions med presence_pings så att last_seen blir korrekt
+// (den gamla UPDATE-baserade last_seen litar vi inte längre på).
+function mergeSessionsWithPings(sessions,pings){
+  const maxPingBySession={};
+  pings.forEach(p=>{
+    const t=new Date(p.ts).getTime();
+    if(!maxPingBySession[p.session_id]||t>maxPingBySession[p.session_id]) maxPingBySession[p.session_id]=t;
+  });
+  return sessions.map(s=>{
+    const startMs=new Date(s.session_start).getTime();
+    const oldLastSeenMs=new Date(s.last_seen).getTime();
+    const pingMs=maxPingBySession[s.id];
+    const bestMs=Math.max(startMs,oldLastSeenMs,pingMs||0);
+    return {...s,last_seen:new Date(bestMs).toISOString()};
+  });
 }
 const MODE_LABELS={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:"Quiz",streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"};
 async function logModeVisit(mode){
@@ -7092,7 +7115,11 @@ function attachHandlers(){
         try{ [sponsors,sponsorClickCounts]=await Promise.all([fetchSponsors(),fetchSponsorClickCounts()]); }catch(e){console.error(e);}
       }
       if(adminSection==="aktivitet"){
-        try{ [todaySessions,todayModeVisits]=await Promise.all([fetchAllSessions(),fetchAllModeVisits()]); }catch(e){console.error(e);}
+        try{
+          const [sessions,visits,pings]=await Promise.all([fetchAllSessions(),fetchAllModeVisits(),fetchAllPresencePings()]);
+          todaySessions=mergeSessionsWithPings(sessions,pings);
+          todayModeVisits=visits;
+        }catch(e){console.error(e);}
       }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
