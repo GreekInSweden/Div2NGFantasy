@@ -6375,6 +6375,7 @@ function parsePlayersImportText(text){
   const bulletLinkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
   const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
+  console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
   const rawRows = hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
     : hasDelimiters ? parsePlayersStructuredFormat(lines)
     : parsePlayersBlockFormat(lines);
@@ -6443,12 +6444,13 @@ function parsePlayersBulletLinkFormat(lines){
   const out=[];
   lines.forEach(line=>{
     const norm=normalizeStr(line);
-    if(posHeaderMap[norm]){ currentPos=posHeaderMap[norm]; return; }
+    if(posHeaderMap[norm]){ currentPos=posHeaderMap[norm]; console.warn("  → rubrik:",norm,"->",currentPos); return; }
     const m=line.match(linkPattern);
-    if(!m||!currentPos) return;
+    if(!m||!currentPos){ console.warn("  → hoppar (ingen länk-match eller ingen position ännu):",JSON.stringify(line)); return; }
     const content=m[1].trim();
-    if(/^\d+$/.test(content)) return; // tröjnummer – hoppa
-    if(isNationalityText(content)) return; // nationalitet – hoppa
+    if(/^\d+$/.test(content)){ console.warn("  → tröjnummer, hoppar:",content); return; }
+    if(isNationalityText(content)){ console.warn("  → KÄND NATIONALITET, hoppar:",JSON.stringify(content)); return; }
+    console.warn("  → NAMN:",JSON.stringify(content));
     out.push({namn:content,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
   });
   return out;
