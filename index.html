@@ -6372,8 +6372,12 @@ function parseTeamNamesText(text){
 function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const bulletLinkPattern=/^[*-]\s*\[(.+?)\]\(.*\)$/;
+  const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
-  const rawRows = hasDelimiters ? parsePlayersStructuredFormat(lines) : parsePlayersBlockFormat(lines);
+  const rawRows = hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
+    : hasDelimiters ? parsePlayersStructuredFormat(lines)
+    : parsePlayersBlockFormat(lines);
   const seenInBatch=new Set();
   return rawRows.map(r=>{
     const key=normalizeStr(r.namn);
@@ -6382,6 +6386,37 @@ function parsePlayersImportText(text){
     const dupExisting=players.some(p=>normalizeStr(p.namn)===key);
     return {...r, warnDup: dupInBatch||dupExisting};
   });
+}
+// Tolkar spelarlistor där varje spelare markeras med en bullet + länk, t.ex.
+// klistrat direkt från en klubbs officiella spelartrupp-sida:
+//   * [Alisson Becker](url)
+//   [1](url)
+//   [Brazil](url)
+// Rader UTAN ledande bullet ("*"/"-") hör till samma spelare (tröjnummer,
+// nationalitet m.m.) och ignoreras – bara namnet (i bullet-raden) plockas ut.
+// Positionsrubriker ("Goalkeepers"/"Defenders" osv, engelska eller svenska)
+// grupperar spelarna på samma sätt som i den vanliga textlistan.
+function parsePlayersBulletLinkFormat(lines){
+  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const posHeaderMap={
+    "målvakter":"GK","målvakt":"GK","keepers":"GK","goalkeepers":"GK","goalkeeper":"GK",
+    "försvarare":"DEF","defenders":"DEF","defender":"DEF",
+    "mittfältare":"MID","midfielders":"MID","midfielder":"MID",
+    "forwardar":"FW","forwards":"FW","forward":"FW","anfallare":"FW","strikers":"FW","striker":"FW"
+  };
+  const bulletLinkPattern=/^[*-]\s*\[(.+?)\]\(.*\)$/;
+  let currentPos=null;
+  const out=[];
+  lines.forEach(line=>{
+    const norm=normalizeStr(line);
+    if(posHeaderMap[norm]){ currentPos=posHeaderMap[norm]; return; }
+    const m=line.match(bulletLinkPattern);
+    if(m&&currentPos){
+      out.push({namn:m[1].trim(),pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+    }
+    // rader utan ledande bullet (tröjnummer/nationalitet) ignoreras helt
+  });
+  return out;
 }
 function parsePlayersStructuredFormat(lines){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
