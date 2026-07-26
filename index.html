@@ -1216,10 +1216,16 @@ async function resetLts(){
   const {error}=await sb.from("lts_config").upsert({league_id:currentLeague.id,status:"signup",start_round:null,max_rounds:0});
   return error;
 }
-// Räknar fram en spelares liv/utslagning live, omgång för omgång
-function ltsLifeCap(compRound){
-  if(compRound<=5) return 3;
-  if(compRound<=10) return 2;
+// Räknar fram en spelares liv/utslagning live, omgång för omgång.
+// Gränserna är proportionella mot totala antalet omgångar (ungefär 36%/36%/28%,
+// samma fördelning som ursprungligen designades för en 14-lagsserie), så känslan
+// blir densamma oavsett om serien har 14, 20 eller något annat antal lag.
+function ltsLifeCap(compRound,totalRounds){
+  const total=totalRounds||14;
+  const cutoff1=Math.round(total*(5/14));
+  const cutoff2=Math.round(total*(10/14));
+  if(compRound<=cutoff1) return 3;
+  if(compRound<=cutoff2) return 2;
   return 1;
 }
 function ltsComputeState(userId){
@@ -1233,7 +1239,7 @@ function ltsComputeState(userId){
   for(const r of roundKeys){
     if(eliminated) break;
     const compRound=r-startRound+1;
-    const cap=ltsLifeCap(compRound);
+    const cap=ltsLifeCap(compRound,ltsConfig.max_rounds||TEAMS.length);
     const rd=rounds[String(r)];
     const pick=ltsAllPicksGlobal.find(p=>p.user_id===userId&&Number(p.round_num)===r);
     if(!rd||!rd.results_published){
@@ -2640,9 +2646,9 @@ function renderRulesScreen(){
           <b>Liven minskar ju längre tävlingen pågår</b> – så det alltid finns något att spela för på slutet:
         </div>
         ${table([
-          ["Omgång 1–5","Max 3 liv"],
-          ["Omgång 6–10","Max 2 liv"],
-          ["Omgång 11 och framåt","Max 1 liv"]
+          [`Omgång 1–${Math.round(TEAMS.length*(5/14))}`,"Max 3 liv"],
+          [`Omgång ${Math.round(TEAMS.length*(5/14))+1}–${Math.round(TEAMS.length*(10/14))}`,"Max 2 liv"],
+          [`Omgång ${Math.round(TEAMS.length*(10/14))+1} och framåt`,"Max 1 liv"]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
           Har du färre liv kvar än taket (för att du redan förlorat) gäller förstås det verkliga, lägre antalet – taket kan bara sänka, aldrig ge dig extra liv.<br><br>
@@ -4206,7 +4212,7 @@ function renderLtsTab(){
   const medals=["🥇","🥈","🥉"];
   const lbRows=allStates.map((x,i)=>{
     const isMe=x.u.id===currentUser.id;
-    const curCap=ltsLifeCap(cfg.omg-startRound+1);
+    const curCap=ltsLifeCap(cfg.omg-startRound+1,ltsConfig.max_rounds||TEAMS.length);
     const lives="❤️".repeat(Math.max(0,x.st.lives))+"🖤".repeat(Math.max(0,curCap-x.st.lives));
     return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:8px`:''};${x.st.eliminated?'opacity:0.5':''}">
       <span style="width:22px;text-align:center;font-size:13px">${!x.st.eliminated&&i<3?medals[i]:(x.st.eliminated?"💀":i+1)}</span>
@@ -4221,8 +4227,8 @@ function renderLtsTab(){
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${stillAlive.length} kvar av ${allStates.length} · Omgång ${cfg.omg} (spelas ${startRound}–${maxRound}) · Totalt ${totalGoals} mål gjorda hittills</div>
   ${isSignedUp?`<div class="fg-card" style="text-align:center;padding:12px">
     <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Dina liv</div>
-    <div style="font-size:24px;margin:4px 0">${"❤️".repeat(Math.max(0,state.lives))}${"🖤".repeat(Math.max(0,ltsLifeCap(cfg.omg-startRound+1)-state.lives))}</div>
-    <div style="font-size:11px;color:var(--color-text-secondary)">Max just nu: ${ltsLifeCap(cfg.omg-startRound+1)} liv${ltsLifeCap(cfg.omg-startRound+1)<3?" (taket sänks ju längre tävlingen pågår)":""}</div>
+    <div style="font-size:24px;margin:4px 0">${"❤️".repeat(Math.max(0,state.lives))}${"🖤".repeat(Math.max(0,ltsLifeCap(cfg.omg-startRound+1,ltsConfig.max_rounds||TEAMS.length)-state.lives))}</div>
+    <div style="font-size:11px;color:var(--color-text-secondary)">Max just nu: ${ltsLifeCap(cfg.omg-startRound+1,ltsConfig.max_rounds||TEAMS.length)} liv${ltsLifeCap(cfg.omg-startRound+1,ltsConfig.max_rounds||TEAMS.length)<3?" (taket sänks ju längre tävlingen pågår)":""}</div>
   </div>`:""}
   ${card}
   ${historyRows?`<div class="fg-card"><div style="font-weight:500;margin-bottom:6px">Din historik</div>${historyRows}</div>`:""}
@@ -6048,7 +6054,7 @@ Liverpool
         const u=users.find(x=>x.id===s.user_id);
         if(!u) return "";
         const st=ltsComputeState(s.user_id);
-        const curCap=ltsLifeCap(cfg.omg-startRound+1);
+        const curCap=ltsLifeCap(cfg.omg-startRound+1,ltsConfig.max_rounds||TEAMS.length);
         const lives="❤️".repeat(Math.max(0,st.lives))+"🖤".repeat(Math.max(0,curCap-st.lives));
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px;${st.eliminated?'opacity:0.5':''}">
           <span style="flex:1">${esc(u.namn)}${st.eliminated?" (utslagen, omg "+st.eliminatedAtRound+")":""}</span>
