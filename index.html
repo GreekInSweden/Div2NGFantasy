@@ -5789,6 +5789,15 @@ function renderAdminTab(){
       <input class="fg-input" id="new-league-name" placeholder="t.ex. Premier League" style="margin-bottom:10px"/>
       <label class="fg-label">Säsong (t.ex. "2027" eller "2026/27")</label>
       <input class="fg-input" id="new-league-season" type="text" placeholder="t.ex. 2026/27" value="${esc(String(curYear))}" style="margin-bottom:14px"/>
+      <label class="fg-label">Lag (valfritt) – ett per rad</label>
+      <textarea id="new-league-teams" rows="6" placeholder="Arsenal
+Aston Villa
+Chelsea
+Liverpool
+..." autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);box-sizing:border-box;margin-bottom:8px"></textarea>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Listar du lag ovan skapas de direkt med rätt namn. Lämnar du fältet tomt skapas istället tomma lag att döpa om själv:</div>
+      <label class="fg-label">Antal tomma lag (används bara om inga lag listades ovan)</label>
+      <input class="fg-input" id="new-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
       <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
     </div>
     <div class="fg-card">
@@ -6870,7 +6879,15 @@ function attachHandlers(){
     else if(act==="create-league"){
       const name=document.getElementById("new-league-name").value.trim();
       const season=document.getElementById("new-league-season").value.trim();
+      const teamsRaw=document.getElementById("new-league-teams").value.trim();
+      const teamCount=Number(document.getElementById("new-league-team-count").value)||12;
       if(!name){flash("Ange ett namn för serien.");return;}
+      // Om lag listats: dela på radbrytning (eller komma/semikolon om allt klistrats på en rad)
+      let teamNames=[];
+      if(teamsRaw){
+        const lines=teamsRaw.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+        teamNames = lines.length>1 ? lines : lines[0].split(/[,;]/).map(s=>s.trim()).filter(s=>s.length>0);
+      }
       const seasonSlugPart=season.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
       const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+seasonSlugPart;
       const {data:maxRow}=await sb.from("leagues").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
@@ -6879,10 +6896,14 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       const {data:maxTeamRow}=await sb.from("teams").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
       let nextTeamId=(maxTeamRow?.id||0)+1;
-      const placeholderTeams=Array.from({length:12}).map((_,i)=>({id:nextTeamId+i,name:`Lag ${i+1}`,league_id:data.id}));
-      await sb.from("teams").insert(placeholderTeams);
+      const finalTeams = teamNames.length
+        ? teamNames.map((n,i)=>({id:nextTeamId+i,name:n,league_id:data.id}))
+        : Array.from({length:teamCount}).map((_,i)=>({id:nextTeamId+i,name:`Lag ${i+1}`,league_id:data.id}));
+      await sb.from("teams").insert(finalTeams);
       window._allLeaguesCache=null;
-      flash(`✓ Serien "${name}" skapad (dold) med 12 tomma lag att döpa om. Klicka "Hoppa till" för att börja bygga upp den.`);
+      flash(teamNames.length
+        ? `✓ Serien "${name}" skapad (dold) med ${finalTeams.length} lag inlagda! Klicka "Hoppa till" för att fortsätta.`
+        : `✓ Serien "${name}" skapad (dold) med ${finalTeams.length} tomma lag att döpa om. Klicka "Hoppa till" för att börja bygga upp den.`);
       render();
     }
     else if(act==="toggle-league-hidden"){
