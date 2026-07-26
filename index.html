@@ -6542,7 +6542,7 @@ function parsePlayersBlockFormat(lines){
 // tydligt märkt i förhandsgranskningen så admin kan dubbelkolla.
 function parseWebFixturesText(text){
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
-  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const normalizeStr=s=>s.toLowerCase().replace(/&/g,"and").replace(/\s+/g," ").trim();
   const findTeamFromText=name=>{
     const lower=normalizeStr(name);
     let t=TEAMS.find(x=>normalizeStr(x.name)===lower);
@@ -6632,7 +6632,7 @@ function parseAnyScheduleText(text){
 function parseScheduleText(text){
   const cleaned=text.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
 
-  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const normalizeStr=s=>s.toLowerCase().replace(/&/g,"and").replace(/\s+/g," ").trim();
 
   const findTeamFromLine=line=>{
     const lower=normalizeStr(line);
@@ -8177,7 +8177,7 @@ function attachHandlers(){
 
       // Parsa samma format som importverktyget
       const cleaned=raw.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
-      const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+      const normalizeStr=s=>s.toLowerCase().replace(/&/g,"and").replace(/\s+/g," ").trim();
 
       const lines=cleaned.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
       const entries=[]; // {team, goals}
