@@ -5780,7 +5780,8 @@ function renderAdminTab(){
     <div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">🔄 Säsongsväxling</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
-        Aktuell säsong: <b>Säsong ${esc(String(curYear))}</b><br>
+        Serie: <b>${esc(currentLeague.name)}</b> · Aktuell säsong: <b>${esc(String(curYear))}</b><br>
+        Det här påverkar bara <b>${esc(currentLeague.name)}</b> – dina andra serier rörs inte.<br>
         Att starta en ny säsong arkiverar den nuvarande och skapar en ny. All historik bevaras. Lagen kopieras automatiskt.
       </div>
       <label class="fg-label">Namn på ny säsong (t.ex. "2028" eller "2027/28" för säsonger som går över årsskiftet)</label>
@@ -7032,7 +7033,7 @@ function attachHandlers(){
     else if(act==="start-new-season"){
       const newLabel=document.getElementById("new-season-label").value.trim();
       if(!newLabel){flash("Ange en säsongsetikett.");return;}
-      if(!confirm(`Är du säker? Säsong ${currentLeague.season||2027} avslutas och säsong ${newLabel} startar.`))return;
+      if(!confirm(`Är du säker? För "${currentLeague.name}" avslutas säsong ${currentLeague.season||2027} och säsong ${newLabel} startar. Dina andra serier påverkas inte.`))return;
       el.textContent="Startar…"; el.disabled=true;
       const {error,league}=await createNewSeason(newLabel);
       if(error){flash("Fel: "+error.message);el.textContent="🚀 Starta ny säsong";el.disabled=false;return;}
