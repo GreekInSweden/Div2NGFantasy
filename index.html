@@ -292,14 +292,16 @@ async function fetchAllLeagues(){
   if(error){console.error(error);return [];}
   return data;
 }
-async function createNewSeason(newYear){
+async function createNewSeason(newSeasonLabel){
   // Stäng av nuvarande säsong
   await sb.from("leagues").update({is_current:false}).eq("id",currentLeague.id);
-  // Skapa ny liga med samma namn
+  // Skapa ny liga med samma namn. Säsongsetiketten kan vara fri text (t.ex. "2026/27"),
+  // så vi städar den till något URL-vänligt för slug-fältet separat.
+  const slugPart=String(newSeasonLabel).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
   const {data,error}=await sb.from("leagues").insert({
     name:currentLeague.name,
-    slug:currentLeague.slug+"-"+newYear,
-    season:newYear,
+    slug:currentLeague.slug+"-"+slugPart,
+    season:newSeasonLabel,
     is_current:true
   }).select().single();
   if(error)return{error};
@@ -316,6 +318,28 @@ async function fetchTeams(){
   const {data,error}=await sb.from("teams").select("*").eq("league_id",currentLeague.id).order("id");
   if(error){console.error(error);return [];}
   return data;
+}
+// Föreslår nästa säsongsetikett utifrån den nuvarande. Klarar både rena årtal
+// ("2027" -> "2028") och delade säsonger ("2026/27" eller "2026/2027" -> "2027/28"/"2027/2028").
+// Känns formatet inte igen returneras nuvarande etikett oförändrad, så admin kan redigera manuellt.
+function suggestNextSeasonLabel(current){
+  const s=String(current??"").trim();
+  let m=s.match(/^(\d{4})\s*\/\s*(\d{2}|\d{4})$/);
+  if(m){
+    const y1=Number(m[1])+1;
+    const shortForm=m[2].length===2;
+    const y2=shortForm?String((y1+1)%100).padStart(2,"0"):String(y1+1);
+    return `${y1}/${y2}`;
+  }
+  m=s.match(/^(\d{4})$/);
+  if(m) return String(Number(m[1])+1);
+  return s;
+}
+// Säker sorteringsnyckel för säsongsetiketter som kan vara fri text (t.ex. "2026/27") –
+// plockar ut det första 4-siffriga årtalet i strängen, annars 0.
+function seasonSortNum(s){
+  const m=String(s??"").match(/\d{4}/);
+  return m?Number(m[0]):0;
 }
 async function updateTeamName(id,name){
   const {error}=await sb.from("teams").update({name}).eq("id",id).eq("league_id",currentLeague.id);
@@ -2290,7 +2314,7 @@ function renderHome(){
             <span>${esc(s.name)}</span>
           </a>`).join("")}
       </div>`:""}
-      <div style="font-size:11px;color:#666">${esc(currentLeague.name)} – Liverapportering · Säsong ${currentLeague.season||cfg.omg||""}</div>
+      <div style="font-size:11px;color:#666">${esc(currentLeague.name)} – Liverapportering · Säsong ${esc(String(currentLeague.season||cfg.omg||""))}</div>
     </div>
 
   </div>`;
@@ -2799,7 +2823,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh">
-    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":appMode==="matchfokus"?" · Matchexperten":""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${currentLeague.season}</span>`:""}<button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":appMode==="matchfokus"?" · Matchexperten":""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
     <div class="fg-topbar-tabs">${tabs}</div>
     ${roundStrip}
     <div style="padding:12px 16px 24px">${body}</div>
@@ -4486,7 +4510,7 @@ function renderProfilTab(){
       <div style="width:54px;height:54px;border-radius:50%;background:${G_GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600">${esc(u.namn[0])}</div>
       <div>
         <div style="font-size:18px;font-weight:600">${esc(u.namn)}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Säsong ${currentLeague.season||2027} · Div2 Norra Götaland</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">Säsong ${esc(String(currentLeague.season||2027))} · ${esc(currentLeague.name)}</div>
       </div>
     </div>
   </div>
@@ -4506,9 +4530,9 @@ function renderHofTab(){
   ];
 
   const modeCards=modes.map(m=>{
-    const entries=hofData.filter(h=>h.game_mode===m.id).sort((a,b)=>b.season-a.season||(a.place||1)-(b.place||1));
+    const entries=hofData.filter(h=>h.game_mode===m.id).sort((a,b)=>seasonSortNum(b.season)-seasonSortNum(a.season)||(a.place||1)-(b.place||1));
     if(!entries.length)return"";
-    const seasons=[...new Set(entries.map(e=>e.season))].sort((a,b)=>b-a);
+    const seasons=[...new Set(entries.map(e=>e.season))].sort((a,b)=>seasonSortNum(b)-seasonSortNum(a));
     const placeIco={1:"🥇",2:"🥈",3:"🥉"};
     return `<div class="fg-card">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
@@ -5501,7 +5525,7 @@ function renderAdminTab(){
           <div style="display:flex;align-items:center;gap:8px">
             <div style="flex:1">
               <div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
-              <div style="font-size:11px;color:var(--color-text-secondary)">${modeLabel[l.game_mode]||l.game_mode} · ${(l.private_league_members||[]).length} med · Säsong ${season}</div>
+              <div style="font-size:11px;color:var(--color-text-secondary)">${modeLabel[l.game_mode]||l.game_mode} · ${(l.private_league_members||[]).length} med · Säsong ${esc(String(season))}</div>
             </div>
             <span style="font-family:monospace;font-size:11px;color:var(--color-text-secondary)">${l.invite_code}</span>
           </div>
@@ -5699,7 +5723,7 @@ function renderAdminTab(){
       {id:"ligatipp",label:"📊 Tippa serien"},{id:"quiz",label:"🧠 Quiz"},
     ];
     const modeOpts=modes.map(m=>`<option value="${m.id}">${m.label}</option>`).join("");
-    const hofRows=hofData.sort((a,b)=>b.season-a.season||(a.game_mode>b.game_mode?1:-1)||(a.place||1)-(b.place||1)).map(h=>`
+    const hofRows=hofData.sort((a,b)=>seasonSortNum(b.season)-seasonSortNum(a.season)||(a.game_mode>b.game_mode?1:-1)||(a.place||1)-(b.place||1)).map(h=>`
       <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <span>${{1:"🥇",2:"🥈",3:"🥉"}[h.place||1]||"🏅"}</span>
         <div style="flex:1"><b>${h.winner_name}</b> · ${h.game_mode} · Säsong ${h.season}${h.winner_pts?` · ${h.winner_pts}p`:""}</div>
@@ -5708,7 +5732,7 @@ function renderAdminTab(){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:10px">🏆 Lägg till vinnare</div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <div><label class="fg-label">Säsong</label><input class="fg-input" id="hof-season" type="number" value="${currentLeague.season||2027}"/></div>
+        <div><label class="fg-label">Säsong</label><input class="fg-input" id="hof-season" type="text" placeholder="t.ex. 2027 eller 2026/27" value="${esc(String(currentLeague.season||2027))}"/></div>
         <div><label class="fg-label">Spelform</label><select class="fg-input" id="hof-mode">${modeOpts}</select></div>
         <div><label class="fg-label">Plats</label><select class="fg-input" id="hof-place"><option value="1">🥇 1:a</option><option value="2">🥈 2:a</option><option value="3">🥉 3:a</option></select></div>
       </div>
@@ -5724,7 +5748,7 @@ function renderAdminTab(){
     </div>`:""}`;
   } else if(adminSection==="season"){
     const curYear=currentLeague.season||2027;
-    const nextYear=curYear+1;
+    const suggestedNext=suggestNextSeasonLabel(curYear);
     const allLeaguesData=window._allLeaguesCache||[];
     // Ladda async i bakgrunden om inte caché finns
     if(!window._allLeaguesCache){
@@ -5733,7 +5757,7 @@ function renderAdminTab(){
     const seasonRows=allLeaguesData.map(l=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="flex:1">
-          <div style="font-weight:500;font-size:13px">${esc(l.name)} ${l.season?"– "+l.season:""}</div>
+          <div style="font-weight:500;font-size:13px">${esc(l.name)} ${l.season?"– "+esc(String(l.season)):""}</div>
           <div style="font-size:11px;color:var(--color-text-secondary)">${l.id===currentLeague.id?"👉 Du jobbar med den här nu":""}</div>
         </div>
         ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
@@ -5744,14 +5768,16 @@ function renderAdminTab(){
     <div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">🔄 Säsongsväxling</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
-        Aktuell säsong: <b>Säsong ${curYear}</b><br>
-        Att starta en ny säsong arkiverar ${curYear} och skapar ${nextYear}. All historik bevaras. Lagen kopieras automatiskt.
+        Aktuell säsong: <b>Säsong ${esc(String(curYear))}</b><br>
+        Att starta en ny säsong arkiverar den nuvarande och skapar en ny. All historik bevaras. Lagen kopieras automatiskt.
       </div>
+      <label class="fg-label">Namn på ny säsong (t.ex. "2028" eller "2027/28" för säsonger som går över årsskiftet)</label>
+      <input class="fg-input" id="new-season-label" value="${esc(suggestedNext)}" style="margin-bottom:14px"/>
       <div style="background:#fffbeb;border:0.5px solid #e65100;border-radius:8px;padding:12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6">
-        ⚠️ <b>Obs!</b> Användare, Fantasy-val, tips och poäng från ${curYear} sparas och kan ses i historiken. Användarna behåller sina konton men börjar om med 0 poäng i ${nextYear}.
+        ⚠️ <b>Obs!</b> Användare, Fantasy-val, tips och poäng från nuvarande säsong sparas och kan ses i historiken. Användarna behåller sina konton men börjar om med 0 poäng i den nya säsongen.
       </div>
-      <button class="fg-btn" data-act="start-new-season" data-year="${nextYear}" style="background:#e65100">
-        🚀 Starta säsong ${nextYear}
+      <button class="fg-btn" data-act="start-new-season" style="background:#e65100">
+        🚀 Starta ny säsong
       </button>
     </div>
     <div class="fg-card">
@@ -5760,9 +5786,9 @@ function renderAdminTab(){
         Skapa en helt ny, separat serie (eget lag, spelare, användare – allt separat). Den skapas <b>dold</b> från vanliga användare tills du själv gör den synlig, så du kan bygga klart i lugn och ro.
       </div>
       <label class="fg-label">Namn på serien</label>
-      <input class="fg-input" id="new-league-name" placeholder="t.ex. Div2 Södra Götaland" style="margin-bottom:10px"/>
-      <label class="fg-label">Säsong/år</label>
-      <input class="fg-input" id="new-league-season" type="number" value="${curYear}" style="margin-bottom:14px"/>
+      <input class="fg-input" id="new-league-name" placeholder="t.ex. Premier League" style="margin-bottom:10px"/>
+      <label class="fg-label">Säsong (t.ex. "2027" eller "2026/27")</label>
+      <input class="fg-input" id="new-league-season" type="text" placeholder="t.ex. 2026/27" value="${esc(String(curYear))}" style="margin-bottom:14px"/>
       <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
     </div>
     <div class="fg-card">
@@ -6843,9 +6869,10 @@ function attachHandlers(){
     }
     else if(act==="create-league"){
       const name=document.getElementById("new-league-name").value.trim();
-      const season=Number(document.getElementById("new-league-season").value);
+      const season=document.getElementById("new-league-season").value.trim();
       if(!name){flash("Ange ett namn för serien.");return;}
-      const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+season;
+      const seasonSlugPart=season.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+seasonSlugPart;
       const {data:maxRow}=await sb.from("leagues").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
       const nextId=(maxRow?.id||0)+1;
       const {data,error}=await sb.from("leagues").insert({id:nextId,name,slug,season,is_current:true,hidden:true}).select().single();
@@ -6886,22 +6913,23 @@ function attachHandlers(){
       render();
     }
     else if(act==="start-new-season"){
-      const newYear=Number(el.dataset.year);
-      if(!confirm(`Är du säker? Säsong ${currentLeague.season||2027} avslutas och säsong ${newYear} startar.`))return;
+      const newLabel=document.getElementById("new-season-label").value.trim();
+      if(!newLabel){flash("Ange en säsongsetikett.");return;}
+      if(!confirm(`Är du säker? Säsong ${currentLeague.season||2027} avslutas och säsong ${newLabel} startar.`))return;
       el.textContent="Startar…"; el.disabled=true;
-      const {error,league}=await createNewSeason(newYear);
-      if(error){flash("Fel: "+error.message);el.textContent=`🚀 Starta säsong ${newYear}`;el.disabled=false;return;}
+      const {error,league}=await createNewSeason(newLabel);
+      if(error){flash("Fel: "+error.message);el.textContent="🚀 Starta ny säsong";el.disabled=false;return;}
       // Byt till ny liga
       currentLeague=league;
       TEAMS=await fetchTeams();
       players=await fetchPlayers();
       users=await fetchUsers();
       rounds={};
-      cfg={omg:1,registrationOpen:true,ligatippLocked:false,quizEnabled:false,fantasyEnabled:true,tippEnabled:true,snabbastEnabled:true,maljaktenEnabled:true,ligatippEnabled:true};
+      cfg={omg:1,registrationOpen:true,ligatippLocked:false,quizEnabled:false,fantasyEnabled:true,tippEnabled:true,snabbastEnabled:true,maljaktenEnabled:true,ligatippEnabled:true,totalRounds:26};
       await sb.from("app_config").insert({league_id:league.id,active_round:1,registration_open:true});
       adminOk=false; screen="home"; homeMode="start";
       sb.auth.signOut().catch(()=>{});
-      flash("✓ Säsong "+newYear+" startad! Välkommen till den nya säsongen.");
+      flash("✓ Säsong "+newLabel+" startad! Välkommen till den nya säsongen.");
     }
     else if(act==="change-pin"){
       const p1=document.getElementById("new-pin-1").value.trim();
@@ -6999,7 +7027,7 @@ function attachHandlers(){
       render();
     }
     else if(act==="hof-save"){
-      const season=Number(document.getElementById("hof-season").value);
+      const season=document.getElementById("hof-season").value.trim();
       const mode=document.getElementById("hof-mode").value;
       const name=document.getElementById("hof-name").value.trim();
       const pts=document.getElementById("hof-pts").value?Number(document.getElementById("hof-pts").value):null;
