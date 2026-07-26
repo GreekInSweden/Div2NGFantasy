@@ -8005,8 +8005,14 @@ function attachHandlers(){
         return;
       }
       let html=`<div class="fg-card"><div style="font-weight:500;margin-bottom:8px">Förhandsvisning – ${parsed.length} omgångar hittade</div>`;
-      parsed.forEach(({roundNum,roundGuessed,matches,errors,infos})=>{
-        html+=`<div style="margin-bottom:14px"><div style="font-weight:500;font-size:13px;color:${G_GREEN};margin-bottom:6px">Omgång ${roundNum} (${matches.length} matcher)${roundGuessed?` <span style="color:#e65100;font-weight:400">– omgångsnummer gissat (aktuell omgång), kontrollera att det stämmer!</span>`:""}</div>`;
+      parsed.forEach(({roundNum,roundGuessed,matches,errors,infos},idx)=>{
+        html+=`<div style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap">
+            <span style="font-weight:500;font-size:13px">Omgång</span>
+            <input type="number" min="1" data-act="import-round-input" data-idx="${idx}" value="${roundNum}" style="width:60px;padding:5px 6px;border:0.5px solid ${roundGuessed?'#e65100':'var(--color-border-secondary)'};border-radius:6px;font-size:13px;font-weight:600;background:var(--color-background-primary);color:var(--color-text-primary)"/>
+            <span style="font-size:13px;color:${G_GREEN}">(${matches.length} matcher)</span>
+            ${roundGuessed?`<span style="color:#e65100;font-size:11px">⚠ gissat (aktuell omgång) – rätta ovan om det behövs</span>`:""}
+          </div>`;
         matches.forEach(m=>{
           const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
           html+=`<div style="display:flex;gap:6px;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -8370,6 +8376,14 @@ function attachHandlers(){
     else if(act==="pimport-name"){ playersImportRows[Number(el.dataset.idx)].namn=el.value; }
     else if(act==="pimport-pos"){ playersImportRows[Number(el.dataset.idx)].pos=el.value; playersImportRows[Number(el.dataset.idx)].posMatched=true; render(); }
     else if(act==="pimport-team"){ playersImportRows[Number(el.dataset.idx)].teamId=Number(el.value); playersImportRows[Number(el.dataset.idx)].teamMatched=true; render(); }
+    else if(act==="import-round-input"){
+      const previewArea=document.getElementById("import-preview-area");
+      const parsed=previewArea?previewArea._parsed:null;
+      if(!parsed) return;
+      const idx=Number(el.dataset.idx);
+      const val=Number(el.value);
+      if(parsed[idx]&&val>0){ parsed[idx].roundNum=val; parsed[idx].roundGuessed=false; }
+    }
     else if(act==="tip-input"){
       const key=el.dataset.hid+"-"+el.dataset.aid;
       const cur=tipDraft[key]||{predH:"",predA:""};
