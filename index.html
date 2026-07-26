@@ -5858,14 +5858,14 @@ Liverpool
   } else if(adminSection==="import"){
     const importVal=document.getElementById("import-text")?document.getElementById("import-text").value:"";
     body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:6px">Importera schema från Fotbollskollen</div>
+      <div style="font-weight:500;margin-bottom:6px">Importera matchprogram</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
-        1. Gå till Fotbollskollen / FOGIS och kopiera texten för de omgångar du vill lägga in (Ctrl+A, Ctrl+C)<br>
-        2. Klistra in texten i rutan nedan<br>
-        3. Klicka "Förhandsgranska" – appen matchar lagnamnen automatiskt<br>
-        4. Klicka "Spara alla omgångar" om allt ser rätt ut
+        Stöder två format automatiskt:<br>
+        <b>1) Fotbollskollen/FOGIS</b> – kopiera texten för de omgångar du vill lägga in (Ctrl+A, Ctrl+C)<br>
+        <b>2) Länkbaserade sidor</b> (t.ex. premierleague.com) – kopiera matchveckans program rakt av, med datumrubriker och matchlänkar<br><br>
+        Klistra in i rutan nedan, klicka "Förhandsgranska" – appen känner av formatet och matchar lagnamnen automatiskt. Klicka sen "Spara alla omgångar" om allt ser rätt ut.
       </div>
-      <textarea id="import-text" placeholder="Klistra in text från Fotbollskollen här..." style="width:100%;height:160px;padding:10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-secondary)">${esc(importVal)}</textarea>
+      <textarea id="import-text" placeholder="Klistra in matchprogrammet här..." style="width:100%;height:160px;padding:10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-secondary)">${esc(importVal)}</textarea>
       <button class="fg-btn" data-act="import-preview" style="margin-top:10px">Förhandsgranska</button>
     </div>
     <div id="import-preview-area"></div>`;
@@ -6522,6 +6522,76 @@ function parsePlayersBlockFormat(lines){
   return out;
 }
 
+// Tolkar matchprogram klistrat från sidor som premierleague.com – datumrubriker
+// (t.ex. "Fri 21 Aug[Live blog](url)") följt av matcher som tre separata rader:
+//   [Hemmalag](url)
+//   [21:00](url)
+//   [Bortalag](url)
+// Omgångsnumret (matchvecka) plockas automatiskt ur "Live blog"-länkens
+// webbadress om den innehåller "matchweek/ÅÅÅÅ_N" – annars antas aktuell
+// omgång (cfg.omg), tydligt märkt i förhandsgranskningen.
+function parseLinkFixturesText(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const findTeamFromText=name=>{
+    const lower=normalizeStr(name);
+    let t=TEAMS.find(x=>normalizeStr(x.name)===lower);
+    if(t)return t;
+    return TEAMS.find(x=>{
+      const tn=normalizeStr(x.name);
+      return lower.includes(tn)||tn.includes(lower);
+    });
+  };
+  const roundsMap={}; // roundKey -> {matches:[], errors:[], infos:[]}
+  let currentRound=null;
+  let pendingHome=null;
+  const skippedLines=[];
+  const ensureRound=key=>{
+    if(!roundsMap[key]) roundsMap[key]={matches:[],errors:[],infos:[]};
+    return roundsMap[key];
+  };
+  lines.forEach(line=>{
+    if(!line.startsWith("[")){
+      // Datumrubrik – leta efter matchweek-nummer i webbadressen
+      const m=line.match(/matchweek\/\d+_(\d+)/i);
+      if(m) currentRound=Number(m[1]);
+      return;
+    }
+    const m=line.match(/^\[(.+?)\]\(.*\)$/);
+    if(!m) return;
+    const content=m[1].trim();
+    if(/^\d{1,2}:\d{2}$/.test(content)) return; // avsparkstid, behövs inte
+    if(/^live ?blog$/i.test(content)) return;
+    const team=findTeamFromText(content);
+    if(!team){ skippedLines.push(content); return; }
+    if(!pendingHome){
+      pendingHome=team;
+    } else {
+      const roundKey=currentRound!=null?String(currentRound):"okänd";
+      const rd=ensureRound(roundKey);
+      rd.matches.push({hId:pendingHome.id,aId:team.id,hRaw:pendingHome.name,aRaw:team.name});
+      pendingHome=null;
+    }
+  });
+  if(skippedLines.length){
+    const key=Object.keys(roundsMap)[0]||"okänd";
+    ensureRound(key).infos.push(`Rader som inte kunde matchas mot något lag: ${skippedLines.map(l=>`"${l}"`).join(", ")}`);
+  }
+  return Object.entries(roundsMap).map(([roundKey,data])=>({
+    roundNum: roundKey==="okänd" ? (cfg.omg||1) : Number(roundKey),
+    roundGuessed: roundKey==="okänd",
+    matches:data.matches,
+    errors:data.errors,
+    infos:data.infos
+  }));
+}
+// Känner av vilket format som klistrats in och tolkar med rätt parser – så att
+// admin inte behöver välja manuellt mellan svenska Fotbollskollen-formatet och
+// länkbaserade sidor som premierleague.com.
+function parseAnyScheduleText(text){
+  const looksLikeLinkFixtures=/^\[.+?\]\(.*\)$/m.test(text) || /matchweek\//i.test(text);
+  return looksLikeLinkFixtures ? parseLinkFixturesText(text) : parseScheduleText(text);
+}
 function parseScheduleText(text){
   const cleaned=text.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
 
@@ -7891,15 +7961,15 @@ function attachHandlers(){
     }
     else if(act==="import-preview"){
       const text=document.getElementById("import-text").value;
-      const parsed=parseScheduleText(text);
+      const parsed=parseAnyScheduleText(text);
       const previewArea=document.getElementById("import-preview-area");
       if(!parsed.length){
-        previewArea.innerHTML=`<div class="fg-card" style="color:#c1272d;font-size:13px">Inga omgångar hittades. Kontrollera att texten innehåller "Omgång X" och lagnamn.</div>`;
+        previewArea.innerHTML=`<div class="fg-card" style="color:#c1272d;font-size:13px">Inga omgångar hittades. Kontrollera att texten innehåller "Omgång X" och lagnamn, eller matchlänkar från en stödd sida.</div>`;
         return;
       }
       let html=`<div class="fg-card"><div style="font-weight:500;margin-bottom:8px">Förhandsvisning – ${parsed.length} omgångar hittade</div>`;
-      parsed.forEach(({roundNum,matches,errors,infos})=>{
-        html+=`<div style="margin-bottom:14px"><div style="font-weight:500;font-size:13px;color:${G_GREEN};margin-bottom:6px">Omgång ${roundNum} (${matches.length} matcher)</div>`;
+      parsed.forEach(({roundNum,roundGuessed,matches,errors,infos})=>{
+        html+=`<div style="margin-bottom:14px"><div style="font-weight:500;font-size:13px;color:${G_GREEN};margin-bottom:6px">Omgång ${roundNum} (${matches.length} matcher)${roundGuessed?` <span style="color:#e65100;font-weight:400">– omgångsnummer gissat (aktuell omgång), kontrollera att det stämmer!</span>`:""}</div>`;
         matches.forEach(m=>{
           const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
           html+=`<div style="display:flex;gap:6px;font-size:12px;padding:3px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -7909,7 +7979,7 @@ function attachHandlers(){
           </div>`;
         });
         if(errors.length) html+=`<div style="font-size:11px;color:#c1272d;margin-top:4px">⚠ ${errors.join(", ")}</div>`;
-        // (info-rader om ignorerade plan-/arenanamn visas inte längre – bara riktiga fel gör det)
+        if(infos&&infos.length) html+=`<div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${infos.join(", ")}</div>`;
         html+=`</div>`;
       });
       html+=`<button class="fg-btn" data-act="import-save" style="margin-top:4px">Spara alla omgångar</button></div>`;
