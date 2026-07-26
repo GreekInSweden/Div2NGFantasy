@@ -346,9 +346,7 @@ async function updateTeamName(id,name){
   if(error)console.error(error);
 }
 async function addTeam(name){
-  const {data:maxRow}=await sb.from("teams").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
-  const nextId=(maxRow?.id||0)+1;
-  const {data,error}=await sb.from("teams").insert({id:nextId,name,league_id:currentLeague.id}).select().single();
+  const {data,error}=await sb.from("teams").insert({name,league_id:currentLeague.id}).select().single();
   return {data,error};
 }
 async function deleteTeam(id){
@@ -1089,9 +1087,7 @@ async function fetchSponsors(){
   return data;
 }
 async function addSponsor(s){
-  const {data:maxRow}=await sb.from("sponsors").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
-  const nextId=(maxRow?.id||0)+1;
-  const {data,error}=await sb.from("sponsors").insert({id:nextId,league_id:currentLeague.id,...s}).select().single();
+  const {data,error}=await sb.from("sponsors").insert({league_id:currentLeague.id,...s}).select().single();
   return {data,error};
 }
 async function updateSponsor(id,fields){
@@ -5786,10 +5782,14 @@ function renderAdminTab(){
       fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});
     }
     const seasonRows=allLeaguesData.map(l=>`
-      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-        <div style="flex:1">
-          <div style="font-weight:500;font-size:13px">${esc(l.name)} ${l.season?"– "+esc(String(l.season)):""}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary)">${l.id===currentLeague.id?"👉 Du jobbar med den här nu":""}</div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap">
+        <div style="flex:1;min-width:150px">
+          <div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">${l.id===currentLeague.id?"👉 Du jobbar med den här nu":""}</div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <input data-act="league-season-input" data-id="${l.id}" value="${esc(String(l.season||""))}" style="font-size:11px;padding:4px 6px;border:0.5px solid var(--color-border-secondary);border-radius:4px;width:90px;background:var(--color-background-primary);color:var(--color-text-primary)"/>
+            <button data-act="save-league-season" data-id="${l.id}" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer;color:var(--color-text-secondary)">Spara säsong</button>
+          </div>
         </div>
         ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
         <button data-act="toggle-league-hidden" data-id="${l.id}" data-hidden="${l.hidden?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.hidden?"Gör synlig":"Dölj"}</button>
@@ -6951,20 +6951,28 @@ function attachHandlers(){
       const teamNames = teamsRaw ? parseTeamNamesText(teamsRaw) : [];
       const seasonSlugPart=season.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
       const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+seasonSlugPart;
-      const {data:maxRow}=await sb.from("leagues").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
-      const nextId=(maxRow?.id||0)+1;
-      const {data,error}=await sb.from("leagues").insert({id:nextId,name,slug,season,is_current:true,hidden:true}).select().single();
+      const {data,error}=await sb.from("leagues").insert({name,slug,season,is_current:true,hidden:true}).select().single();
       if(error){flash("Fel: "+error.message);return;}
-      const {data:maxTeamRow}=await sb.from("teams").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
-      let nextTeamId=(maxTeamRow?.id||0)+1;
       const finalTeams = teamNames.length
-        ? teamNames.map((n,i)=>({id:nextTeamId+i,name:n,league_id:data.id}))
-        : Array.from({length:teamCount}).map((_,i)=>({id:nextTeamId+i,name:`Lag ${i+1}`,league_id:data.id}));
+        ? teamNames.map(n=>({name:n,league_id:data.id}))
+        : Array.from({length:teamCount}).map((_,i)=>({name:`Lag ${i+1}`,league_id:data.id}));
       await sb.from("teams").insert(finalTeams);
       window._allLeaguesCache=null;
       flash(teamNames.length
         ? `✓ Serien "${name}" skapad (dold) med ${finalTeams.length} lag inlagda! Klicka "Hoppa till" för att fortsätta.`
         : `✓ Serien "${name}" skapad (dold) med ${finalTeams.length} tomma lag att döpa om. Klicka "Hoppa till" för att börja bygga upp den.`);
+      render();
+    }
+    else if(act==="save-league-season"){
+      const id=Number(el.dataset.id);
+      const input=document.querySelector('[data-act="league-season-input"][data-id="'+id+'"]');
+      const newSeason=input?input.value.trim():"";
+      if(!newSeason){flash("Ange en säsongsetikett.");return;}
+      const {error}=await sb.from("leagues").update({season:newSeason}).eq("id",id);
+      if(error){flash("Fel: "+error.message+" (har du kört migreringen som gör season till text?)");return;}
+      window._allLeaguesCache=(window._allLeaguesCache||[]).map(l=>l.id===id?{...l,season:newSeason}:l);
+      if(currentLeague&&currentLeague.id===id){ currentLeague={...currentLeague,season:newSeason}; }
+      flash(`✓ Säsong uppdaterad till "${newSeason}"!`);
       render();
     }
     else if(act==="toggle-league-hidden"){
