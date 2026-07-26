@@ -481,11 +481,11 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled").eq("league_id",currentLeague.id).maybeSingle();
-  if(error){console.error(error);return {omg:1,registrationOpen:true};}
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,total_rounds").eq("league_id",currentLeague.id).maybeSingle();
+  if(error){console.error(error);return {omg:1,registrationOpen:true,totalRounds:26};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
-    return {omg:1,registrationOpen:true};
+    return {omg:1,registrationOpen:true,totalRounds:26};
   }
   return {
     omg:data.active_round,
@@ -505,12 +505,18 @@ async function fetchConfig(){
     jubelEnabled:!!data.jubel_enabled,
     investerareEnabled:!!data.investerare_enabled,
     ltsEnabled:!!data.lts_enabled,
-    anytimeEnabled:!!data.anytime_enabled
+    anytimeEnabled:!!data.anytime_enabled,
+    totalRounds:data.total_rounds||26
   };
 }
 async function setConfig(omg){
   const {error}=await sb.from("app_config").update({active_round:omg}).eq("league_id",currentLeague.id);
   if(error)console.error(error);
+}
+async function setTotalRounds(n){
+  const {error}=await sb.from("app_config").update({total_rounds:n}).eq("league_id",currentLeague.id);
+  if(error)console.error(error);
+  return error;
 }
 async function toggleRegistration(open){
   const {error}=await sb.from("app_config").update({registration_open:open}).eq("league_id",currentLeague.id);
@@ -2646,14 +2652,14 @@ function renderRulesScreen(){
 
       ${cfg.ligatippEnabled!==false?section("📊","Tippa serien",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Rangordna <b>alla 14 lag</b> inför säsongsstart – vem vinner, vem slutar sist?
-          Poäng delas ut vid <b>två tillfällen</b>: efter omgång 13 (halvtid) och efter omgång 26 (slutet).
+          Rangordna <b>alla ${TEAMS.length} lag</b> inför säsongsstart – vem vinner, vem slutar sist?
+          Poäng delas ut vid <b>två tillfällen</b>: efter omgång ${Math.ceil((cfg.totalRounds||26)/2)} (halvtid) och efter omgång ${cfg.totalRounds||26} (slutet).
           För varje lag du placerar på exakt rätt plats får du 3p.
         </div>
         ${table([
           ["Exakt rätt placering","3 p"],
-          ["Max poäng per checkpoint","42 p (14×3p)"],
-          ["Max totalt (båda checkpoints)","84 p"]
+          ["Max poäng per checkpoint",`${TEAMS.length*3} p (${TEAMS.length}×3p)`],
+          ["Max totalt (båda checkpoints)",`${TEAMS.length*3*2} p`]
         ])}
         ${tip("💡 Tippningen stänger innan säsongen startar – du kan inte ändra efteråt. Välj klokt!")}
       `):""}
@@ -2679,7 +2685,7 @@ function renderRulesScreen(){
           ["Rätt svar","1 p"],
           ["Fel svar / ej besvarad","0 p"],
           ["Max per omgång","5 p"],
-          ["Max totalt (26 omgångar)","130 p"]
+          [`Max totalt (${cfg.totalRounds||26} omgångar)`,`${(cfg.totalRounds||26)*5} p`]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
           <b>Format:</b> Tre alternativ – <b>1</b>, <b>X</b> eller <b>2</b> – med valfri text bakom.<br>
@@ -2745,7 +2751,7 @@ function renderMain(){
   const roundStrip=showRoundStrip?`
     <div style="background:#1a1a1a;padding:6px 12px 8px">
       <div style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px">
-      ${Array.from({length:26},(_,i)=>i+1).map(r=>{
+      ${Array.from({length:cfg.totalRounds||26},(_,i)=>i+1).map(r=>{
         const rd=rounds[String(r)];
         const isActive=r===cfg.omg;
         if(!rd) return `<div style="height:26px;border-radius:5px;background:#333;opacity:0.3"></div>`;
@@ -3211,16 +3217,18 @@ function renderLigatippTab(){
   const locked=cfg.ligatippLocked;
   const draft=ligatippCheckpoint===1?ligatippDraft.half:ligatippDraft.full;
   const unplaced=TEAMS.filter(t=>!draft.includes(t.id));
-  const cpLabel=ligatippCheckpoint===1?"Halvtid – efter omgång 13":"Slutställning – efter omgång 26";
+  const totalR=cfg.totalRounds||26;
+  const halvtidR=Math.ceil(totalR/2);
+  const cpLabel=ligatippCheckpoint===1?`Halvtid – efter omgång ${halvtidR}`:`Slutställning – efter omgång ${totalR}`;
   const checkpointResult=ligatippStandings[ligatippCheckpoint];
 
   const cpTabs=[
-    [1,"Halvtid (Omg 13)"],
-    [2,"Slutställning (Omg 26)"]
+    [1,`Halvtid (Omg ${halvtidR})`],
+    [2,`Slutställning (Omg ${totalR})`]
   ].map(([cp,lbl])=>`<button data-act="ligatipp-tab" data-cp="${cp}" style="flex:1;padding:8px 4px;border-radius:6px;border:${ligatippCheckpoint===cp?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${ligatippCheckpoint===cp?G_GREENL:"var(--color-background-primary)"};color:${ligatippCheckpoint===cp?G_GREEN:"var(--color-text-secondary)"};font-size:12px;font-weight:500;cursor:pointer">${lbl}</button>`).join("");
 
   // Ranked slots
-  const slots=Array.from({length:14}).map((_,i)=>{
+  const slots=Array.from({length:TEAMS.length}).map((_,i)=>{
     const teamId=draft[i];
     const team=teamId!==undefined?TEAMS.find(t=>t.id===teamId):null;
     const actualTeamId=checkpointResult?checkpointResult.standings[i]:null;
@@ -3237,7 +3245,7 @@ function renderLigatippTab(){
   const availableHtml=locked?"":unplaced.length
     ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Klicka ett lag för att placera det på nästa lediga plats:</div>
        <div style="display:flex;flex-wrap:wrap;gap:6px">${unplaced.map(t=>`<button data-act="ligatipp-place" data-id="${t.id}" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">${esc(t.name)}</button>`).join("")}</div>`
-    : `<div style="font-size:13px;color:${G_GREEN};font-weight:500">Alla 14 lag är placerade! Glöm inte spara.</div>`;
+    : `<div style="font-size:13px;color:${G_GREEN};font-weight:500">Alla ${TEAMS.length} lag är placerade! Glöm inte spara.</div>`;
 
   // Leaderboard
   const lb=[...allLeagueTips].sort((a,b)=>userLigatippTotalPts(b)-userLigatippTotalPts(a));
@@ -3250,7 +3258,7 @@ function renderLigatippTab(){
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:6px;padding-right:6px`:""}">
       <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
       <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u?u.namn:"?")}${isMe?" (du)":""}</span>
-      <span style="font-size:12px;color:var(--color-text-secondary)">${tipArr?tipArr.length+"/14":""}</span>
+      <span style="font-size:12px;color:var(--color-text-secondary)">${tipArr?tipArr.length+"/"+TEAMS.length:""}</span>
       <span style="font-weight:500">${pts} p</span>
     </div>`;
   }).join("") : `<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>`;
@@ -3270,8 +3278,8 @@ function renderLigatippTab(){
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
     <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-      Exakt rätt placering = <b>3 p</b> · Max 42 p per tillfälle (14 lag × 3p)<br>
-      Poäng delas ut två gånger: efter omgång 13 och efter omgång 26
+      Exakt rätt placering = <b>3 p</b> · Max ${TEAMS.length*3} p per tillfälle (${TEAMS.length} lag × 3p)<br>
+      Poäng delas ut två gånger: efter omgång ${halvtidR} och efter omgång ${totalR}
     </div>
   </div>
   <div class="fg-card">
@@ -4443,7 +4451,8 @@ function renderQuizTab(){
 function renderProfilTab(){
   const u=currentUser;
   const allPublished=Object.values(rounds).filter(r=>r.results_published);
-  const seasonDone=allPublished.length>=26;
+  const totalR=cfg.totalRounds||26;
+  const seasonDone=allPublished.length>=totalR;
   const changePinSection=`<div class="fg-card">
     <div style="font-weight:500;margin-bottom:10px">🔑 Byt PIN-kod</div>
     <label class="fg-label">Ny PIN (5 siffror)</label>
@@ -4464,9 +4473,9 @@ function renderProfilTab(){
     : `<div class="fg-card" style="background:var(--color-background-secondary)">
         <div style="font-weight:500;margin-bottom:4px">🔒 Radera konto</div>
         <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.6">
-          Kontot kan inte raderas under pågående säsong. Återkom efter omgång 26 för att radera ditt konto.
+          Kontot kan inte raderas under pågående säsong. Återkom efter omgång ${totalR} för att radera ditt konto.
         </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--color-text-secondary)">${allPublished.length}/26 omgångar spelade</div>
+        <div style="margin-top:8px;font-size:11px;color:var(--color-text-secondary)">${allPublished.length}/${totalR} omgångar spelade</div>
       </div>`;
 
   return `
@@ -4773,9 +4782,9 @@ function renderStatistikTab(){
 
     <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:14px">
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px;line-height:1.5">
-        Radering av konto är endast möjligt efter säsongens slut (omgång 26 publicerad).
+        Radering av konto är endast möjligt efter säsongens slut (omgång ${cfg.totalRounds||26} publicerad).
       </div>
-      <button data-act="delete-account" style="background:none;border:0.5px solid #c1272d;color:#c1272d;border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;${Object.keys(rounds).length<26||!rounds["26"]?.results_published?"opacity:0.4;cursor:not-allowed":""}">
+      <button data-act="delete-account" style="background:none;border:0.5px solid #c1272d;color:#c1272d;border-radius:6px;padding:8px 14px;font-size:12px;cursor:pointer;${Object.keys(rounds).length<(cfg.totalRounds||26)||!rounds[String(cfg.totalRounds||26)]?.results_published?"opacity:0.4;cursor:not-allowed":""}">
         🗑 Radera mitt konto
       </button>
     </div>
@@ -4954,7 +4963,7 @@ function renderOmgTab(){
   const keys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
 
   // Grid – samma stil som admin men med användarinfo
-  const gridBtns=Array.from({length:26},(_,i)=>i+1).map(n=>{
+  const gridBtns=Array.from({length:cfg.totalRounds||26},(_,i)=>i+1).map(n=>{
     const rd=rounds[String(n)];
     const isActive=openRounds.has(n);
 
@@ -5101,10 +5110,17 @@ function renderAdminTab(){
         <button data-act="bulk-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px">×</button>
       </div>`).join("");
     body=`
+    <div class="fg-card" style="padding:10px 14px;display:flex;gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <label class="fg-label">⚙️ Antal omgångar i serien (påverkar rundnät, Tippa serien-checkpoints, Quiz-fördelning m.m.)</label>
+        <input class="fg-input" id="total-rounds-input" type="number" min="1" value="${cfg.totalRounds||26}"/>
+      </div>
+      <button class="fg-outbtn" data-act="save-total-rounds" style="padding:9px 14px">Spara</button>
+    </div>
     <div class="fg-card" style="padding:10px 14px;margin-bottom:0">
       <div style="font-size:12px;font-weight:500;color:var(--color-text-secondary);margin-bottom:8px">Säsongsöversikt – klicka en omgång för att hoppa dit</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px">
-        ${Array.from({length:26},(_,i)=>i+1).map(n=>{
+        ${Array.from({length:cfg.totalRounds||26},(_,i)=>i+1).map(n=>{
           const rd=rounds[String(n)];
           const bg=!rd?'var(--color-background-secondary)':rd.results_published?S_AMBERL:rd.locked?'#fce8e8':S_GREENL;
           const col=!rd?'var(--color-text-secondary)':rd.results_published?S_AMBER:rd.locked?'#c1272d':S_GREEN;
@@ -5261,6 +5277,8 @@ function renderAdminTab(){
   } else if(adminSection==="teams"){
     const teamCount={};
     players.forEach(p=>{ teamCount[p.teamId]=(teamCount[p.teamId]||0)+1; });
+    const computedRounds=TEAMS.length>1?(TEAMS.length-1)*2:0;
+    const roundsMatch=(cfg.totalRounds||26)===computedRounds;
     let rowsHtml = TEAMS.map(t=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <input class="fg-input" data-act="team-name-input" data-id="${t.id}" value="${esc(t.name)}" style="flex:1"/>
@@ -5268,7 +5286,15 @@ function renderAdminTab(){
         <button data-act="save-team-name" data-id="${t.id}" style="background:${G_GREEN};color:#fff;border:none;border-radius:6px;padding:8px 12px;font-size:12px;cursor:pointer;font-weight:500">Spara</button>
         <button data-act="delete-team" data-id="${t.id}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px">×</button>
       </div>`).join("");
-    body = `<div class="fg-card">
+    body = `<div class="fg-card" style="background:${roundsMatch?'#e8f5ee':'#fffbeb'}">
+      <div style="font-weight:500;margin-bottom:6px">${roundsMatch?'✅':'⚙️'} Antal omgångar utifrån lagen</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">
+        ${TEAMS.length} lag inlagda → i en serie där alla möts hemma och borta blir det <b>${computedRounds} omgångar</b> ((${TEAMS.length}−1)×2).<br>
+        ${roundsMatch?`Detta stämmer redan med den sparade inställningen (${cfg.totalRounds||26} omgångar).`:`Sparad inställning just nu: <b>${cfg.totalRounds||26} omgångar</b> – klicka nedan när alla lag är inlagda för att uppdatera.`}
+      </div>
+      <button class="fg-btn" data-act="generate-total-rounds" ${TEAMS.length<2?"disabled":""} style="${TEAMS.length<2?"opacity:0.5":""}">✅ Alla lag inlagda – sätt ${computedRounds} omgångar</button>
+    </div>
+    <div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">➕ Lägg till nytt lag</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Använd den här för en helt ny serie, eller för att lägga till ett enstaka lag.</div>
       <div style="display:flex;gap:8px">
@@ -5290,9 +5316,11 @@ function renderAdminTab(){
     const curTips=allLeagueTips;
     const cp1=ligatippStandings[1]||{standings:[],locked:false};
     const cp2=ligatippStandings[2]||{standings:[],locked:false};
+    const totalR=cfg.totalRounds||26;
+    const halvtidR=Math.ceil(totalR/2);
     const makeStandingsInput=(cp,existing)=>{
       const teamOpts=t=>TEAMS.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${esc(x.name)}</option>`).join("");
-      const rows=Array.from({length:14}).map((_,i)=>`
+      const rows=Array.from({length:TEAMS.length}).map((_,i)=>`
         <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
           <div style="width:24px;text-align:center;font-size:12px;color:var(--color-text-secondary)">${i+1}</div>
           <select data-act="standings-pick" data-cp="${cp}" data-idx="${i}" style="flex:1;padding:6px 8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:13px;background:var(--color-background-primary)">
@@ -5300,8 +5328,8 @@ function renderAdminTab(){
             ${teamOpts(existing.standings[i])}
           </select>
         </div>`).join("");
-      return `<div style="font-weight:500;margin-bottom:8px">${cp===1?"Halvtid (Omg 13)":"Slutställning (Omg 26)"}</div>${rows}
-        <button data-act="save-standings" data-cp="${cp}" class="fg-btn" style="margin-top:12px">Spara verklig tabell (Omg ${cp===1?13:26})</button>`;
+      return `<div style="font-weight:500;margin-bottom:8px">${cp===1?`Halvtid (Omg ${halvtidR})`:`Slutställning (Omg ${totalR})`}</div>${rows}
+        <button data-act="save-standings" data-cp="${cp}" class="fg-btn" style="margin-top:12px">Spara verklig tabell (Omg ${cp===1?halvtidR:totalR})</button>`;
     };
     body=`<div class="fg-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
@@ -7055,7 +7083,7 @@ function attachHandlers(){
     else if(act==="quiz-distribute"){
       if(!confirm("Fördela alla frågor slumpmässigt på omgångarna? Du kan återställa efteråt om du vill ändra."))return;
       el.textContent="Fördelar…"; el.disabled=true;
-      const {error,distributed}=await distributeQuizQuestions(26);
+      const {error,distributed}=await distributeQuizQuestions(cfg.totalRounds||26);
       if(error){flash("Fel: "+error.message);return;}
       quizQuestions=await fetchAllQuizAdmin();
       flash("✓ "+distributed+" frågor fördelade på "+Math.ceil(distributed/5)+" omgångar!");
@@ -7584,6 +7612,22 @@ function attachHandlers(){
       const inp2=document.getElementById("users-search");
       if(inp2){ inp2.focus(); if(pos!=null){ try{inp2.setSelectionRange(pos,pos);}catch(e){} } }
     }
+    else if(act==="generate-total-rounds"){
+      if(TEAMS.length<2){flash("Lägg till minst 2 lag först.");return;}
+      const computed=(TEAMS.length-1)*2;
+      const error=await setTotalRounds(computed);
+      if(error){flash("Fel: "+error.message);return;}
+      cfg={...cfg,totalRounds:computed};
+      flash(`✓ ${TEAMS.length} lag → ${computed} omgångar satt!`);
+    }
+    else if(act==="save-total-rounds"){
+      const val=Number(document.getElementById("total-rounds-input")?.value);
+      if(!val||val<1){flash("Ange ett giltigt antal omgångar.");return;}
+      const error=await setTotalRounds(val);
+      if(error){flash("Fel: "+error.message);return;}
+      cfg={...cfg,totalRounds:val};
+      flash(`✓ Antal omgångar satt till ${val}!`);
+    }
     else if(act==="admin-jump-round"){
       const n=Number(el.dataset.n);
       bulkRows=defaultBulkRows(String(n));
@@ -7671,9 +7715,9 @@ function attachHandlers(){
       const arr=[];
       let ok=true;
       selects.forEach(s=>{ const v=Number(s.value); if(!v){ok=false;} arr.push(v); });
-      if(!ok){flash("Fyll i alla 14 placeringar.");return;}
+      if(!ok){flash(`Fyll i alla ${TEAMS.length} placeringar.`);return;}
       const uniqueIds=new Set(arr);
-      if(uniqueIds.size!==14){flash("Varje lag får bara förekomma en gång.");return;}
+      if(uniqueIds.size!==TEAMS.length){flash("Varje lag får bara förekomma en gång.");return;}
       const error=await saveLigatippStandings(cp,arr);
       if(error){flash("Fel: "+error.message);return;}
       ligatippStandings={...ligatippStandings,[cp]:{standings:arr,locked:true}};
