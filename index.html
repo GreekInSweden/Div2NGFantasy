@@ -6376,6 +6376,7 @@ function parsePlayersImportText(text){
   const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
   console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
+  lines.slice(0,6).forEach((l,i)=>console.warn(`  rad ${i}:`,JSON.stringify(l)));
   const rawRows = hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
     : hasDelimiters ? parsePlayersStructuredFormat(lines)
     : parsePlayersBlockFormat(lines);
