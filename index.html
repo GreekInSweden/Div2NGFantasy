@@ -885,6 +885,37 @@ async function deletePrivateLeague(id){
   const {error}=await sb.from("private_leagues").delete().eq("id",id);
   return error;
 }
+// Raderar en hel serie permanent – rensar alla tabeller som är kopplade till
+// league_id, i rätt ordning. OBS: rör INTE player_accounts, eftersom de är
+// delade konton mellan serier (Väg A) och kan användas av spelare i andra
+// serier än den som raderas.
+async function deleteLeagueCompletely(leagueId){
+  try{
+    const {data:pls}=await sb.from("private_leagues").select("id").eq("league_id",leagueId);
+    if(pls?.length){
+      const plIds=pls.map(p=>p.id);
+      await sb.from("private_league_members").delete().in("private_league_id",plIds);
+    }
+    const tables=[
+      "private_leagues","teams","players","fantasy_users","rounds","app_config",
+      "league_tips","league_standings","snabbast_tips","måljakten_tips","matchfokus_tips",
+      "malregn_tips","jubel_tips","investerare_investments","anytime_tips","streak_tips",
+      "quiz_questions","quiz_answers","hall_of_fame","duellen_config","duellen_divisions",
+      "duellen_division_members","duellen_fixtures","duellen_signups","lts_config",
+      "lts_signups","lts_picks","sponsors","sponsor_clicks","user_sessions",
+      "presence_pings","session_mode_visits","presence_debug_log","push_subscriptions"
+    ];
+    for(const t of tables){
+      const {error}=await sb.from(t).delete().eq("league_id",leagueId);
+      if(error) console.error(`Fel vid radering av ${t}:`,error);
+    }
+    const {error:leagueErr}=await sb.from("leagues").delete().eq("id",leagueId);
+    if(leagueErr) return {error:leagueErr};
+    return {error:null};
+  }catch(e){
+    return {error:e};
+  }
+}
 // Gemensam poängväljare för privata ligor – används både här och i spelarvyn,
 // så att alla 14 spelformer stöds konsekvent på ett och samma ställe.
 function privateLeagueGetPts(gm,u){
@@ -5762,6 +5793,7 @@ function renderAdminTab(){
         </div>
         ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
         <button data-act="toggle-league-hidden" data-id="${l.id}" data-hidden="${l.hidden?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.hidden?"Gör synlig":"Dölj"}</button>
+        <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
       </div>`).join("");
     body=`
@@ -6939,6 +6971,32 @@ function attachHandlers(){
       window._allLeaguesCache=(window._allLeaguesCache||[]).map(l=>l.id===id?{...l,hidden:newHidden}:l);
       render();
       flash(newHidden?"Serien är nu dold för användare.":"✓ Serien är nu synlig för alla!");
+    }
+    else if(act==="delete-league"){
+      const id=Number(el.dataset.id);
+      const name=el.dataset.name;
+      if(!confirm(`Är du helt säker på att du vill radera "${name}" permanent? Detta tar bort ALLA lag, spelare, poäng och all historik i den serien.`))return;
+      if(!confirm(`Sista chansen – "${name}" och all dess data raderas för alltid och går inte att återställa. Fortsätta?`))return;
+      el.textContent="Tar bort…"; el.disabled=true;
+      const {error}=await deleteLeagueCompletely(id);
+      if(error){flash("Fel: "+error.message);el.textContent="Ta bort";el.disabled=false;return;}
+      window._allLeaguesCache=(window._allLeaguesCache||[]).filter(l=>l.id!==id);
+      if(currentLeague&&currentLeague.id===id){
+        // Raderade serien vi stod i – hoppa tillbaka till serieväljaren
+        currentLeague=null; currentUser=null; appMode=null; adminOk=false;
+        users=[]; TEAMS=[]; players=[]; rounds={};
+        leagues=await fetchLeagues();
+        if(!leagues.length){
+          const {data}=await sb.from("leagues").select("*").order("id",{ascending:false}).limit(1);
+          if(data?.length) leagues=data;
+        }
+        screen="leagues";
+        flash(`✓ "${name}" borttagen. Välj en serie för att fortsätta.`);
+        render();
+        return;
+      }
+      flash(`✓ "${name}" borttagen permanent.`);
+      render();
     }
     else if(act==="jump-to-league"){
       const id=Number(el.dataset.id);
