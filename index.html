@@ -6297,6 +6297,34 @@ Liverpool
 //
 // Appen avgör automatiskt vilket format det är: hittas semikolon/tab i texten
 // tolkas den som (A), annars som (B).
+// Tolkar en inklistrad laglista till bara lagnamnen – klarar både en ren lista
+// (ett lagnamn per rad) och en hel tabell klistrad från en webbsida med
+// rangordning och statistik-kolumner, t.ex.:
+//   1.	Arsenal	0	0	0	0	0-0	0
+//   2.	Aston Villa	0	0	0	0	0-0	0
+// Om raderna innehåller tabbar plockas det första fältet som innehåller minst
+// en bokstav (dvs varken rangordningssiffran eller poäng/resultat-kolumnerna).
+// Utan tabbar tas hela raden, med en eventuell ledande rangordningssiffra
+// ("1.", "1)", "1 ") bortstädad.
+function parseTeamNamesText(text){
+  const lines=text.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const hasTabs=lines.some(l=>l.includes("\t"));
+  let result;
+  if(hasTabs){
+    result=lines.map(line=>{
+      const fields=line.split("\t").map(f=>f.trim());
+      const nameField=fields.find(f=>/[A-Za-zÀ-ÖØ-öø-ÿÅÄÖåäö]/.test(f));
+      return nameField||fields[0]||"";
+    }).filter(Boolean);
+  } else {
+    result=lines.map(line=>line.replace(/^\d+[.)]?\s+/,"").trim()).filter(Boolean);
+  }
+  // Om allt klistrades in på en enda rad separerat med komma/semikolon, dela upp det
+  if(result.length===1&&/[,;]/.test(result[0])){
+    result=result[0].split(/[,;]/).map(s=>s.trim()).filter(s=>s.length>0);
+  }
+  return result;
+}
 function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
@@ -6882,12 +6910,9 @@ function attachHandlers(){
       const teamsRaw=document.getElementById("new-league-teams").value.trim();
       const teamCount=Number(document.getElementById("new-league-team-count").value)||12;
       if(!name){flash("Ange ett namn för serien.");return;}
-      // Om lag listats: dela på radbrytning (eller komma/semikolon om allt klistrats på en rad)
-      let teamNames=[];
-      if(teamsRaw){
-        const lines=teamsRaw.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
-        teamNames = lines.length>1 ? lines : lines[0].split(/[,;]/).map(s=>s.trim()).filter(s=>s.length>0);
-      }
+      // Om lag listats: tolka smart – klarar både en ren lista och en hel tabell
+      // med rangordning/statistik-kolumner (t.ex. inklistrad från en webbsida).
+      const teamNames = teamsRaw ? parseTeamNamesText(teamsRaw) : [];
       const seasonSlugPart=season.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
       const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+seasonSlugPart;
       const {data:maxRow}=await sb.from("leagues").select("id").order("id",{ascending:false}).limit(1).maybeSingle();
