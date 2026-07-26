@@ -6340,6 +6340,10 @@ Liverpool
 // ("1.", "1)", "1 ") bortstädad.
 function parseTeamNamesText(text){
   const lines=text.split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const linkPattern=/^\[(.+?)\]\(.*\)$/;
+  if(lines.some(l=>linkPattern.test(l))){
+    return lines.filter(l=>linkPattern.test(l)).map(l=>l.match(linkPattern)[1].trim()).filter(Boolean);
+  }
   const hasTabs=lines.some(l=>l.includes("\t"));
   let result;
   if(hasTabs){
