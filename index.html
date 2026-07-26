@@ -168,6 +168,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     presenceSessionId=null, presenceHeartbeatTimer=null, todaySessions=[], todayModeVisits=[], aktivitetPeriod="today", aktivitetDrillUserId=null, statDrillUserId=null, streakEditing=false,
     pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null}, mainTab="hem", adminOk=false, adminSection="round",
     openRounds=new Set(), errMsg="", pickErr="", bulkRows=[], confirmRemoveId=null, confirmDeleteRound=false, tipDraft={}, appMode=null,
+    playersImportRows=[],
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
@@ -5182,8 +5183,8 @@ function renderAdminTab(){
       </div>
     </div>`;
   } else if(adminSection==="players"){
-    const teamOpts=TEAMS.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("");
-    const posOpts=POSITIONS.map(p=>`<option value="${p}">${POS_LABEL[p]}</option>`).join("");
+    const teamOpts=(sel)=>TEAMS.map(t=>`<option value="${t.id}" ${t.id===sel?"selected":""}>${esc(t.name)}</option>`).join("");
+    const posOpts=(sel)=>POSITIONS.map(p=>`<option value="${p}" ${p===sel?"selected":""}>${POS_LABEL[p]}</option>`).join("");
     let listHtml="";
     POSITIONS.forEach(pos=>{
       const list=players.filter(p=>p.pos===pos);
@@ -5199,13 +5200,54 @@ function renderAdminTab(){
       });
       listHtml+=`</div>`;
     });
+
+    let importPreviewHtml="";
+    if(playersImportRows.length){
+      const rows=playersImportRows.map((r,i)=>{
+        const flags=[];
+        if(!r.posMatched) flags.push(`<span style="color:#e65100;font-size:11px">⚠️ Position gissad</span>`);
+        if(!r.teamMatched) flags.push(`<span style="color:#c1272d;font-size:11px">⚠️ Lag ej hittat – välj manuellt</span>`);
+        if(r.warnDup) flags.push(`<span style="color:#92400e;font-size:11px">⚠️ Finns redan/dubblett</span>`);
+        return `<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="fg-input" data-act="pimport-name" data-idx="${i}" value="${esc(r.namn)}" style="flex:1;padding:7px 8px"/>
+            <select data-act="pimport-pos" data-idx="${i}" style="padding:7px 4px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:13px;background:var(--color-background-primary);color:var(--color-text-primary)">${posOpts(r.pos)}</select>
+            <select data-act="pimport-team" data-idx="${i}" style="padding:7px 4px;border:0.5px solid ${r.teamMatched?'var(--color-border-secondary)':'#c1272d'};border-radius:6px;font-size:12px;max-width:130px;background:var(--color-background-primary);color:var(--color-text-primary)">${teamOpts(r.teamId)}</select>
+            <button data-act="pimport-remove-row" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px;flex-shrink:0">×</button>
+          </div>
+          ${flags.length?`<div style="display:flex;gap:8px;margin-top:4px">${flags.join("")}</div>`:""}
+        </div>`;
+      }).join("");
+      importPreviewHtml=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:4px">Granska innan import (${playersImportRows.length} spelare)</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Rätta namn, position eller lag direkt i fälten nedan. Radera en rad med × om den inte ska importeras.</div>
+        ${rows}
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="fg-outbtn" data-act="pimport-cancel" style="flex:1">Avbryt</button>
+          <button class="fg-btn" data-act="pimport-confirm" style="flex:1">✅ Importera ${playersImportRows.length} spelare</button>
+        </div>
+      </div>`;
+    }
+
     body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:10px">Lägg till spelare</div>
+      <div style="font-weight:500;margin-bottom:6px">📥 Massimport av spelare</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">
+        Klistra in en lista, en spelare per rad: <b>Namn;Position;Lag</b><br>
+        Position kan skrivas GK/DEF/MID/FW eller Målvakt/Försvarare/Mittfältare/Forward.<br>
+        Fungerar även om du klistrar in direkt från Excel/Sheets (flikseparerat).<br>
+        Exempel: <code>Erik Andersson;GK;Ahlafors IF</code>
+      </div>
+      <textarea id="players-import-text" rows="8" placeholder="Klistra in listan här…" autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);box-sizing:border-box"></textarea>
+      <button class="fg-btn" data-act="players-import-preview" style="margin-top:10px">Förhandsgranska</button>
+    </div>
+    ${importPreviewHtml}
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:10px">Lägg till en spelare i taget</div>
       <label class="fg-label">Namn</label>
       <input class="fg-input" id="np-namn" style="margin-bottom:8px" placeholder="T.ex. Erik Lund"/>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-        <div><label class="fg-label">Position</label><select class="fg-input" id="np-pos" style="padding:7px 8px">${posOpts}</select></div>
-        <div><label class="fg-label">Lag</label><select class="fg-input" id="np-team" style="padding:7px 8px">${teamOpts}</select></div>
+        <div><label class="fg-label">Position</label><select class="fg-input" id="np-pos" style="padding:7px 8px">${posOpts(null)}</select></div>
+        <div><label class="fg-label">Lag</label><select class="fg-input" id="np-team" style="padding:7px 8px">${teamOpts(null)}</select></div>
       </div>
       <button class="fg-btn" data-act="add-player">Lägg till spelare</button>
     </div>
@@ -6173,6 +6215,44 @@ function renderAdminTab(){
     ${body}`;
 }
 
+// Tolkar en inklistrad spelarlista – en spelare per rad. Stöder tab (klistrat direkt
+// från Excel/Sheets), semikolon eller komma som avgränsare: "Namn;Position;Lag".
+// Position kan skrivas som kod (GK/DEF/MID/FW) eller på svenska (Målvakt/Försvarare/
+// Mittfältare/Forward/Anfallare). Lagnamnet matchas mot befintliga lag, ungefär
+// (skiftläge/mellanslag spelar ingen roll) – hittas inget läggs spelaren på första
+// laget i listan så admin kan rätta det manuellt i granskningen.
+function parsePlayersImportText(text){
+  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const posMap={GK:"GK",DEF:"DEF",MID:"MID",FW:"FW",MÅLVAKT:"GK",FÖRSVARARE:"DEF",MITTFÄLTARE:"MID",FORWARD:"FW",ANFALLARE:"FW"};
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const seenInBatch=new Set();
+  return lines.map(line=>{
+    let parts;
+    if(line.includes("\t")) parts=line.split("\t");
+    else if(line.includes(";")) parts=line.split(";");
+    else parts=line.split(",");
+    parts=parts.map(p=>p.trim());
+    const namn=parts[0]||"";
+    if(!namn) return null;
+    const posRaw=(parts[1]||"").toUpperCase().replace(/[^A-ZÅÄÖ]/g,"");
+    const pos=posMap[posRaw]||"";
+    const lagRaw=(parts[2]||"").trim();
+    let team=lagRaw?TEAMS.find(t=>normalizeStr(t.name)===normalizeStr(lagRaw)):null;
+    if(!team&&lagRaw) team=TEAMS.find(t=>normalizeStr(t.name).includes(normalizeStr(lagRaw))||normalizeStr(lagRaw).includes(normalizeStr(t.name)));
+    const key=normalizeStr(namn);
+    const dupInBatch=seenInBatch.has(key);
+    seenInBatch.add(key);
+    const dupExisting=players.some(p=>normalizeStr(p.namn)===key);
+    return {
+      namn,
+      pos: pos||"DEF",
+      posMatched: !!pos,
+      teamId: team?team.id:(TEAMS[0]?TEAMS[0].id:null),
+      teamMatched: !!team,
+      warnDup: dupInBatch||dupExisting
+    };
+  }).filter(Boolean);
+}
 function parseScheduleText(text){
   const cleaned=text.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
 
@@ -7746,6 +7826,38 @@ function attachHandlers(){
       players=[...players,np];
       flash("✓ Spelare tillagd!");
     }
+    else if(act==="players-import-preview"){
+      const text=document.getElementById("players-import-text")?.value||"";
+      if(!text.trim()){flash("Klistra in en lista först.");return;}
+      playersImportRows=parsePlayersImportText(text);
+      if(!playersImportRows.length){flash("Kunde inte tolka några spelare i texten.");return;}
+      render();
+    }
+    else if(act==="pimport-cancel"){
+      playersImportRows=[];
+      render();
+    }
+    else if(act==="pimport-remove-row"){
+      const idx=Number(el.dataset.idx);
+      playersImportRows=playersImportRows.filter((_,i)=>i!==idx);
+      render();
+    }
+    else if(act==="pimport-confirm"){
+      if(!playersImportRows.length){flash("Inget att importera.");return;}
+      el.textContent="Importerar…"; el.disabled=true;
+      let saved=0, failed=0;
+      for(const r of playersImportRows){
+        const np={id:"p"+Math.random().toString(36).slice(2,10),namn:r.namn,pos:r.pos,teamId:r.teamId};
+        try{
+          await insertPlayer(np);
+          players=[...players,np];
+          saved++;
+        }catch(e){ failed++; console.error(e); }
+      }
+      playersImportRows=[];
+      flash(`✓ ${saved} spelare importerade${failed?` · ${failed} misslyckades`:""}!`);
+      render();
+    }
     else if(act==="remove-player"){
       const id=el.dataset.id;
       await deletePlayer(id);
@@ -7811,6 +7923,9 @@ function attachHandlers(){
     else if(act==="bulk-aid"){ bulkRows[Number(el.dataset.idx)].aId=Number(el.value); }
     else if(act==="bulk-hm"){ bulkRows[Number(el.dataset.idx)].hMål=Number(el.value); }
     else if(act==="bulk-am"){ bulkRows[Number(el.dataset.idx)].aMål=Number(el.value); }
+    else if(act==="pimport-name"){ playersImportRows[Number(el.dataset.idx)].namn=el.value; }
+    else if(act==="pimport-pos"){ playersImportRows[Number(el.dataset.idx)].pos=el.value; playersImportRows[Number(el.dataset.idx)].posMatched=true; render(); }
+    else if(act==="pimport-team"){ playersImportRows[Number(el.dataset.idx)].teamId=Number(el.value); playersImportRows[Number(el.dataset.idx)].teamMatched=true; render(); }
     else if(act==="tip-input"){
       const key=el.dataset.hid+"-"+el.dataset.aid;
       const cur=tipDraft[key]||{predH:"",predA:""};
