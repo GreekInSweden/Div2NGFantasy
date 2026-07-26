@@ -5221,6 +5221,11 @@ function renderAdminTab(){
       importPreviewHtml=`<div class="fg-card">
         <div style="font-weight:500;margin-bottom:4px">Granska innan import (${playersImportRows.length} spelare)</div>
         <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Rätta namn, position eller lag direkt i fälten nedan. Radera en rad med × om den inte ska importeras.</div>
+        <div style="display:flex;gap:6px;align-items:center;background:var(--color-background-secondary);border-radius:8px;padding:8px 10px;margin-bottom:10px">
+          <span style="font-size:12px;flex-shrink:0">Sätt lag för alla:</span>
+          <select id="pimport-setall-select" style="flex:1;padding:6px 4px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;background:var(--color-background-primary);color:var(--color-text-primary)">${teamOpts(null)}</select>
+          <button data-act="pimport-setall-team" style="background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap">Använd</button>
+        </div>
         ${rows}
         <div style="display:flex;gap:8px;margin-top:12px">
           <button class="fg-outbtn" data-act="pimport-cancel" style="flex:1">Avbryt</button>
@@ -5232,10 +5237,11 @@ function renderAdminTab(){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">📥 Massimport av spelare</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.6">
-        Klistra in en lista, en spelare per rad: <b>Namn;Position;Lag</b><br>
-        Position kan skrivas GK/DEF/MID/FW eller Målvakt/Försvarare/Mittfältare/Forward.<br>
-        Fungerar även om du klistrar in direkt från Excel/Sheets (flikseparerat).<br>
-        Exempel: <code>Erik Andersson;GK;Ahlafors IF</code>
+        Klistra in en lista på <b>ett av två sätt</b> – appen känner själv av vilket:<br><br>
+        <b>1) Strukturerat</b> – en spelare per rad: <code>Namn;Position;Lag</code><br>
+        Position: GK/DEF/MID/FW eller Målvakt/Försvarare/Mittfältare/Forward. Fungerar även flikseparerat direkt från Excel/Sheets.<br>
+        Exempel: <code>Erik Andersson;GK;Ahlafors IF</code><br><br>
+        <b>2) Kopierat rakt av från en webbsida</b> – t.ex. en klubbs spelartrupp, med rubriker som "Målvakter"/"Försvarare" och varje spelare utspridd på flera rader (namn, tröjnummer, nationalitet, ålder). Klistra in precis som den ser ut, inget behöver städas bort i förväg. Eftersom hela listan då är från samma klubb väljer du lag för alla i granskningsvyn efteråt.
       </div>
       <textarea id="players-import-text" rows="8" placeholder="Klistra in listan här…" autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);box-sizing:border-box"></textarea>
       <button class="fg-btn" data-act="players-import-preview" style="margin-top:10px">Förhandsgranska</button>
@@ -6215,17 +6221,36 @@ function renderAdminTab(){
     ${body}`;
 }
 
-// Tolkar en inklistrad spelarlista – en spelare per rad. Stöder tab (klistrat direkt
-// från Excel/Sheets), semikolon eller komma som avgränsare: "Namn;Position;Lag".
-// Position kan skrivas som kod (GK/DEF/MID/FW) eller på svenska (Målvakt/Försvarare/
-// Mittfältare/Forward/Anfallare). Lagnamnet matchas mot befintliga lag, ungefär
-// (skiftläge/mellanslag spelar ingen roll) – hittas inget läggs spelaren på första
-// laget i listan så admin kan rätta det manuellt i granskningen.
+// Tolkar en inklistrad spelarlista på ett av två format:
+//
+// A) Strukturerat, en spelare per rad: "Namn;Position;Lag" (semikolon, komma eller
+//    tab som avgränsare – funkar även klistrat direkt från Excel/Sheets).
+//
+// B) "Rörig" webblista – t.ex. kopierad rakt av från en klubbs spelartrupp-sida,
+//    där varje spelare ligger på flera separata rader (namn, ev. tröjnummer,
+//    ev. nationalitet, ålder) och grupperas under rubriker som "Målvakter",
+//    "Försvarare" osv. Detta format saknar helt lag-info (hela listan är ju en
+//    och samma klubb) – lag väljs istället en gång för alla i granskningsvyn.
+//
+// Appen avgör automatiskt vilket format det är: hittas semikolon/tab i texten
+// tolkas den som (A), annars som (B).
 function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
-  const posMap={GK:"GK",DEF:"DEF",MID:"MID",FW:"FW",MÅLVAKT:"GK",FÖRSVARARE:"DEF",MITTFÄLTARE:"MID",FORWARD:"FW",ANFALLARE:"FW"};
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
+  const rawRows = hasDelimiters ? parsePlayersStructuredFormat(lines) : parsePlayersBlockFormat(lines);
   const seenInBatch=new Set();
+  return rawRows.map(r=>{
+    const key=normalizeStr(r.namn);
+    const dupInBatch=seenInBatch.has(key);
+    seenInBatch.add(key);
+    const dupExisting=players.some(p=>normalizeStr(p.namn)===key);
+    return {...r, warnDup: dupInBatch||dupExisting};
+  });
+}
+function parsePlayersStructuredFormat(lines){
+  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const posMap={GK:"GK",DEF:"DEF",MID:"MID",FW:"FW",MÅLVAKT:"GK",FÖRSVARARE:"DEF",MITTFÄLTARE:"MID",FORWARD:"FW",ANFALLARE:"FW"};
   return lines.map(line=>{
     let parts;
     if(line.includes("\t")) parts=line.split("\t");
@@ -6239,20 +6264,43 @@ function parsePlayersImportText(text){
     const lagRaw=(parts[2]||"").trim();
     let team=lagRaw?TEAMS.find(t=>normalizeStr(t.name)===normalizeStr(lagRaw)):null;
     if(!team&&lagRaw) team=TEAMS.find(t=>normalizeStr(t.name).includes(normalizeStr(lagRaw))||normalizeStr(lagRaw).includes(normalizeStr(t.name)));
-    const key=normalizeStr(namn);
-    const dupInBatch=seenInBatch.has(key);
-    seenInBatch.add(key);
-    const dupExisting=players.some(p=>normalizeStr(p.namn)===key);
     return {
       namn,
       pos: pos||"DEF",
       posMatched: !!pos,
       teamId: team?team.id:(TEAMS[0]?TEAMS[0].id:null),
-      teamMatched: !!team,
-      warnDup: dupInBatch||dupExisting
+      teamMatched: !!team
     };
   }).filter(Boolean);
 }
+function parsePlayersBlockFormat(lines){
+  const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
+  const posHeaderMap={
+    "målvakter":"GK","målvakt":"GK","keepers":"GK","goalkeepers":"GK","goalkeeper":"GK",
+    "försvarare":"DEF","defenders":"DEF","defender":"DEF",
+    "mittfältare":"MID","midfielders":"MID","midfielder":"MID",
+    "forwardar":"FW","forwards":"FW","forward":"FW","anfallare":"FW","strikers":"FW","striker":"FW"
+  };
+  const skipWords=new Set(["ålder","age","nationalitet","land","nummer","tröjnummer","number"]);
+  let currentPos=null, buffer=[];
+  const out=[];
+  const flush=()=>{
+    if(buffer.length&&currentPos) out.push({namn:buffer[0],pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+    buffer=[];
+  };
+  lines.forEach(line=>{
+    const norm=normalizeStr(line);
+    if(posHeaderMap[norm]){ flush(); currentPos=posHeaderMap[norm]; return; }
+    if(skipWords.has(norm)) return;
+    if(line.startsWith("#")) return; // tröjnummer, t.ex. "#7"
+    if(/^\d{1,3}$/.test(line)){ flush(); return; } // ren siffra = ålder, avslutar spelaren
+    if(!buffer.length) buffer.push(line); // första raden i blocket = namnet
+    // övriga rader (nationalitet m.m.) ignoreras
+  });
+  flush(); // ta med sista spelaren om listan inte slutar med en ren siffra
+  return out;
+}
+
 function parseScheduleText(text){
   const cleaned=text.replace(/ emblem/g,"").replace(/\r\n/g,"\n").replace(/\r/g,"\n");
 
@@ -7831,6 +7879,13 @@ function attachHandlers(){
       if(!text.trim()){flash("Klistra in en lista först.");return;}
       playersImportRows=parsePlayersImportText(text);
       if(!playersImportRows.length){flash("Kunde inte tolka några spelare i texten.");return;}
+      render();
+    }
+    else if(act==="pimport-setall-team"){
+      const sel=document.getElementById("pimport-setall-select");
+      const teamId=sel?Number(sel.value):null;
+      if(!teamId){flash("Välj ett lag först.");return;}
+      playersImportRows=playersImportRows.map(r=>({...r,teamId,teamMatched:true}));
       render();
     }
     else if(act==="pimport-cancel"){
