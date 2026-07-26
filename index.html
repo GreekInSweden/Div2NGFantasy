@@ -5128,7 +5128,7 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["leagues","🌍 Serier"]];
   const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
@@ -5776,6 +5776,43 @@ function renderAdminTab(){
   } else if(adminSection==="season"){
     const curYear=currentLeague.season||2027;
     const suggestedNext=suggestNextSeasonLabel(curYear);
+    body=`
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🔄 Säsongsväxling</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
+        Aktuell säsong: <b>Säsong ${esc(String(curYear))}</b><br>
+        Att starta en ny säsong arkiverar den nuvarande och skapar en ny. All historik bevaras. Lagen kopieras automatiskt.
+      </div>
+      <label class="fg-label">Namn på ny säsong (t.ex. "2028" eller "2027/28" för säsonger som går över årsskiftet)</label>
+      <input class="fg-input" id="new-season-label" value="${esc(suggestedNext)}" style="margin-bottom:14px"/>
+      <div style="background:#fffbeb;border:0.5px solid #e65100;border-radius:8px;padding:12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6">
+        ⚠️ <b>Obs!</b> Användare, Fantasy-val, tips och poäng från nuvarande säsong sparas och kan ses i historiken. Användarna behåller sina konton men börjar om med 0 poäng i den nya säsongen.
+      </div>
+      <button class="fg-btn" data-act="start-new-season" style="background:#e65100">
+        🚀 Starta ny säsong
+      </button>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">➕ Ny serie</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
+        Skapa en helt ny, separat serie (eget lag, spelare, användare – allt separat). Den skapas <b>dold</b> från vanliga användare tills du själv gör den synlig, så du kan bygga klart i lugn och ro. Alla dina serier hittar du sen under fliken 🌍 Serier.
+      </div>
+      <label class="fg-label">Namn på serien</label>
+      <input class="fg-input" id="new-league-name" placeholder="t.ex. Premier League" style="margin-bottom:10px"/>
+      <label class="fg-label">Säsong (t.ex. "2027" eller "2026/27")</label>
+      <input class="fg-input" id="new-league-season" type="text" placeholder="t.ex. 2026/27" value="${esc(String(curYear))}" style="margin-bottom:14px"/>
+      <label class="fg-label">Lag (valfritt) – ett per rad</label>
+      <textarea id="new-league-teams" rows="6" placeholder="Arsenal
+Aston Villa
+Chelsea
+Liverpool
+..." autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);box-sizing:border-box;margin-bottom:8px"></textarea>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Listar du lag ovan skapas de direkt med rätt namn. Lämnar du fältet tomt skapas istället tomma lag att döpa om själv:</div>
+      <label class="fg-label">Antal tomma lag (används bara om inga lag listades ovan)</label>
+      <input class="fg-input" id="new-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
+      <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
+    </div>`;
+  } else if(adminSection==="leagues"){
     const allLeaguesData=window._allLeaguesCache||[];
     // Ladda async i bakgrunden om inte caché finns
     if(!window._allLeaguesCache){
@@ -5796,44 +5833,8 @@ function renderAdminTab(){
         <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
       </div>`).join("");
-    body=`
-    <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">🔄 Säsongsväxling</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.6">
-        Aktuell säsong: <b>Säsong ${esc(String(curYear))}</b><br>
-        Att starta en ny säsong arkiverar den nuvarande och skapar en ny. All historik bevaras. Lagen kopieras automatiskt.
-      </div>
-      <label class="fg-label">Namn på ny säsong (t.ex. "2028" eller "2027/28" för säsonger som går över årsskiftet)</label>
-      <input class="fg-input" id="new-season-label" value="${esc(suggestedNext)}" style="margin-bottom:14px"/>
-      <div style="background:#fffbeb;border:0.5px solid #e65100;border-radius:8px;padding:12px;font-size:12px;color:#92400e;margin-bottom:14px;line-height:1.6">
-        ⚠️ <b>Obs!</b> Användare, Fantasy-val, tips och poäng från nuvarande säsong sparas och kan ses i historiken. Användarna behåller sina konton men börjar om med 0 poäng i den nya säsongen.
-      </div>
-      <button class="fg-btn" data-act="start-new-season" style="background:#e65100">
-        🚀 Starta ny säsong
-      </button>
-    </div>
-    <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">➕ Ny serie</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
-        Skapa en helt ny, separat serie (eget lag, spelare, användare – allt separat). Den skapas <b>dold</b> från vanliga användare tills du själv gör den synlig, så du kan bygga klart i lugn och ro.
-      </div>
-      <label class="fg-label">Namn på serien</label>
-      <input class="fg-input" id="new-league-name" placeholder="t.ex. Premier League" style="margin-bottom:10px"/>
-      <label class="fg-label">Säsong (t.ex. "2027" eller "2026/27")</label>
-      <input class="fg-input" id="new-league-season" type="text" placeholder="t.ex. 2026/27" value="${esc(String(curYear))}" style="margin-bottom:14px"/>
-      <label class="fg-label">Lag (valfritt) – ett per rad</label>
-      <textarea id="new-league-teams" rows="6" placeholder="Arsenal
-Aston Villa
-Chelsea
-Liverpool
-..." autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);box-sizing:border-box;margin-bottom:8px"></textarea>
-      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Listar du lag ovan skapas de direkt med rätt namn. Lämnar du fältet tomt skapas istället tomma lag att döpa om själv:</div>
-      <label class="fg-label">Antal tomma lag (används bara om inga lag listades ovan)</label>
-      <input class="fg-input" id="new-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
-      <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
-    </div>
-    <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">Alla serier (${allLeaguesData.length})</div>
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier (${allLeaguesData.length})</div>
       ${seasonRows}
     </div>`;
   } else if(adminSection==="passwords"){
@@ -7460,7 +7461,7 @@ function attachHandlers(){
       adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
-      if(adminSection==="season"){ window._allLeaguesCache=null; }
+      if(adminSection==="leagues"){ window._allLeaguesCache=null; }
       if(adminSection==="duellen"){
         try{
           [duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);
