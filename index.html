@@ -6490,22 +6490,35 @@ function parsePlayersBlockFormat(lines){
     "forwardar":"FW","forwards":"FW","forward":"FW","anfallare":"FW","strikers":"FW","striker":"FW"
   };
   const skipWords=new Set(["ålder","age","nationalitet","land","nummer","tröjnummer","number"]);
-  let currentPos=null, buffer=[];
+  let currentPos=null;
+  let currentPlayer=null; // {namn,pos,...} – spelaren vi just nu bygger på
+  let sawTerminalInfo=false; // true så fort vi sett tröjnummer/nationalitet för currentPlayer
   const out=[];
-  const flush=()=>{
-    if(buffer.length&&currentPos) out.push({namn:buffer[0],pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
-    buffer=[];
+  const finalizeCurrent=()=>{
+    if(currentPlayer) out.push(currentPlayer);
+    currentPlayer=null;
+    sawTerminalInfo=false;
   };
   lines.forEach(line=>{
     const norm=normalizeStr(line);
-    if(posHeaderMap[norm]){ flush(); currentPos=posHeaderMap[norm]; return; }
+    if(posHeaderMap[norm]){ finalizeCurrent(); currentPos=posHeaderMap[norm]; return; }
     if(skipWords.has(norm)) return;
-    if(line.startsWith("#")) return; // tröjnummer, t.ex. "#7"
-    if(/^\d{1,3}$/.test(line)){ flush(); return; } // ren siffra = ålder, avslutar spelaren
-    if(!buffer.length) buffer.push(line); // första raden i blocket = namnet
-    // övriga rader (nationalitet m.m.) ignoreras
+    if(line.startsWith("#")) return; // tröjnummer skrivet som "#7"
+    if(/^\d{1,3}$/.test(line)){ sawTerminalInfo=true; return; } // tröjnummer eller ålder
+    if(isNationalityText(line)){ sawTerminalInfo=true; return; } // nationalitet (även dubblett)
+    // annars: en namnliknande rad
+    if(!currentPlayer){
+      currentPlayer={namn:line,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false};
+    } else if(!sawTerminalInfo){
+      // dubblett av samma spelares namn (t.ex. kort variant) – behåll det första, ignorera detta
+    } else {
+      // vi har redan sett tröjnummer/nationalitet för currentPlayer, så den här raden
+      // startar nästa spelare
+      finalizeCurrent();
+      currentPlayer={namn:line,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false};
+    }
   });
-  flush(); // ta med sista spelaren om listan inte slutar med en ren siffra
+  finalizeCurrent(); // ta med sista spelaren
   return out;
 }
 
