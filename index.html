@@ -155,7 +155,7 @@ function urlBase64ToUint8Array(base64String){
 }
 
 let TEAMS=[];
-let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home",
+let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home", stodFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     duellenSignups=[], duellenConfig={status:"signup",total_rounds:0,season_num:1}, duellenFixtures=[],
@@ -1994,6 +1994,7 @@ function render(){
   }
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else if(screen==="sponsors")root.innerHTML=renderSponsorsScreen();
+  else if(screen==="stod")root.innerHTML=renderStodScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
   // Uppdatera push-knapp asynkront när mode-skärmen visas
@@ -2338,9 +2339,9 @@ function renderHome(){
       ${sponsors.some(s=>s.active)?`<button data-act="go-sponsors" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline;margin-top:4px">
         Våra sponsorer →
       </button>`:""}
-      ${cfg.stodEnabled&&cfg.stodSwishNumber?`<a href="https://app.swish.nu/1/p/sw/?sw=${encodeURIComponent(cfg.stodSwishNumber)}&amt=${encodeURIComponent(cfg.stodAmount||200)}&cur=SEK&msg=${encodeURIComponent(cfg.stodMessage||"")}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a6b3c;color:#fff;border-radius:8px;padding:13px;font-size:14px;font-weight:600;text-decoration:none;margin-top:6px">
+      ${cfg.stodEnabled&&cfg.stodSwishNumber?`<button data-act="go-stod" style="display:block;width:100%;text-align:center;background:#1a6b3c;color:#fff;border-radius:8px;padding:13px;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:6px">
         ❤️ Swisha ${cfg.stodAmount||200} kr – Stöd oss
-      </a>`:""}
+      </button>`:""}
     </div>
 
     <!-- Footer -->
@@ -2493,6 +2494,28 @@ function renderSponsorsScreen(){
     <div style="font-family:Georgia,serif;font-style:italic;font-size:24px;margin-bottom:6px">🤝 Våra sponsorer</div>
     <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">Tack till alla som stöttar ${esc(currentLeague.name)}!</div>
     ${rows||'<div class="fg-card" style="text-align:center;padding:2rem;font-size:13px;color:var(--color-text-secondary)">Inga sponsorer inlagda ännu.</div>'}
+  </div>`;
+}
+function renderStodScreen(){
+  const swishUrl=`https://app.swish.nu/1/p/sw/?sw=${encodeURIComponent(cfg.stodSwishNumber||"")}&amt=${encodeURIComponent(cfg.stodAmount||200)}&cur=SEK&msg=${encodeURIComponent(cfg.stodMessage||"")}`;
+  const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(swishUrl)}`;
+  return `
+  <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
+    <button data-act="stod-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">← Tillbaka</button>
+    <div style="font-family:Georgia,serif;font-style:italic;font-size:24px;margin-bottom:6px">❤️ Stöd ${esc(currentLeague.name)}</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">${esc(cfg.stodMessage||"Stöd föreningen")}</div>
+
+    <a href="${esc(swishUrl)}" target="_blank" rel="noopener noreferrer" class="fg-btn" style="display:block;text-align:center;text-decoration:none;padding:16px;font-size:16px;margin-bottom:8px">
+      ❤️ Swisha ${cfg.stodAmount||200} kr
+    </a>
+    <div style="font-size:12px;color:var(--color-text-secondary);text-align:center;margin-bottom:24px">Öppnar Swish-appen direkt om du är på mobilen</div>
+
+    <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:20px;text-align:center">
+      <div style="font-size:13px;font-weight:500;margin-bottom:4px">Sitter du vid en dator?</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Öppna kameran på mobilen och skanna koden nedan</div>
+      <img src="${qrUrl}" alt="QR-kod för Swish-betalning" style="width:200px;height:200px;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px"/>
+      ${cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">Eller swisha manuellt till<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b></div>`:""}
+    </div>
   </div>`;
 }
 function renderRulesScreen(){
@@ -2860,7 +2883,7 @@ function renderMain(){
   const tabs=tabsDef.map(([id,ico,lbl])=>id==="spelformer"
     ?`<button class="fg-tabbtn" data-act="switch-mode"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
     :id==="stod"
-    ?`<a href="https://app.swish.nu/1/p/sw/?sw=${encodeURIComponent(cfg.stodSwishNumber)}&amt=${encodeURIComponent(cfg.stodAmount||200)}&cur=SEK&msg=${encodeURIComponent(cfg.stodMessage||"")}" target="_blank" rel="noopener noreferrer" class="fg-tabbtn" style="text-decoration:none;color:inherit"><span style="font-size:18px">${ico}</span><span>${lbl}</span></a>`
+    ?`<button class="fg-tabbtn" data-act="go-stod"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
     :`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
   ).join("");
 
@@ -6971,6 +6994,8 @@ function attachHandlers(){
     else if(act==="go-rules-home"){ rulesFrom="home"; screen="rules"; render(); }
     else if(act==="go-sponsors"){ screen="sponsors"; render(); }
     else if(act==="sponsors-back"){ screen="home"; homeMode="start"; render(); }
+    else if(act==="go-stod"){ stodFrom=(screen==="main"&&appMode)?"main":"home"; screen="stod"; render(); }
+    else if(act==="stod-back"){ screen=stodFrom==="main"?"main":"home"; if(screen==="home") homeMode="start"; render(); }
     else if(act==="rules-back-home"){ screen="home"; homeMode="start"; render(); }
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
