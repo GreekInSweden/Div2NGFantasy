@@ -503,7 +503,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,total_rounds,stod_enabled,stod_swish_number,stod_amount,stod_message").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,total_rounds,stod_enabled,stod_swish_number,stod_amount,stod_message,stod_qr_image_url").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true,totalRounds:26};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -532,6 +532,7 @@ async function fetchConfig(){
     stodSwishNumber:data.stod_swish_number||"",
     stodAmount:data.stod_amount||200,
     stodMessage:data.stod_message||"Stöd föreningen",
+    stodQrImageUrl:data.stod_qr_image_url||"",
     totalRounds:data.total_rounds||26
   };
 }
@@ -2498,7 +2499,7 @@ function renderSponsorsScreen(){
 }
 function renderStodScreen(){
   const swishUrl=`https://app.swish.nu/1/p/sw/?sw=${encodeURIComponent(cfg.stodSwishNumber||"")}&amt=${encodeURIComponent(cfg.stodAmount||200)}&cur=SEK&msg=${encodeURIComponent(cfg.stodMessage||"")}`;
-  const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(swishUrl)}`;
+  const qrUrl=cfg.stodQrImageUrl||`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(swishUrl)}`;
   return `
   <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
     <button data-act="stod-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">← Tillbaka</button>
@@ -5901,6 +5902,9 @@ Liverpool
       <input class="fg-input" id="stod-amount" type="number" min="1" value="${cfg.stodAmount||200}" style="margin-bottom:12px"/>
       <label class="fg-label">Meddelande som följer med betalningen</label>
       <input class="fg-input" id="stod-message" value="${esc(cfg.stodMessage||"Stöd föreningen")}" placeholder="t.ex. Stöd Div2 Norra Götaland" style="margin-bottom:14px"/>
+      <label class="fg-label">Egen QR-kodbild (valfritt, URL)</label>
+      <input class="fg-input" id="stod-qr-url" value="${esc(cfg.stodQrImageUrl||"")}" placeholder="t.ex. https://dindomän.se/swish-qr.png" style="margin-bottom:6px"/>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.5">Lämna tomt för en automatiskt genererad QR-kod. Vill du använda din egen officiella Swish-bild (t.ex. genererad på swish.nu): ladda upp bilden till ditt projekt (samma sätt som icon.svg) och klistra in webbadressen hit.</div>
       <button class="fg-btn" data-act="save-stod-settings">Spara inställningar</button>
     </div>
     ${swishPreviewUrl?`<div class="fg-card">
@@ -7454,9 +7458,10 @@ function attachHandlers(){
       const swishNumber=document.getElementById("stod-swish-number").value.trim();
       const amount=Number(document.getElementById("stod-amount").value)||200;
       const message=document.getElementById("stod-message").value.trim()||"Stöd föreningen";
-      const {error}=await sb.from("app_config").update({stod_swish_number:swishNumber,stod_amount:amount,stod_message:message}).eq("league_id",currentLeague.id);
+      const qrImageUrl=document.getElementById("stod-qr-url").value.trim();
+      const {error}=await sb.from("app_config").update({stod_swish_number:swishNumber,stod_amount:amount,stod_message:message,stod_qr_image_url:qrImageUrl}).eq("league_id",currentLeague.id);
       if(error){flash("Fel: "+error.message);return;}
-      cfg={...cfg,stodSwishNumber:swishNumber,stodAmount:amount,stodMessage:message};
+      cfg={...cfg,stodSwishNumber:swishNumber,stodAmount:amount,stodMessage:message,stodQrImageUrl:qrImageUrl};
       flash("✓ Inställningar sparade!");
     }
     else if(act==="quiz-bulk-import"){
