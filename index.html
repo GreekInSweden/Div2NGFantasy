@@ -2809,6 +2809,10 @@ function renderMain(){
     : appMode==="profil"
     ? [["spelformer","🎮","Spelformer"],["profil","👤","Profil"],["adm","🔒","Admin"]]
     : [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
+  if(cfg.stodEnabled&&cfg.stodSwishNumber){
+    const admIdx=tabsDef.findIndex(t=>t[0]==="adm");
+    if(admIdx>=0) tabsDef.splice(admIdx,0,["stod","💚","Stöd oss"]);
+  }
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
   const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&appMode!=="hof"&&appMode!=="standings"&&allRoundKeys.length>0;
@@ -2855,6 +2859,8 @@ function renderMain(){
 
   const tabs=tabsDef.map(([id,ico,lbl])=>id==="spelformer"
     ?`<button class="fg-tabbtn" data-act="switch-mode"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
+    :id==="stod"
+    ?`<a href="https://app.swish.nu/1/p/sw/?sw=${encodeURIComponent(cfg.stodSwishNumber)}&amt=${encodeURIComponent(cfg.stodAmount||200)}&cur=SEK&msg=${encodeURIComponent(cfg.stodMessage||"")}" target="_blank" rel="noopener noreferrer" class="fg-tabbtn" style="text-decoration:none;color:inherit"><span style="font-size:18px">${ico}</span><span>${lbl}</span></a>`
     :`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
   ).join("");
 
