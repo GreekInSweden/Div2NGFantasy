@@ -2339,7 +2339,7 @@ function renderHome(){
         Våra sponsorer →
       </button>`:""}
       ${cfg.stodEnabled&&cfg.stodSwishNumber?`<a href="https://app.swish.nu/1/p/sw/?sw=${encodeURIComponent(cfg.stodSwishNumber)}&amt=${encodeURIComponent(cfg.stodAmount||200)}&cur=SEK&msg=${encodeURIComponent(cfg.stodMessage||"")}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a6b3c;color:#fff;border-radius:8px;padding:13px;font-size:14px;font-weight:600;text-decoration:none;margin-top:6px">
-        💚 Swisha ${cfg.stodAmount||200} kr – Stöd oss
+        ❤️ Swisha ${cfg.stodAmount||200} kr – Stöd oss
       </a>`:""}
     </div>
 
@@ -2811,7 +2811,7 @@ function renderMain(){
     : [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
   if(cfg.stodEnabled&&cfg.stodSwishNumber){
     const admIdx=tabsDef.findIndex(t=>t[0]==="adm");
-    if(admIdx>=0) tabsDef.splice(admIdx,0,["stod","💚","Stöd oss"]);
+    if(admIdx>=0) tabsDef.splice(admIdx,0,["stod","❤️","Stöd oss"]);
   }
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
@@ -5147,7 +5147,7 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["leagues","🌍 Serier"],["stod","💚 Stöd oss"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["leagues","🌍 Serier"],["stod","❤️ Stöd oss"]];
   const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
@@ -5871,7 +5871,7 @@ Liverpool
       <div style="font-size:12px;color:var(--color-text-secondary)">${cfg.stodEnabled?'Syns på startsidan för alla besökare.':'Syns bara här i admin tills du aktiverar den.'}</div>
     </div>
     <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:10px">💚 Inställningar</div>
+      <div style="font-weight:500;margin-bottom:10px">❤️ Inställningar</div>
       <label class="fg-label">Swish-nummer (t.ex. 123 456 78 90 eller ett Swish-handelsnummer)</label>
       <input class="fg-input" id="stod-swish-number" value="${esc(cfg.stodSwishNumber||"")}" placeholder="t.ex. 1234567890" style="margin-bottom:12px"/>
       <label class="fg-label">Föreslaget belopp (kr)</label>
@@ -5884,7 +5884,7 @@ Liverpool
       <div style="font-weight:500;margin-bottom:8px">Förhandsvisning</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Så här ser knappen ut för användarna (klicka för att testa att länken öppnar Swish korrekt på din mobil):</div>
       <a href="${esc(swishPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a1a1a;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
-        💚 Swisha ${cfg.stodAmount||200} kr
+        ❤️ Swisha ${cfg.stodAmount||200} kr
       </a>
     </div>`:`<div class="fg-card" style="background:#fffbeb"><div style="font-size:12px;color:#92400e">Fyll i ett Swish-nummer ovan för att se en förhandsvisning av knappen.</div></div>`}`;
   } else if(adminSection==="passwords"){
