@@ -156,6 +156,7 @@ function urlBase64ToUint8Array(base64String){
 
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home", stodFrom="home",
+    myTickets=[], adminTickets=[], ticketMessages=[], viewingTicketId=null, adminViewingTicketId=null, newTicketDraft={subject:"",body:""}, ticketReplyDraft="", inboxFrom="home",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     duellenSignups=[], duellenConfig={status:"signup",total_rounds:0,season_num:1}, duellenFixtures=[],
@@ -886,6 +887,47 @@ async function adminCreateLeagueGroup(groupName){
 }
 async function deletePrivateLeague(id){
   const {error}=await sb.from("private_leagues").delete().eq("id",id);
+  return error;
+}
+// ── Inbox / support-ärenden ──────────────────────────────────────────────
+async function fetchMyTickets(){
+  const {data,error}=await sb.from("support_tickets").select("*").eq("league_id",currentLeague.id).eq("user_id",currentUser.id).order("updated_at",{ascending:false});
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function fetchAllTickets(){
+  const {data,error}=await sb.from("support_tickets").select("*").eq("league_id",currentLeague.id).order("updated_at",{ascending:false});
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function fetchTicketMessages(ticketId){
+  const {data,error}=await sb.from("support_messages").select("*").eq("ticket_id",ticketId).order("created_at",{ascending:true});
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function createTicket(subject,body){
+  const {data,error}=await sb.from("support_tickets").insert({league_id:currentLeague.id,user_id:currentUser.id,subject,unread_by_admin:true,unread_by_user:false}).select().single();
+  if(error) return {error};
+  const {error:msgErr}=await sb.from("support_messages").insert({ticket_id:data.id,sender:"user",body});
+  if(msgErr) return {error:msgErr};
+  return {error:null,ticket:data};
+}
+async function sendTicketMessage(ticketId,sender,body){
+  const {error}=await sb.from("support_messages").insert({ticket_id:ticketId,sender,body});
+  if(error) return error;
+  const updateFields={updated_at:new Date().toISOString()};
+  if(sender==="user"){ updateFields.unread_by_admin=true; }
+  else { updateFields.unread_by_user=true; }
+  const {error:updErr}=await sb.from("support_tickets").update(updateFields).eq("id",ticketId);
+  return updErr;
+}
+async function markTicketRead(ticketId,who){
+  const field=who==="admin"?"unread_by_admin":"unread_by_user";
+  const {error}=await sb.from("support_tickets").update({[field]:false}).eq("id",ticketId);
+  if(error)console.error(error);
+}
+async function setTicketStatus(ticketId,status){
+  const {error}=await sb.from("support_tickets").update({status}).eq("id",ticketId);
   return error;
 }
 // Raderar en hel serie permanent – rensar alla tabeller som är kopplade till
@@ -1996,6 +2038,7 @@ function render(){
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else if(screen==="sponsors")root.innerHTML=renderSponsorsScreen();
   else if(screen==="stod")root.innerHTML=renderStodScreen();
+  else if(screen==="inbox")root.innerHTML=renderInboxScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
   // Uppdatera push-knapp asynkront när mode-skärmen visas
@@ -2106,6 +2149,14 @@ function renderModeSelect(){
           <div style="font-weight:500;font-size:16px">Ställningar</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">Se topplistan i alla spelformer på ett ställe</div>
         </div>
+      </button>
+      <button data-act="go-inbox-from-mode" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px;position:relative">
+        <span style="font-size:28px">📬</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Kontakta oss</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Idéer, felsökning eller frågor – vi svarar här i appen</div>
+        </div>
+        ${myTickets.some(t=>t.unread_by_user)?`<span style="position:absolute;top:12px;right:12px;width:10px;height:10px;border-radius:50%;background:#c1272d"></span>`:""}
       </button>
       <button data-act="pick-mode" data-mode="statistik" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">📈</span>
@@ -2517,6 +2568,71 @@ function renderStodScreen(){
       <img src="${qrUrl}" alt="QR-kod för Swish-betalning" style="width:220px;height:auto;max-width:100%;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px;image-rendering:crisp-edges"/>
       ${cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">Eller swisha manuellt till<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b></div>`:""}
     </div>
+  </div>`;
+}
+function renderInboxScreen(){
+  const backBtn=`<button data-act="inbox-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">← Tillbaka</button>`;
+
+  if(viewingTicketId){
+    const ticket=myTickets.find(t=>t.id===viewingTicketId);
+    if(!ticket){ viewingTicketId=null; return renderInboxScreen(); }
+    const rows=ticketMessages.map(m=>{
+      const isAdmin=m.sender==="admin";
+      return `<div style="display:flex;justify-content:${isAdmin?'flex-start':'flex-end'};margin-bottom:10px">
+        <div style="max-width:80%;background:${isAdmin?G_GREENL:'var(--color-background-secondary)'};border-radius:12px;padding:10px 14px">
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:2px;font-weight:500">${isAdmin?'Admin':'Du'}</div>
+          <div style="font-size:14px;white-space:pre-wrap">${esc(m.body)}</div>
+        </div>
+      </div>`;
+    }).join("");
+    return `
+    <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto;padding-bottom:100px">
+      ${backBtn}
+      <div style="font-weight:600;font-size:18px;margin-bottom:2px">${esc(ticket.subject)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:20px">${ticket.status==="closed"?"🔒 Stängt ärende":"🟢 Öppet ärende"}</div>
+      <div>${rows}</div>
+      ${ticket.status!=="closed"?`
+      <div style="position:fixed;bottom:0;left:0;right:0;max-width:340px;margin:0 auto;padding:12px 16px;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;gap:8px">
+          <input class="fg-input" id="ticket-reply-input" placeholder="Skriv ett svar..." style="flex:1"/>
+          <button data-act="send-ticket-reply" style="background:${G_GREEN};color:#fff;border:none;border-radius:6px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500">Skicka</button>
+        </div>
+      </div>`:`<div class="fg-card" style="text-align:center;font-size:12px;color:var(--color-text-secondary)">Det här ärendet är stängt. Skapa ett nytt om du har fler frågor.</div>`}
+    </div>`;
+  }
+
+  if(homeMode==="new-ticket"){
+    return `
+    <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
+      <button data-act="inbox-cancel-new" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">← Tillbaka</button>
+      <div style="font-weight:600;font-size:18px;margin-bottom:16px">Nytt ärende</div>
+      <label class="fg-label">Ämne</label>
+      <input class="fg-input" id="new-ticket-subject" placeholder="T.ex. Bugg i Snabbast vinner" style="margin-bottom:14px"/>
+      <label class="fg-label">Meddelande</label>
+      <textarea id="new-ticket-body" rows="6" placeholder="Beskriv din idé, fråga eller vad som inte fungerar..." style="width:100%;padding:10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:14px;resize:vertical;background:var(--color-background-primary);color:var(--color-text-primary);box-sizing:border-box;margin-bottom:14px"></textarea>
+      <div id="new-ticket-status" style="font-size:13px;min-height:18px;margin-bottom:8px"></div>
+      <button class="fg-btn" data-act="submit-new-ticket">Skicka</button>
+    </div>`;
+  }
+
+  const rows=myTickets.map(t=>`
+    <div data-act="open-ticket" data-id="${t.id}" class="fg-card" style="cursor:pointer;${t.unread_by_user?`border:1.5px solid ${G_GREEN}`:""}">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:1">
+          <div style="font-weight:${t.unread_by_user?700:500};font-size:14px">${esc(t.subject)}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${t.status==="closed"?"🔒 Stängt":"🟢 Öppet"}${t.unread_by_user?` · <span style="color:${G_GREEN};font-weight:600">Nytt svar!</span>`:""}</div>
+        </div>
+        <span style="color:var(--color-text-secondary)">›</span>
+      </div>
+    </div>`).join("");
+
+  return `
+  <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
+    ${backBtn}
+    <div style="font-weight:600;font-size:18px;margin-bottom:4px">📬 Kontakta oss</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">Idéer, felsökning eller frågor – vi svarar här i appen.</div>
+    <button class="fg-btn" data-act="inbox-new-ticket" style="margin-bottom:20px">+ Nytt ärende</button>
+    ${rows||'<div class="fg-card" style="text-align:center;color:var(--color-text-secondary);font-size:13px">Inga ärenden ännu.</div>'}
   </div>`;
 }
 function renderRulesScreen(){
@@ -5172,7 +5288,7 @@ function renderAdminTab(){
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
   const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["leagues","🌍 Serier"],["stod","❤️ Stöd oss"]];
-  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
+  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -6264,6 +6380,52 @@ Liverpool
           </div>`).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen aktivitet loggad i den här perioden.</div>'}
       </div>`;
     }
+  } else if(adminSection==="inbox"){
+    if(adminViewingTicketId){
+      const ticket=adminTickets.find(t=>t.id===adminViewingTicketId);
+      const owner=ticket?users.find(u=>u.id===ticket.user_id):null;
+      const rows=ticketMessages.map(m=>{
+        const isAdmin=m.sender==="admin";
+        return `<div style="display:flex;justify-content:${isAdmin?'flex-end':'flex-start'};margin-bottom:10px">
+          <div style="max-width:80%;background:${isAdmin?G_GREENL:'var(--color-background-secondary)'};border-radius:12px;padding:10px 14px">
+            <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:2px;font-weight:500">${isAdmin?'Admin':esc(owner?owner.namn:'Spelare')}</div>
+            <div style="font-size:14px;white-space:pre-wrap">${esc(m.body)}</div>
+          </div>
+        </div>`;
+      }).join("");
+      body=`<div class="fg-card">
+        <button data-act="admin-ticket-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">← Tillbaka till inboxen</button>
+        <div style="font-weight:600;font-size:16px;margin-bottom:2px">${esc(ticket?ticket.subject:"")}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:16px">Från: ${esc(owner?owner.namn:"Okänd spelare")} · ${ticket&&ticket.status==="closed"?"🔒 Stängt":"🟢 Öppet"}</div>
+        ${rows}
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <input class="fg-input" id="admin-ticket-reply-input" placeholder="Skriv ett svar..." style="flex:1"/>
+          <button data-act="admin-send-ticket-reply" style="background:${G_GREEN};color:#fff;border:none;border-radius:6px;padding:0 16px;font-size:14px;cursor:pointer;font-weight:500">Skicka</button>
+        </div>
+        <button data-act="admin-toggle-ticket-status" data-status="${ticket&&ticket.status==="closed"?"open":"closed"}" class="fg-outbtn" style="width:100%;margin-top:10px">${ticket&&ticket.status==="closed"?"Återöppna ärendet":"Markera som löst / stäng"}</button>
+      </div>`;
+    } else {
+      const openTickets=adminTickets.filter(t=>t.status!=="closed");
+      const closedTickets=adminTickets.filter(t=>t.status==="closed");
+      const ticketRow=t=>{
+        const owner=users.find(u=>u.id===t.user_id);
+        return `<div data-act="admin-open-ticket" data-id="${t.id}" class="fg-card" style="cursor:pointer;margin-bottom:8px;${t.unread_by_admin?`border:1.5px solid ${G_GREEN}`:""}">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1">
+              <div style="font-weight:${t.unread_by_admin?700:500};font-size:14px">${esc(t.subject)}</div>
+              <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${esc(owner?owner.namn:"Okänd spelare")}${t.unread_by_admin?` · <span style="color:${G_GREEN};font-weight:600">Nytt!</span>`:""}</div>
+            </div>
+            <span style="color:var(--color-text-secondary)">›</span>
+          </div>
+        </div>`;
+      };
+      body=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:4px">📬 Inbox</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${openTickets.length} öppna ärenden, ${closedTickets.length} stängda</div>
+      </div>
+      ${openTickets.length?openTickets.map(ticketRow).join(""):'<div class="fg-card" style="text-align:center;color:var(--color-text-secondary);font-size:13px">Inga öppna ärenden.</div>'}
+      ${closedTickets.length?`<div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);margin:14px 0 6px;letter-spacing:.3px">STÄNGDA</div>${closedTickets.map(ticketRow).join("")}`:""}`;
+    }
   } else if(adminSection==="sponsorer"){
     const modeOpts=[["","Ingen specifik (visas ej på en spelform)"],["fantasy","Fantasy"],["tipp","Tippa resultat"],["snabbast","Snabbast vinner"],["måljakten","Måljakten"],["ligatipp","Tippa serien"],["quiz","Quiz"],["streak","Streak"],["matchfokus","Matchexperten"],["duellen","Duellen"],["malregn","Målregn"],["jubel","Båda får Jubla"],["investerare","Investeraren"],["lts","Last Team Standing"],["anytime","Skyttekung"]];
     const rows=sponsors.map(s=>{
@@ -7012,6 +7174,52 @@ function attachHandlers(){
     else if(act==="sponsors-back"){ screen="home"; homeMode="start"; render(); }
     else if(act==="go-stod"){ stodFrom=(screen==="main"&&appMode)?"main":"home"; screen="stod"; render(); }
     else if(act==="stod-back"){ screen=stodFrom==="main"?"main":"home"; if(screen==="home") homeMode="start"; render(); }
+    else if(act==="go-inbox-from-mode"){
+      inboxFrom="mode"; viewingTicketId=null; homeMode="";
+      const root2=document.getElementById("fg-root");
+      root2.innerHTML='<div class="fg-loading">Laddar…</div>';
+      myTickets=await fetchMyTickets();
+      screen="inbox"; render();
+    }
+    else if(act==="inbox-back"){
+      viewingTicketId=null;
+      screen=inboxFrom==="mode"?"mode":"home";
+      if(screen==="home") homeMode="start";
+      render();
+    }
+    else if(act==="inbox-new-ticket"){ homeMode="new-ticket"; render(); }
+    else if(act==="inbox-cancel-new"){ homeMode=""; render(); }
+    else if(act==="submit-new-ticket"){
+      const subject=document.getElementById("new-ticket-subject").value.trim();
+      const body=document.getElementById("new-ticket-body").value.trim();
+      const statusEl=document.getElementById("new-ticket-status");
+      if(!subject||!body){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fyll i både ämne och meddelande.</span>'; return; }
+      if(statusEl) statusEl.textContent="Skickar…";
+      const {error,ticket}=await createTicket(subject,body);
+      if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+      myTickets=[ticket,...myTickets];
+      homeMode="";
+      flash("✓ Ärendet är skickat!");
+    }
+    else if(act==="open-ticket"){
+      const id=Number(el.dataset.id);
+      viewingTicketId=id;
+      const root2=document.getElementById("fg-root");
+      root2.innerHTML='<div class="fg-loading">Laddar…</div>';
+      ticketMessages=await fetchTicketMessages(id);
+      await markTicketRead(id,"user");
+      myTickets=myTickets.map(t=>t.id===id?{...t,unread_by_user:false}:t);
+      render();
+    }
+    else if(act==="send-ticket-reply"){
+      const input=document.getElementById("ticket-reply-input");
+      const body=input?input.value.trim():"";
+      if(!body) return;
+      const error=await sendTicketMessage(viewingTicketId,"user",body);
+      if(error){ flash("Fel: "+error.message); return; }
+      ticketMessages=[...ticketMessages,{ticket_id:viewingTicketId,sender:"user",body,created_at:new Date().toISOString()}];
+      render();
+    }
     else if(act==="rules-back-home"){ screen="home"; homeMode="start"; render(); }
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="login-as"){
@@ -7780,6 +7988,9 @@ function attachHandlers(){
       if(adminSection==="aktivitet"){
         await refreshAktivitetData();
       }
+      if(adminSection==="inbox"){
+        try{ adminTickets=await fetchAllTickets(); adminViewingTicketId=null; }catch(e){console.error(e);}
+      }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
         try{
@@ -8073,6 +8284,33 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       cfg={...cfg,totalRounds:val};
       flash(`✓ Antal omgångar satt till ${val}!`);
+    }
+    else if(act==="admin-open-ticket"){
+      const id=Number(el.dataset.id);
+      adminViewingTicketId=id;
+      const root2=document.getElementById("fg-root");
+      root2.innerHTML='<div class="fg-loading">Laddar…</div>';
+      ticketMessages=await fetchTicketMessages(id);
+      await markTicketRead(id,"admin");
+      adminTickets=adminTickets.map(t=>t.id===id?{...t,unread_by_admin:false}:t);
+      render();
+    }
+    else if(act==="admin-ticket-back"){ adminViewingTicketId=null; render(); }
+    else if(act==="admin-send-ticket-reply"){
+      const input=document.getElementById("admin-ticket-reply-input");
+      const body=input?input.value.trim():"";
+      if(!body) return;
+      const error=await sendTicketMessage(adminViewingTicketId,"admin",body);
+      if(error){ flash("Fel: "+error.message); return; }
+      ticketMessages=[...ticketMessages,{ticket_id:adminViewingTicketId,sender:"admin",body,created_at:new Date().toISOString()}];
+      render();
+    }
+    else if(act==="admin-toggle-ticket-status"){
+      const newStatus=el.dataset.status;
+      const error=await setTicketStatus(adminViewingTicketId,newStatus);
+      if(error){ flash("Fel: "+error.message); return; }
+      adminTickets=adminTickets.map(t=>t.id===adminViewingTicketId?{...t,status:newStatus}:t);
+      flash(newStatus==="closed"?"✓ Ärendet stängt.":"✓ Ärendet återöppnat.");
     }
     else if(act==="admin-jump-round"){
       const n=Number(el.dataset.n);
