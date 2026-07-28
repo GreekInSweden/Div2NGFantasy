@@ -68,6 +68,10 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-mscore::-webkit-outer-spin-button,.fg-mscore::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fg-adm-tab{padding:8px 4px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer}
 .fg-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--color-text-secondary);font-size:14px}
+.fg-ticker-wrap{overflow:hidden;background:#1a1a1a;padding:8px 0;white-space:nowrap;position:sticky;top:90px;z-index:8}
+.fg-ticker-track{display:inline-flex;animation:fg-ticker-scroll 30s linear infinite}
+.fg-ticker-track span{padding:0 32px;color:#fff;font-size:13px;font-weight:500;white-space:nowrap}
+@keyframes fg-ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
 </style>
 </head>
 <body>
@@ -157,6 +161,7 @@ function urlBase64ToUint8Array(base64String){
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home", stodFrom="home",
     myTickets=[], adminTickets=[], ticketMessages=[], viewingTicketId=null, adminViewingTicketId=null, newTicketDraft={subject:"",body:""}, ticketReplyDraft="", inboxFrom="home",
+    announcements=[],
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     duellenSignups=[], duellenConfig={status:"signup",total_rounds:0,season_num:1}, duellenFixtures=[],
@@ -368,9 +373,9 @@ async function deletePlayer(id){
   if(error)console.error(error);
 }
 async function fetchUsers(){
-  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id").eq("league_id",currentLeague.id).order("created_at");
+  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id,email").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null}));
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||""}));
 }
 // Väg A: gemensamt konto (namn+PIN) över alla serier.
 // Körs varje gång någon loggar in eller registrerar sig – helt osynligt för användaren.
@@ -388,6 +393,22 @@ function forgetAccount(){
 }
 function getRememberedAccountId(){
   try{ return localStorage.getItem("div2ng_account_id"); }catch(e){ return null; }
+}
+// Kom ihåg upp till 5 senast använda spelare PÅ DEN HÄR ENHETEN, per serie
+// (t.ex. en familj som delar en platta men bara loggar in med 5 av sina konton).
+// Helt separat från "kom ihåg mig"-kontot ovan, som bara minns ETT konto för
+// automatisk tyst inloggning.
+function recentUsersKey(){ return "div2ng_recent_users_"+(currentLeague?currentLeague.id:"x"); }
+function getRecentUserIds(){
+  try{ const raw=localStorage.getItem(recentUsersKey()); return raw?JSON.parse(raw):[]; }catch(e){ return []; }
+}
+function addRecentUserId(userId){
+  try{
+    let list=getRecentUserIds().filter(id=>id!==userId);
+    list.unshift(userId);
+    list=list.slice(0,5);
+    localStorage.setItem(recentUsersKey(),JSON.stringify(list));
+  }catch(e){}
 }
 // Försöker logga in automatiskt i currentLeague om vi känner igen ett sparat konto
 function tryAutoLoginViaAccount(){
@@ -1143,6 +1164,21 @@ async function fetchAllModeVisits(){
   const {data,error}=await sb.from("session_mode_visits").select("user_id,mode,session_id,visited_at").eq("league_id",currentLeague.id);
   if(error){console.error(error);return [];}
   return data;
+}
+
+// ── Meddelandeticker ──────────────────────────────────────────────────────
+async function fetchAnnouncements(){
+  const {data,error}=await sb.from("announcements").select("*").eq("league_id",currentLeague.id).order("created_at");
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function addAnnouncement(message){
+  const {data,error}=await sb.from("announcements").insert({league_id:currentLeague.id,message}).select().single();
+  return {data,error};
+}
+async function deleteAnnouncement(id){
+  const {error}=await sb.from("announcements").delete().eq("id",id);
+  return error;
 }
 
 // ── Sponsorer ────────────────────────────────────────────────────────────
@@ -2183,6 +2219,13 @@ function renderModeSelect(){
           <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
         </div>
       </button>
+      <button data-act="pick-mode" data-mode="profil" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
+        <span style="font-size:28px">👤</span>
+        <div>
+          <div style="font-weight:500;font-size:16px">Min profil</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">Kontaktuppgifter, PIN-kod och kontoinställningar</div>
+        </div>
+      </button>
       ${cfg.hofEnabled?`<button data-act="pick-mode" data-mode="hof" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px;width:100%">
         <span style="font-size:28px">🏆</span>
         <div><div style="font-weight:500;font-size:16px">Hall of Fame</div>
@@ -2303,20 +2346,25 @@ function renderHome(){
   // ── Spelarlista ─────────────────────────────────────────────────────────
   if(homeMode==="login"){
     const searchQ=document.getElementById("user-search")?document.getElementById("user-search").value.toLowerCase():"";
-    const filteredUsers=searchQ?users.filter(u=>u.namn.toLowerCase().includes(searchQ)):users;
-    const makeList=(us,noResultsIsSearch)=>us.map(u=>`
+    const recentIds=getRecentUserIds();
+    const recentUsers=recentIds.map(id=>users.find(u=>u.id===id)).filter(Boolean);
+    const filteredUsers=searchQ?users.filter(u=>u.namn.toLowerCase().includes(searchQ)):recentUsers;
+    const isShowingRecent=!searchQ;
+    const makeList=(us,searching)=>us.map(u=>`
       <button data-act="ask-pin" data-id="${u.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#222;border:0.5px solid #333;border-radius:10px;cursor:pointer;text-align:left;width:100%;margin-bottom:8px">
         <div style="width:40px;height:40px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(u.namn[0])}</div>
         <div style="flex:1;color:#fff;font-weight:500;font-size:15px">${esc(u.namn)}</div>
         <span style="color:#555;font-size:20px">›</span>
-      </button>`).join("")||(noResultsIsSearch
+      </button>`).join("")||(searching
         ?'<div style="font-size:13px;color:#666;text-align:center;padding:20px">Ingen spelare hittades.</div>'
-        :'<div style="font-size:13px;color:#666;text-align:center;padding:20px">Laddar spelare…</div>');
+        :'<div style="font-size:13px;color:#666;text-align:center;padding:20px;line-height:1.6">Ingen tidigare inloggning på den här enheten.<br>Sök ditt namn ovan för att hitta dig.</div>');
     window._refreshUserList=()=>{
       const q=document.getElementById("user-search")?.value.toLowerCase()||"";
       const el=document.getElementById("user-list-login");
-      const list=q?users.filter(u=>u.namn.toLowerCase().includes(q)):users;
-      if(el) el.innerHTML=makeList(list,!!q||users.length>0);
+      const label=document.getElementById("user-list-label");
+      const list=q?users.filter(u=>u.namn.toLowerCase().includes(q)):recentUsers;
+      if(label) label.textContent=q?"Sökresultat":"Senast inloggade på den här enheten";
+      if(el) el.innerHTML=makeList(list,!!q);
       attachHandlers();
     };
     return `
@@ -2324,7 +2372,8 @@ function renderHome(){
       <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">← Tillbaka</button>
       <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:16px">Välj din spelare</div>
       <input id="user-search" type="search" placeholder="🔍 Sök ditt namn..." oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#2a2a2a;border:0.5px solid #555;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
-      <div id="user-list-login">${makeList(filteredUsers,!!searchQ||users.length>0)}</div>
+      <div id="user-list-label" style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">${isShowingRecent?"Senast inloggade på den här enheten":"Sökresultat"}</div>
+      <div id="user-list-login">${makeList(filteredUsers,!!searchQ)}</div>
     </div>`;
   }
 
@@ -2958,19 +3007,19 @@ function renderRulesScreen(){
 function renderMain(){
   const sorted=sortedUsers();
   const tabsDef = appMode==="statistik"
-    ? [["spelformer","🎮","Spelformer"],["statistik","📈","Statistik"],["adm","🔒","Admin"]]
+    ? [["spelformer","🎮","Spelformer"],["statistik","📈","Statistik"],["inbox","📬","Inbox"]]
     : appMode==="streak"
-    ? [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]]
+    ? [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["inbox","📬","Inbox"]]
     : appMode==="hof"
-    ? [["spelformer","🎮","Spelformer"],["hof","🏆","Hall of Fame"],["adm","🔒","Admin"]]
+    ? [["spelformer","🎮","Spelformer"],["hof","🏆","Hall of Fame"],["inbox","📬","Inbox"]]
     : appMode==="standings"
-    ? [["spelformer","🎮","Spelformer"],["standings","🏆","Ställningar"],["adm","🔒","Admin"]]
+    ? [["spelformer","🎮","Spelformer"],["standings","🏆","Ställningar"],["inbox","📬","Inbox"]]
     : appMode==="profil"
-    ? [["spelformer","🎮","Spelformer"],["profil","👤","Profil"],["adm","🔒","Admin"]]
-    : [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["adm","🔒","Admin"]];
+    ? [["spelformer","🎮","Spelformer"],["profil","👤","Profil"],["inbox","📬","Inbox"]]
+    : [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["inbox","📬","Inbox"]];
   if(cfg.stodEnabled&&cfg.stodSwishNumber){
-    const admIdx=tabsDef.findIndex(t=>t[0]==="adm");
-    if(admIdx>=0) tabsDef.splice(admIdx,0,["stod","❤️","Stöd oss"]);
+    const inboxIdx=tabsDef.findIndex(t=>t[0]==="inbox");
+    if(inboxIdx>=0) tabsDef.splice(inboxIdx,0,["stod","❤️","Stöd oss"]);
   }
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
@@ -3020,6 +3069,8 @@ function renderMain(){
     ?`<button class="fg-tabbtn" data-act="switch-mode"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
     :id==="stod"
     ?`<button class="fg-tabbtn" data-act="go-stod"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
+    :id==="inbox"
+    ?`<button class="fg-tabbtn" data-act="go-inbox-from-tab" style="position:relative"><span style="font-size:18px">${ico}</span><span>${lbl}</span>${myTickets.some(t=>t.unread_by_user)?`<span style="position:absolute;top:4px;right:20%;width:8px;height:8px;border-radius:50%;background:#c1272d"></span>`:""}</button>`
     :`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
   ).join("");
 
@@ -3028,8 +3079,9 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh">
-    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":appMode==="matchfokus"?" · Matchexperten":""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":appMode==="matchfokus"?" · Matchexperten":""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="main-tab" data-tab="adm" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">🔒 Admin</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
     <div class="fg-topbar-tabs">${tabs}</div>
+    ${announcements.length?`<div class="fg-ticker-wrap"><div class="fg-ticker-track">${announcements.map(a=>`<span>📢 ${esc(a.message)}</span>`).join("")}${announcements.map(a=>`<span>📢 ${esc(a.message)}</span>`).join("")}</div></div>`:""}
     ${roundStrip}
     <div style="padding:12px 16px 24px">${body}</div>
   </div>`;
@@ -4720,6 +4772,14 @@ function renderProfilTab(){
     </div>
   </div>
 
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:6px">📧 Mejladress</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5">Valfritt, men bra att fylla i — så vi kan nå dig om du t.ex. vinner ett pris.</div>
+    <input class="fg-input" id="profile-email" type="email" value="${esc(u.email||"")}" placeholder="din@mejl.se" style="margin-bottom:10px"/>
+    <div id="profile-email-status" style="font-size:13px;min-height:18px;margin-bottom:6px"></div>
+    <button class="fg-btn" data-act="save-profile-email">Spara mejladress</button>
+  </div>
+
   ${changePinSection}
   ${deleteSection}`;
 }
@@ -5307,7 +5367,7 @@ function renderAdminTab(){
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
   const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["leagues","🌍 Serier"],["stod","❤️ Stöd oss"]];
-  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
+  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"]];
 
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
@@ -6399,6 +6459,26 @@ Liverpool
           </div>`).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Ingen aktivitet loggad i den här perioden.</div>'}
       </div>`;
     }
+  } else if(adminSection==="meddelanden"){
+    const rows=announcements.map(a=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="flex:1;font-size:13px">${esc(a.message)}</span>
+        <button data-act="delete-announcement" data-id="${a.id}" style="background:none;border:none;cursor:pointer;color:#A32D2D;font-size:16px">×</button>
+      </div>`).join("");
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:6px">📢 Rullande meddelanden</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
+        Visas som en rullande textremsa högst upp för alla spelare, oavsett vilken spelform de är inne i. Bra för korta nyheter, grattishälsningar eller påminnelser – t.ex. "Vill du ha din egen serie? Skriv i Inbox!" eller "Grattis Jonas för nytt rekord i Fantasy på 104p!".
+      </div>
+      <div style="display:flex;gap:8px">
+        <input class="fg-input" id="new-announcement-text" placeholder="Skriv ett meddelande..." style="flex:1"/>
+        <button data-act="add-announcement" style="background:#c1272d;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0">Lägg till</button>
+      </div>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Aktiva meddelanden (${announcements.length})</div>
+      ${rows||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga meddelanden ännu – tickern syns inte förrän du lagt till minst ett.</div>'}
+    </div>`;
   } else if(adminSection==="inbox"){
     if(adminViewingTicketId){
       const ticket=adminTickets.find(t=>t.id===adminViewingTicketId);
@@ -7116,6 +7196,7 @@ function attachHandlers(){
       cfg=await fetchConfig();
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
+      try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
       if(tryAutoLoginViaAccount()){
         presenceSessionId=null; startPresenceHeartbeat();
         screen="mode";
@@ -7150,12 +7231,14 @@ function attachHandlers(){
         cfg=await fetchConfig();
         try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
+      try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
         const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
         if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
         const u=users.find(x=>x.id===pendingCrossLeagueUser.id);
         if(!u){loginErr="Kunde inte hitta kontot.";render();return;}
         currentUser=u; pendingCrossLeagueUser=null; loginErr="";
+        addRecentUserId(u.id);
         try{
           const accId=await ensureAccountLink(u,pin);
           if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
@@ -7200,9 +7283,16 @@ function attachHandlers(){
       myTickets=await autoCloseStaleTickets(await fetchMyTickets());
       screen="inbox"; render();
     }
+    else if(act==="go-inbox-from-tab"){
+      inboxFrom="main"; viewingTicketId=null; homeMode="";
+      const root2=document.getElementById("fg-root");
+      root2.innerHTML='<div class="fg-loading">Laddar…</div>';
+      myTickets=await autoCloseStaleTickets(await fetchMyTickets());
+      screen="inbox"; render();
+    }
     else if(act==="inbox-back"){
       viewingTicketId=null;
-      screen=inboxFrom==="mode"?"mode":"home";
+      screen=inboxFrom==="mode"?"mode":inboxFrom==="main"?"main":"home";
       if(screen==="home") homeMode="start";
       render();
     }
@@ -7261,6 +7351,7 @@ function attachHandlers(){
       }catch(e){console.error("Hash error:",e);}
       if(match){
         currentUser=u; pendingLoginUser=null; loginErr="";
+        addRecentUserId(u.id);
         try{
           const accId=await ensureAccountLink(u,val);
           if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
@@ -7290,7 +7381,7 @@ function attachHandlers(){
         return;
       }
       users=[...users,ny];
-      currentUser=ny; errMsg=""; screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
+      currentUser=ny; errMsg=""; screen="mode"; addRecentUserId(ny.id); try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       if(recognized) flash("✓ Välkommen tillbaka! Samma PIN funkar här också.");
       try{
         const accId=await ensureAccountLink(ny,pin);
@@ -7536,6 +7627,7 @@ function attachHandlers(){
       cfg=await fetchConfig();
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
+      try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
       adminSection="round";
       flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
@@ -7558,6 +7650,19 @@ function attachHandlers(){
       adminOk=false; screen="home"; homeMode="start";
       sb.auth.signOut().catch(()=>{});
       flash("✓ Säsong "+newLabel+" startad! Välkommen till den nya säsongen.");
+    }
+    else if(act==="save-profile-email"){
+      const email=document.getElementById("profile-email").value.trim();
+      const statusEl=document.getElementById("profile-email-status");
+      if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+        if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Ser inte ut som en giltig mejladress.</span>';
+        return;
+      }
+      const {error}=await sb.from("fantasy_users").update({email:email||null}).eq("id",currentUser.id);
+      if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Fel: '+error.message+'</span>'; return; }
+      currentUser={...currentUser,email};
+      users=users.map(u=>u.id===currentUser.id?{...u,email}:u);
+      if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">✓ Mejladress sparad!</span>';
     }
     else if(act==="change-pin"){
       const p1=document.getElementById("new-pin-1").value.trim();
@@ -8010,6 +8115,9 @@ function attachHandlers(){
       if(adminSection==="inbox"){
         try{ adminTickets=await autoCloseStaleTickets(await fetchAllTickets()); adminViewingTicketId=null; }catch(e){console.error(e);}
       }
+      if(adminSection==="meddelanden"){
+        try{ announcements=await fetchAnnouncements(); }catch(e){console.error(e);}
+      }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
         try{
@@ -8172,6 +8280,24 @@ function attachHandlers(){
     }
     else if(act==="aktivitet-back"){
       aktivitetDrillUserId=null;
+      render();
+    }
+    else if(act==="add-announcement"){
+      const input=document.getElementById("new-announcement-text");
+      const message=input?input.value.trim():"";
+      if(!message){flash("Skriv ett meddelande först.");return;}
+      const {data,error}=await addAnnouncement(message);
+      if(error){flash("Fel: "+error.message);return;}
+      announcements=[...announcements,data];
+      flash("✓ Meddelande tillagt!");
+      render();
+    }
+    else if(act==="delete-announcement"){
+      const id=Number(el.dataset.id);
+      const error=await deleteAnnouncement(id);
+      if(error){flash("Fel: "+error.message);return;}
+      announcements=announcements.filter(a=>a.id!==id);
+      flash("Meddelande borttaget.");
       render();
     }
     else if(act==="sponsor-add"){
@@ -8768,6 +8894,7 @@ function attachHandlers(){
     cfg=await fetchConfig();
     try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
+      try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
     if(tryAutoLoginViaAccount()){
       presenceSessionId=null; startPresenceHeartbeat();
       screen="mode";
