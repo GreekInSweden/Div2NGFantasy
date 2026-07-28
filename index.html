@@ -2514,7 +2514,7 @@ function renderStodScreen(){
     <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:20px;text-align:center">
       <div style="font-size:13px;font-weight:500;margin-bottom:4px">Sitter du vid en dator?</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">Öppna kameran på mobilen och skanna koden nedan</div>
-      <img src="${qrUrl}" alt="QR-kod för Swish-betalning" style="width:200px;height:200px;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px"/>
+      <img src="${qrUrl}" alt="QR-kod för Swish-betalning" style="width:220px;height:auto;max-width:100%;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px;image-rendering:crisp-edges"/>
       ${cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">Eller swisha manuellt till<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b></div>`:""}
     </div>
   </div>`;
@@ -6555,12 +6555,21 @@ function parsePlayersBlockFormat(lines){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const posHeaderMap={
     "målvakter":"GK","målvakt":"GK","keepers":"GK","goalkeepers":"GK","goalkeeper":"GK",
-    "försvarare":"DEF","defenders":"DEF","defender":"DEF",
+    "försvarare":"DEF","defenders":"DEF","defender":"DEF","backar":"DEF","back":"DEF","backspelare":"DEF",
     "mittfältare":"MID","midfielders":"MID","midfielder":"MID",
     "forwardar":"FW","forwards":"FW","forward":"FW","anfallare":"FW","strikers":"FW","striker":"FW"
   };
+  const unknownPosHeaders=new Set(["utan position","ingen position","no position","unassigned"]);
   const skipWords=new Set(["ålder","age","nationalitet","land","nummer","tröjnummer","number"]);
-  let currentPos=null;
+  // Delar upp ett namn i ord för att avgöra om två rader troligen syftar på samma
+  // spelare (t.ex. "Alisson Ramsés Becker" / "Alisson Becker") – används för att
+  // skilja dubblettvarianter av samma namn från nästa, helt olika spelare.
+  const namesLikelyRelated=(a,b)=>{
+    const wa=normalizeStr(a).split(" ").filter(w=>w.length>1);
+    const wb=normalizeStr(b).split(" ").filter(w=>w.length>1);
+    return wa.some(w=>wb.includes(w));
+  };
+  let currentPos=null, currentPosMatched=true;
   let currentPlayer=null; // {namn,pos,...} – spelaren vi just nu bygger på
   let sawTerminalInfo=false; // true så fort vi sett tröjnummer/nationalitet för currentPlayer
   const out=[];
@@ -6571,21 +6580,24 @@ function parsePlayersBlockFormat(lines){
   };
   lines.forEach(line=>{
     const norm=normalizeStr(line);
-    if(posHeaderMap[norm]){ finalizeCurrent(); currentPos=posHeaderMap[norm]; return; }
+    if(posHeaderMap[norm]){ finalizeCurrent(); currentPos=posHeaderMap[norm]; currentPosMatched=true; return; }
+    if(unknownPosHeaders.has(norm)){ finalizeCurrent(); currentPos="MID"; currentPosMatched=false; return; }
     if(skipWords.has(norm)) return;
     if(line.startsWith("#")) return; // tröjnummer skrivet som "#7"
     if(/^\d{1,3}$/.test(line)){ sawTerminalInfo=true; return; } // tröjnummer eller ålder
     if(isNationalityText(line)){ sawTerminalInfo=true; return; } // nationalitet (även dubblett)
-    // annars: en namnliknande rad
+    // annars: en namnliknande rad – städa bort ett ev. ledande tröjnummer ("21. Namn")
+    const numMatch=line.match(/^\d{1,3}\.\s*(.+)$/);
+    const nameCandidate=numMatch?numMatch[1].trim():line;
     if(!currentPlayer){
-      currentPlayer={namn:line,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false};
-    } else if(!sawTerminalInfo){
-      // dubblett av samma spelares namn (t.ex. kort variant) – behåll det första, ignorera detta
+      currentPlayer={namn:nameCandidate,pos:currentPos,posMatched:currentPosMatched,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false};
+    } else if(!sawTerminalInfo && namesLikelyRelated(nameCandidate,currentPlayer.namn)){
+      // dubblett/variant av samma spelares namn – behåll det första, ignorera detta
     } else {
-      // vi har redan sett tröjnummer/nationalitet för currentPlayer, så den här raden
-      // startar nästa spelare
+      // antingen har vi redan sett tröjnummer/nationalitet för currentPlayer, eller
+      // så är namnet helt orelaterat – i båda fallen börjar nästa spelare här
       finalizeCurrent();
-      currentPlayer={namn:line,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false};
+      currentPlayer={namn:nameCandidate,pos:currentPos,posMatched:currentPosMatched,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false};
     }
   });
   finalizeCurrent(); // ta med sista spelaren
