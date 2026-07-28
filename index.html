@@ -906,7 +906,7 @@ async function fetchTicketMessages(ticketId){
   return data;
 }
 async function createTicket(subject,body){
-  const {data,error}=await sb.from("support_tickets").insert({league_id:currentLeague.id,user_id:currentUser.id,subject,unread_by_admin:true,unread_by_user:false}).select().single();
+  const {data,error}=await sb.from("support_tickets").insert({league_id:currentLeague.id,user_id:currentUser.id,subject,unread_by_admin:true,unread_by_user:false,last_sender:"user"}).select().single();
   if(error) return {error};
   const {error:msgErr}=await sb.from("support_messages").insert({ticket_id:data.id,sender:"user",body});
   if(msgErr) return {error:msgErr};
@@ -915,11 +915,29 @@ async function createTicket(subject,body){
 async function sendTicketMessage(ticketId,sender,body){
   const {error}=await sb.from("support_messages").insert({ticket_id:ticketId,sender,body});
   if(error) return error;
-  const updateFields={updated_at:new Date().toISOString()};
+  const updateFields={updated_at:new Date().toISOString(),last_sender:sender};
   if(sender==="user"){ updateFields.unread_by_admin=true; }
   else { updateFields.unread_by_user=true; }
   const {error:updErr}=await sb.from("support_tickets").update(updateFields).eq("id",ticketId);
   return updErr;
+}
+// Stänger automatiskt ärenden där admin svarat sist och det gått mer än en
+// vecka utan att spelaren hörts av. Körs varje gång någon (admin eller
+// spelare) öppnar sin ärendelista – appen har ingen egen bakgrundsprocess,
+// så detta är en "lat" kontroll som sker i praktiken varje gång listan laddas.
+async function autoCloseStaleTickets(tickets){
+  const WEEK_MS=7*24*60*60*1000;
+  const now=Date.now();
+  const staleIds=tickets.filter(t=>
+    t.status!=="closed" &&
+    t.last_sender==="admin" &&
+    (now-new Date(t.updated_at).getTime())>WEEK_MS
+  ).map(t=>t.id);
+  if(!staleIds.length) return tickets;
+  try{
+    await sb.from("support_tickets").update({status:"closed"}).in("id",staleIds);
+  }catch(e){console.error("autoCloseStaleTickets error:",e);}
+  return tickets.map(t=>staleIds.includes(t.id)?{...t,status:"closed"}:t);
 }
 async function markTicketRead(ticketId,who){
   const field=who==="admin"?"unread_by_admin":"unread_by_user";
@@ -2591,6 +2609,7 @@ function renderInboxScreen(){
       <div style="font-weight:600;font-size:18px;margin-bottom:2px">${esc(ticket.subject)}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:20px">${ticket.status==="closed"?"🔒 Stängt ärende":"🟢 Öppet ärende"}</div>
       <div>${rows}</div>
+      ${ticket.status!=="closed"&&ticket.last_sender==="admin"?`<div style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:10px">💡 Ärendet stängs automatiskt om en vecka om inget nytt svar kommer in.</div>`:""}
       ${ticket.status!=="closed"?`
       <div style="position:fixed;bottom:0;left:0;right:0;max-width:340px;margin:0 auto;padding:12px 16px;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;gap:8px">
@@ -7178,7 +7197,7 @@ function attachHandlers(){
       inboxFrom="mode"; viewingTicketId=null; homeMode="";
       const root2=document.getElementById("fg-root");
       root2.innerHTML='<div class="fg-loading">Laddar…</div>';
-      myTickets=await fetchMyTickets();
+      myTickets=await autoCloseStaleTickets(await fetchMyTickets());
       screen="inbox"; render();
     }
     else if(act==="inbox-back"){
@@ -7989,7 +8008,7 @@ function attachHandlers(){
         await refreshAktivitetData();
       }
       if(adminSection==="inbox"){
-        try{ adminTickets=await fetchAllTickets(); adminViewingTicketId=null; }catch(e){console.error(e);}
+        try{ adminTickets=await autoCloseStaleTickets(await fetchAllTickets()); adminViewingTicketId=null; }catch(e){console.error(e);}
       }
       if(adminSection==="statistik"){
         statsRound = statsRound || cfg.omg;
