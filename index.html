@@ -2597,7 +2597,7 @@ function renderPick(){
         </div>
         <div style="background:${kap?G_GOLDL:"var(--color-background-secondary)"};border-radius:6px;padding:10px 8px;text-align:center">
           <div style="font-size:11px;color:${kap?G_GOLD:"var(--color-text-secondary)"}">Kapten</div>
-          <div style="font-size:16px;font-weight:500;color:${kap?G_GOLD:"var(--color-text-primary)"}">${kap?esc((players.find(p=>p.id===kap)||{namn:""}).namn.split(" ")[0]):"Ej vald"}</div>
+          <div style="font-size:16px;font-weight:500;color:${kap?G_GOLD:"var(--color-text-primary)"}">${kap?esc((players.find(p=>p.id===kap)||{namn:""}).namn):"Ej vald"}</div>
         </div>
       </div>
       <div style="display:flex;gap:4px;margin-bottom:10px">${posTabs}</div>
