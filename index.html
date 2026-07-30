@@ -2121,7 +2121,7 @@ function renderModeSelect(){
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#fff">
     <div style="text-align:center;margin-bottom:28px">
-      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;color:#1a1a1a;margin-bottom:6px">Div2 Norra Götaland</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;color:#1a1a1a;margin-bottom:6px">${esc(currentLeague.name)}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
         <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
         <div style="height:1.5px;width:110px;background:#c1272d"></div>
@@ -2247,7 +2247,7 @@ function renderModeSelect(){
       ${cfg.quizEnabled?`<button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🧠</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Div2NG Quiz</div>
+          <div style="font-weight:500;font-size:16px">${esc(currentLeague.name)} Quiz</div>
           <div style="font-size:12px;color:var(--color-text-secondary)">Allmänna frågor om Div2 NG</div>
         </div>
       </button>`:""}
@@ -2758,7 +2758,7 @@ function renderRulesScreen(){
 
       ${cfg.fantasyEnabled!==false?section("⚽","Fantasy",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Sätt ihop ett drömlag med 11 spelare från Div2 Norra Götaland i formationen 4-3-3.
+          Sätt ihop ett drömlag med 11 spelare från ${esc(currentLeague.name)} i formationen 4-3-3.
           <b>Max en spelare per lag</b> – du måste sprida dina val.
           Du utser även en <b>kapten</b> vars poäng räknas dubbelt.
           Laget kan bytas fritt fram till att omgångens tippning stänger.
@@ -2961,9 +2961,9 @@ function renderRulesScreen(){
         ${tip("💡 En inbjudningskod gäller per spelform. Vill du tävla mot samma grupp i alla spel behöver du en kod per spelform.")}
       `)}
 
-      ${cfg.quizEnabled?section("🧠","Div2NG Quiz",`
+      ${cfg.quizEnabled?section("🧠",`${esc(currentLeague.name)} Quiz`,`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Testa dina kunskaper om Div2 Norra Götaland! Varje omgång finns det <b>5 frågor</b> om seriens historia, lag och händelser. Du har <b>5 minuter</b> på dig att svara.
+          Testa dina kunskaper om ${esc(currentLeague.name)}! Varje omgång finns det <b>5 frågor</b> om seriens historia, lag och händelser. Du har <b>5 minuter</b> på dig att svara.
         </div>
         ${table([
           ["Rätt svar","1 p"],
@@ -4659,7 +4659,7 @@ function renderQuizTab(){
   }
 
   if(!qs.length) return `
-    <div style="font-weight:500;font-size:16px;margin-bottom:12px">🧠 Div2NG Quiz</div>
+    <div style="font-weight:500;font-size:16px;margin-bottom:12px">🧠 ${esc(currentLeague.name)} Quiz</div>
     <div class="fg-card" style="text-align:center;padding:30px 16px">
       <div style="font-size:40px;margin-bottom:12px">🧠</div>
       <div style="font-weight:500;margin-bottom:8px">Inga frågor den här omgången ännu</div>
@@ -4710,7 +4710,7 @@ function renderQuizTab(){
   const medals=["🥇","🥈","🥉"];
   const quizSorted=[...users].filter(u=>allAnswers.some(a=>a.user_id===u.id)).sort((a,b)=>userQuizTotalPts(b.id,allAnswers,allQs)-userQuizTotalPts(a.id,allAnswers,allQs));
   const quizLeaderboard=`<div class="fg-card">
-    <div style="font-weight:500;margin-bottom:10px">🏆 Topplista – Div2NG Quiz</div>
+    <div style="font-weight:500;margin-bottom:10px">🏆 Topplista – ${esc(currentLeague.name)} Quiz</div>
     ${quizSorted.map((u,i)=>{
       const p=userQuizTotalPts(u.id,allAnswers,allQs);
       const isMe=u.id===currentUser.id;
@@ -4723,7 +4723,7 @@ function renderQuizTab(){
   </div>`;
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🧠 Div2NG Quiz – Omgång ${rnd}</div>
+  <div style="font-weight:500;font-size:16px;margin-bottom:4px">🧠 ${esc(currentLeague.name)} Quiz – Omgång ${rnd}</div>
   ${renderSponsorBanner("quiz")}
   ${!qs.length?`<div class="fg-card" style="text-align:center;padding:24px"><div style="font-size:36px;margin-bottom:8px">🧠</div><div style="font-weight:500">Inga frågor den här omgången ännu</div></div>`:""}
   ${qs.length&&!done?`<div style="display:flex;align-items:center;justify-content:space-between;background:var(--color-background-primary);border:1px solid var(--color-border-secondary);border-radius:10px;padding:10px 16px;margin-bottom:12px">
@@ -4809,7 +4809,7 @@ function renderHofTab(){
     {id:"snabbast",ico:"⚡",label:"Snabbast vinner"},
     {id:"måljakten",ico:"🎯",label:"Måljakten"},
     {id:"ligatipp",ico:"📊",label:"Tippa serien"},
-    {id:"quiz",ico:"🧠",label:"Div2NG Quiz"},
+    {id:"quiz",ico:"🧠",label:`${currentLeague.name} Quiz`},
   ];
 
   const modeCards=modes.map(m=>{
@@ -5076,7 +5076,7 @@ function renderStatistikTab(){
     </div>
   </div>
 
-  ${cfg.quizEnabled?modeCard("🧠","Div2NG Quiz",quizTotal,quizBest,quizBestRnd,quizAvg,""):""}
+  ${cfg.quizEnabled?modeCard("🧠",`${currentLeague.name} Quiz`,quizTotal,quizBest,quizBestRnd,quizAvg,""):""}
 
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:12px">👤 Min profil</div>
@@ -5781,7 +5781,7 @@ function renderAdminTab(){
     const pending=allPrivateLeagues.filter(l=>!l.approved);
     const approved=allPrivateLeagues.filter(l=>l.approved);
     const modeLabel={fantasy:"⚽ Fantasy",tipp:"🎯 Tippa",snabbast:"⚡ Snabbast",måljakten:"🎯 Måljakten",ligatipp:"📊 Tippa serien",quiz:"🧠 Quiz",streak:"🔥 Streak",matchfokus:"⚽ Matchexperten",duellen:"🥊 Duellen",malregn:"🌧️ Målregn",jubel:"🙌 Båda får Jubla",investerare:"💰 Investeraren",lts:"💀 Last Team Standing",anytime:"🎯 Skyttekung"};
-    const gameModes=Object.entries({fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:"Div2NG Quiz",streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"}).map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
+    const gameModes=Object.entries({fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast vinner",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:`${currentLeague.name} Quiz`,streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"}).map(([v,l])=>`<option value="${v}">${l}</option>`).join("");
 
     // Sub-navigation
     const subNav=`<div style="display:flex;gap:6px;margin-bottom:12px">
@@ -5970,7 +5970,7 @@ function renderAdminTab(){
       ["ligatipp","📊","Tippa serien","ligatippEnabled","ligatipp_enabled"],
       ["snabbast","⚡","Snabbast vinner","snabbastEnabled","snabbast_enabled"],
       ["maljakten","🎯","Måljakten","maljaktenEnabled","maljakten_enabled"],
-      ["quiz","🧠","Div2NG Quiz","quizEnabled","quiz_enabled"],
+      ["quiz","🧠",`${currentLeague.name} Quiz`,"quizEnabled","quiz_enabled"],
       ["hof","🏆","Hall of Fame","hofEnabled","hof_enabled"],
       ["streak","🔥","Streak","streakEnabled","streak_enabled"],
       ["matchfokus","⚽","Matchexperten","matchfokusEnabled","matchfokus_enabled"],
@@ -7124,7 +7124,7 @@ function attachHandlers(){
     ctx.fillStyle="#fff";
     ctx.font="bold 18px Georgia";
     ctx.textAlign="center";
-    ctx.fillText("Div2 Norra Götaland",W/2,32);
+    ctx.fillText(currentLeague.name,W/2,32);
     ctx.font="14px Arial";
     ctx.fillText(title+" – Ligatabell",W/2,56);
     ctx.font="11px Arial";
