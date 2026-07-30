@@ -2608,6 +2608,7 @@ function renderPick(){
     <div id="player-list" style="padding:0 16px">${rows || '<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare hittades.</div>'}</div>
     <div style="position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;padding:12px 16px;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary)">
       ${missing?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;text-align:center;font-weight:500">${esc(missing)}</div>`:""}
+      ${totalPicked>0?`<button data-act="clear-team" class="fg-outbtn" style="width:100%;margin-bottom:8px">🗑 Rensa allt och börja om</button>`:""}
       <button class="fg-btn" data-act="save-team">Spara mitt lag →</button>
     </div>
   </div>`;
@@ -8073,6 +8074,11 @@ function attachHandlers(){
     else if(act==="toggle-cap"){
       const id=el.dataset.id;
       pickState.kapten = pickState.kapten===id ? null : id;
+      pickErr=""; render();
+    }
+    else if(act==="clear-team"){
+      if(!confirm("Rensa alla valda spelare och börja om från början?"))return;
+      pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null};
       pickErr=""; render();
     }
     else if(act==="save-team"){
