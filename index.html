@@ -2096,8 +2096,8 @@ function render(){
   else if(screen==="inbox")root.innerHTML=renderInboxScreen();
   else root.innerHTML=renderMain();
   attachHandlers();
-  // Uppdatera push-knapp asynkront när mode-skärmen visas
-  if(screen==="mode"){
+  // Uppdatera push-knapp asynkront när mode-skärmen eller profilfliken visas
+  if(screen==="mode"||(screen==="main"&&mainTab==="profil")){
     getPushSubscriptionStatus().then(isSubbed=>{
       const btn=document.getElementById("push-btn");
       if(btn) btn.textContent=isSubbed?"🔕 Stäng av notiser":"🔔 Aktivera notiser";
@@ -2253,7 +2253,6 @@ function renderModeSelect(){
         </a>`).join("")}
     </div>`:""}
 
-    <button onclick="window._togglePush()" id="push-btn" style="margin-top:8px;background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:7px 14px;color:var(--color-text-secondary);font-size:12px;cursor:pointer">🔔 Aktivera notiser</button>
     <button data-act="logout" style="margin-top:6px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
     </div>
   </div>`;
@@ -4779,6 +4778,12 @@ function renderProfilTab(){
     <input class="fg-input" id="profile-email" type="email" value="${esc(u.email||"")}" placeholder="din@mejl.se" style="margin-bottom:10px"/>
     <div id="profile-email-status" style="font-size:13px;min-height:18px;margin-bottom:6px"></div>
     <button class="fg-btn" data-act="save-profile-email">Spara mejladress</button>
+  </div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:6px">🔔 Notiser</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5">Få en påminnelse i mobilen inför spelstopp och annat viktigt.</div>
+    <button onclick="window._togglePush()" id="push-btn" class="fg-outbtn" style="width:100%">🔔 Aktivera notiser</button>
   </div>
 
   ${changePinSection}
