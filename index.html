@@ -45,6 +45,7 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 @media (min-width:700px){
   #fg-root{max-width:640px}
   #fg-root [style*="max-width:340px"]{max-width:460px!important}
+  #fg-root [style*="max-width:380px"]{max-width:500px!important}
   #fg-root [style*="max-width:320px"]{max-width:440px!important}
   #fg-root [style*="max-width:300px"]{max-width:420px!important}
 }
@@ -2123,7 +2124,7 @@ function renderModeSelect(){
       const missing = (myRoundStatus.round===cfg.omg) ? missingModesList() : [];
       const showCountdown = rd && rd.lock_deadline && !rd.locked && new Date(rd.lock_deadline)>new Date();
       if(!missing.length && !showCountdown) return "";
-      return `<div class="fg-card" style="width:100%;max-width:320px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
+      return `<div class="fg-card" style="width:100%;max-width:380px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
         ${showCountdown?`<div style="font-size:20px;font-weight:800;color:#A32D2D;margin-bottom:${missing.length?'10px':'0'};letter-spacing:.2px" data-countdown-deadline="${rd.lock_deadline}">${formatCountdown(rd.lock_deadline)}</div>`:""}
         ${missing.length?`<div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">Du har inte lagt in allt för omgång ${cfg.omg} än:</div>
         <div style="display:flex;flex-direction:column;gap:4px">
@@ -2131,7 +2132,7 @@ function renderModeSelect(){
         </div>`:""}
       </div>`;
     })()}
-    <div style="width:100%;max-width:320px;display:flex;flex-direction:column;gap:12px">
+    <div style="width:100%;max-width:380px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
       ${cfg.fantasyEnabled?`<button data-act="pick-mode" data-mode="fantasy" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">⚽</span>
         <div><div style="font-weight:500;font-size:16px">Fantasy</div>
@@ -2239,7 +2240,7 @@ function renderModeSelect(){
         </div>
       </button>`:""}
 
-    ${sponsors.filter(s=>s.active&&s.show_in_menu).length?`<div style="width:100%;max-width:320px;margin-top:10px">
+    ${sponsors.filter(s=>s.active&&s.show_in_menu).length?`<div style="width:100%;max-width:380px;margin-top:10px">
       ${sponsors.filter(s=>s.active&&s.show_in_menu).map(s=>`
         <a href="${esc(s.link_url)}" onclick="window._logSponsorClick(${s.id})" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:14px;background:var(--color-background-secondary);border-radius:12px;padding:12px 14px;margin-bottom:10px;text-decoration:none;color:var(--color-text-primary)">
           ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:64px;height:64px;object-fit:contain;border-radius:9px;flex-shrink:0;background:var(--color-background-primary)"/>`:""}
