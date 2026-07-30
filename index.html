@@ -2025,6 +2025,11 @@ function userTipRoundPts(u,r){
 function userTipTotalPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userTipRoundPts(u,Number(r)),0); }
 function sortedUsers(){return [...users].filter(u=>pickCount(u)>0).sort((a,b)=>userTotPts(b)-userTotPts(a));}
 function esc(str){const d=document.createElement("div");d.textContent=str==null?"":String(str);return d.innerHTML;}
+// Appens produktnamn beror på vilken domän man besöker – samma logik som sätter
+// sidtiteln i huvud-scriptet, men den variabeln når inte hit (annan <script>-tagg).
+function getAppName(){
+  return window.location.hostname.includes("bonnboll") ? "Bonnboll Play" : "Div2NG Play";
+}
 // Bygger Swish-betalningslänken. Om inget belopp är satt (fritt belopp) utelämnas
 // &amt= helt, vilket gör att mottagaren själv fyller i beloppet i Swish-appen –
 // exakt så Swish egna QR-generator för företag fungerar också.
@@ -2752,7 +2757,7 @@ function renderRulesScreen(){
 
       <div class="fg-card" style="background:var(--color-background-secondary)">
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Div2NG Play har flera spelformer. Du väljer själv vilka du vill delta i – varje spelform har sin egen ligatabell och poängräkning. Du kan också gå med i <b>privata ligor</b> och tävla mot kompisar.
+          ${esc(getAppName())} har flera spelformer. Du väljer själv vilka du vill delta i – varje spelform har sin egen ligatabell och poängräkning. Du kan också gå med i <b>privata ligor</b> och tävla mot kompisar.
         </div>
       </div>
 
@@ -2792,7 +2797,7 @@ function renderRulesScreen(){
 
       ${cfg.duellenEnabled?section("🥊","Duellen",`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar Div2NG Play. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.
+          Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar ${esc(getAppName())}. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.
         </div>
         ${table([
           ["Du får fler poäng än motståndaren","Vinst – 3p"],
