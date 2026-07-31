@@ -162,7 +162,7 @@ function urlBase64ToUint8Array(base64String){
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home", stodFrom="home",
     myTickets=[], adminTickets=[], ticketMessages=[], viewingTicketId=null, adminViewingTicketId=null, newTicketDraft={subject:"",body:""}, ticketReplyDraft="", inboxFrom="home",
-    announcements=[],
+    announcements=[], trialFilter="all",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     duellenSignups=[], duellenConfig={status:"signup",total_rounds:0,season_num:1}, duellenFixtures=[],
@@ -6202,7 +6202,14 @@ Liverpool
   } else if(adminSection==="trial"){
     const trialSearchQ=document.getElementById("trial-user-search")?document.getElementById("trial-user-search").value.toLowerCase():"";
     const relevantUsers=users.filter(u=>u.join_round!=null);
-    const filteredTrialUsers=trialSearchQ?users.filter(u=>u.namn.toLowerCase().includes(trialSearchQ)):relevantUsers;
+    const paidCount=relevantUsers.filter(u=>u.paid).length;
+    const expiredUnpaidCount=relevantUsers.filter(u=>!u.paid&&isTrialExpired(u)).length;
+    const applyTrialFilter=list=>{
+      if(trialFilter==="paid") return list.filter(u=>u.paid);
+      if(trialFilter==="unpaid") return list.filter(u=>!u.paid);
+      return list;
+    };
+    const filteredTrialUsers=applyTrialFilter(trialSearchQ?users.filter(u=>u.namn.toLowerCase().includes(trialSearchQ)):relevantUsers);
     const userRow=u=>{
       const expired=isTrialExpired(u);
       const roundsSince=u.join_round!=null?(cfg.omg||1)-u.join_round:null;
@@ -6219,6 +6226,7 @@ Liverpool
         </button>
       </div>`;
     };
+    const filterBtn=(key,label)=>`<button data-act="trial-filter" data-filter="${key}" style="background:${trialFilter===key?'#1a1a1a':'none'};color:${trialFilter===key?'#fff':'var(--color-text-secondary)'};border:0.5px solid ${trialFilter===key?'#1a1a1a':'var(--color-border-secondary)'};border-radius:20px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">${label}</button>`;
     body=`<div class="fg-card" style="background:${cfg.trialEnabled?'#e8f5ee':'var(--color-background-primary)'}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:500">${cfg.trialEnabled?'✅ Provperiod aktiv':'⏸ Provperiod avstängd'}</div>
@@ -6238,14 +6246,21 @@ Liverpool
       <button class="fg-btn" data-act="save-trial-settings">Spara inställningar</button>
     </div>
     <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">Spelare & betalstatus</div>
+      <div style="font-weight:500;margin-bottom:2px">💰 ${paidCount} betalda</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${expiredUnpaidCount} ${expiredUnpaidCount===1?"spelare har":"spelare har"} passerat provperioden utan att betala</div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        ${filterBtn("all","Alla ("+relevantUsers.length+")")}
+        ${filterBtn("paid","✓ Betalda ("+paidCount+")")}
+        ${filterBtn("unpaid","Ej betalda ("+(relevantUsers.length-paidCount)+")")}
+      </div>
       <input class="fg-input" id="trial-user-search" type="search" placeholder="🔍 Sök spelare..." oninput="window._refreshTrialList&&window._refreshTrialList()" style="margin-bottom:10px"/>
       <div id="trial-user-list">${filteredTrialUsers.length?filteredTrialUsers.map(userRow).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare hittades.</div>'}</div>
     </div>`;
     window._refreshTrialList=()=>{
       const q=document.getElementById("trial-user-search")?.value.toLowerCase()||"";
       const el=document.getElementById("trial-user-list");
-      const list=q?users.filter(u=>u.namn.toLowerCase().includes(q)):users.filter(u=>u.join_round!=null);
+      const base=q?users.filter(u=>u.namn.toLowerCase().includes(q)):users.filter(u=>u.join_round!=null);
+      const list=applyTrialFilter(base);
       if(el) el.innerHTML=list.length?list.map(userRow).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare hittades.</div>';
       attachHandlers();
     };
@@ -7968,6 +7983,10 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       cfg={...cfg,trialRounds:rounds_,trialPrice:price};
       flash("✓ Inställningar sparade!");
+    }
+    else if(act==="trial-filter"){
+      trialFilter=el.dataset.filter;
+      render();
     }
     else if(act==="toggle-user-paid"){
       const id=el.dataset.id;
