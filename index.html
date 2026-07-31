@@ -380,7 +380,15 @@ async function deletePlayer(id){
 async function fetchUsers(){
   const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id,email,paid,join_round").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||"",paid:!!u.paid,join_round:u.join_round==null?null:Number(u.join_round)}));
+  let accountPaidMap={};
+  const accountIds=[...new Set(data.map(u=>u.account_id).filter(Boolean))];
+  if(accountIds.length){
+    try{
+      const {data:accs}=await sb.from("player_accounts").select("id,paid").in("id",accountIds);
+      if(accs) accs.forEach(a=>{accountPaidMap[a.id]=!!a.paid;});
+    }catch(e){console.error("fetchUsers accountPaidMap error:",e);}
+  }
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||"",paid:!!u.paid||!!accountPaidMap[u.account_id],join_round:u.join_round==null?null:Number(u.join_round)}));
 }
 // Sant om spelarens provperiod gått ut OCH de inte markerats som betalda.
 // Om join_round saknas (dvs. de fanns innan provperioden aktiverades i den
@@ -6242,7 +6250,7 @@ Liverpool
       <input class="fg-input" id="trial-rounds" type="number" min="1" value="${cfg.trialRounds||5}" style="margin-bottom:12px"/>
       <label class="fg-label">Pris efter provperioden (kr, valfritt – lämna tomt för fritt belopp)</label>
       <input class="fg-input" id="trial-price" type="number" min="1" value="${cfg.trialPrice||""}" placeholder="t.ex. 200" style="margin-bottom:6px"/>
-      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.5">Använder samma Swish-nummer som Stöd oss. Betalningen förifylls automatiskt med spelarens användarnamn som meddelande, så du enkelt hittar rätt person nedan.</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.5">Använder samma Swish-nummer som Stöd oss. Betalningen förifylls automatiskt med spelarens användarnamn som meddelande, så du enkelt hittar rätt person nedan.<br><br>💡 Markerar du någon som betald gäller det automatiskt i <b>alla</b> serier de spelar i (så länge de loggat in med samma namn och PIN-kod överallt) – du behöver alltså bara godkänna varje spelare en gång totalt, inte per serie.</div>
       <button class="fg-btn" data-act="save-trial-settings">Spara inställningar</button>
     </div>
     <div class="fg-card">
@@ -7991,10 +7999,15 @@ function attachHandlers(){
     else if(act==="toggle-user-paid"){
       const id=el.dataset.id;
       const newPaid=el.dataset.paid==="1";
+      const user=users.find(u=>u.id===id);
       const {error}=await sb.from("fantasy_users").update({paid:newPaid}).eq("id",id);
       if(error){flash("Fel: "+error.message);return;}
+      if(user&&user.account_id){
+        const {error:accErr}=await sb.from("player_accounts").update({paid:newPaid}).eq("id",user.account_id);
+        if(accErr) console.error("Kunde inte uppdatera delat konto:",accErr);
+      }
       users=users.map(u=>u.id===id?{...u,paid:newPaid}:u);
-      flash(newPaid?"✓ Markerad som betald!":"Betalning ångrad.");
+      flash(newPaid?(user&&user.account_id?"✓ Markerad som betald – gäller i alla serier!":"✓ Markerad som betald!"):"Betalning ångrad.");
       render();
     }
     else if(act==="quiz-bulk-import"){
