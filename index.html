@@ -8254,9 +8254,16 @@ function attachHandlers(){
       pickErr=""; render();
     }
     else if(act==="clear-team"){
-      if(!confirm("Rensa alla valda spelare och börja om från början?"))return;
-      pickState={picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null};
+      if(!confirm("Rensa alla valda spelare och börja om från början? Ditt sparade lag rensas direkt, även om du lämnar skärmen utan att välja ett nytt."))return;
+      if(blockIfTrialExpired())return;
+      const emptyPicks={GK:[],DEF:[],MID:[],FW:[]};
+      const {error}=await sb.from("fantasy_users").update({picks:emptyPicks,kapten:null}).eq("id",currentUser.id);
+      if(error){flash("Fel: "+error.message);return;}
+      currentUser={...currentUser,picks:emptyPicks,kapten:null};
+      users=users.map(u=>u.id===currentUser.id?{...u,picks:emptyPicks,kapten:null}:u);
+      pickState={picks:emptyPicks,kapten:null};
       pickErr=""; render();
+      flash("✓ Laget rensat – välj dina 11 nya spelare.");
     }
     else if(act==="save-team"){
       if(blockIfTrialExpired())return;
