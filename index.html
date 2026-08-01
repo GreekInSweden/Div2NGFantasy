@@ -7180,9 +7180,12 @@ const TM_POSITION_MAP={
   "defensive midfield":"MID","central midfield":"MID","right midfield":"MID","left midfield":"MID","attacking midfield":"MID",
   "left winger":"FW","right winger":"FW","centre-forward":"FW","center-forward":"FW","second striker":"FW"
 };
+// Separatorn mellan de dubblerade namnen kan vara antingen en tabb ELLER
+// flera mellanslag i rad – beroende på webbläsare/OS vid kopiering ger
+// tabellceller olika whitespace. Vi splittar på båda för säkerhets skull.
+const TM_NAME_SPLIT=/\t+|\s{2,}/;
 function isTransfermarktNameLine(line){
-  if(!line.includes("\t"))return false;
-  const parts=line.split("\t").map(p=>p.trim()).filter(p=>p.length>0);
+  const parts=line.split(TM_NAME_SPLIT).map(p=>p.trim()).filter(p=>p.length>0);
   return parts.length===2&&parts[0]===parts[1]&&parts[0].length>0;
 }
 function parsePlayersTransfermarktFormat(lines){
@@ -7190,7 +7193,7 @@ function parsePlayersTransfermarktFormat(lines){
   let i=0;
   while(i<lines.length){
     if(isTransfermarktNameLine(lines[i])){
-      const namn=lines[i].split("\t").map(p=>p.trim()).filter(Boolean)[0];
+      const namn=lines[i].split(TM_NAME_SPLIT).map(p=>p.trim()).filter(Boolean)[0];
       let j=i+1;
       while(j<lines.length&&!lines[j].trim())j++;
       const posLine=j<lines.length?lines[j].trim().toLowerCase():"";
