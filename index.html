@@ -8475,7 +8475,7 @@ function attachHandlers(){
         pickErr=""; render(); return;
       }
       if(inPos.length>=POS_COUNT[pl.pos]){pickErr=`Du har redan valt ${POS_COUNT[pl.pos]} ${POS_LABEL[pl.pos].toLowerCase()}(e).`;render();setTimeout(()=>{pickErr="";render();},2200);return;}
-      const used=usedTeamIds(null);
+      const used=(currentUser&&currentUser.activeChip==="frittlag")?[]:usedTeamIds(null);
       if(used.includes(pl.teamId)){pickErr="Du har redan en spelare från det laget i ditt lag.";render();setTimeout(()=>{pickErr="";render();},2200);return;}
       pickState.picks[pl.pos]=[...inPos,pl.id];
       pickErr=""; render();
