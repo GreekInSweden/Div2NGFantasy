@@ -7153,21 +7153,36 @@ function parsePlayersBulletLinkFormat(lines){
     "mittfältare":"MID","midfielders":"MID","midfielder":"MID",
     "forwardar":"FW","forwards":"FW","forward":"FW","anfallare":"FW","strikers":"FW","striker":"FW"
   };
+  // Rubriker som INTE är en spelposition – t.ex. bundesliga.com avslutar
+  // truppen med en "Head coach"-sektion. Sätter currentPos till null så att
+  // eventuella länkrader därefter (tränarens namn, koden "HC" m.m.) hoppas
+  // över istället för att felaktigt importeras under den senaste positionen.
+  const stopHeaders=new Set(["head coach","coach","huvudtränare","tränare","manager","staff","team staff","backroom staff"]);
   // Bullet-tecknet är valfritt – i praktiken bullets webbsidor ibland varje rad
   // (namn, nummer OCH nationalitet), så vi kan inte lita på var bullet sitter.
   const linkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
-  let currentPos=null;
+  // Vissa sajter (t.ex. bundesliga.com) klistrar för- och efternamn ihop utan
+  // mellanslag ("DayotUpamecano"). Lägger in mellanslag där en liten bokstav
+  // följs direkt av en stor. OBS: kan i sällsynta fall felaktigt dela namn med
+  // en stor bokstav mitt i efternamnet (t.ex. "McGregor" → "Mc Gregor") –
+  // kontrollera Mc-/Mac-/De-namn extra noga i granskningsvyn.
+  const splitConcatenatedName=s=>s.replace(/(\p{Ll})(\p{Lu})/gu,"$1 $2");
+  // Målvakter listas ofta överst helt utan egen rubrik – anta GK som
+  // startläge (markerat som "gissat", inte bekräftat) tills en riktig
+  // rubrik påträffas.
+  let currentPos="GK", currentPosMatched=false;
   const out=[];
   lines.forEach(line=>{
     const norm=normalizeStr(line);
-    if(posHeaderMap[norm]){ currentPos=posHeaderMap[norm]; console.warn("  → rubrik:",norm,"->",currentPos); return; }
+    if(posHeaderMap[norm]){ currentPos=posHeaderMap[norm]; currentPosMatched=true; console.warn("  → rubrik:",norm,"->",currentPos); return; }
+    if(stopHeaders.has(norm)){ currentPos=null; console.warn("  → icke-spelarrubrik, stoppar insamling:",norm); return; }
     const m=line.match(linkPattern);
     if(!m||!currentPos){ console.warn("  → hoppar (ingen länk-match eller ingen position ännu):",JSON.stringify(line)); return; }
     const content=m[1].trim();
     if(/^\d+$/.test(content)){ console.warn("  → tröjnummer, hoppar:",content); return; }
     if(isNationalityText(content)){ console.warn("  → KÄND NATIONALITET, hoppar:",JSON.stringify(content)); return; }
     console.warn("  → NAMN:",JSON.stringify(content));
-    out.push({namn:content,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+    out.push({namn:splitConcatenatedName(content),pos:currentPos,posMatched:currentPosMatched,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
   });
   return out;
 }
