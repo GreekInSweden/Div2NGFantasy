@@ -7075,6 +7075,42 @@ function parseTeamNamesText(text){
   }
   return result;
 }
+// Säkerhetsnät som körs EFTER vilken underparser som helst (strukturerad,
+// block, bullet-länk eller kort-format) – städar bort skräp som läckt
+// igenom (landskoder, etiketter typ "Birth date", rena siffror, kända
+// nationaliteter) och slår ihop namn-fragment ("Manuel"/"Neuer") med den
+// fullständiga formen ("Manuel Neuer") om den dyker upp inom några rader
+// på samma position. Detta fångar dubblett-/fragmentproblem även om
+// formatdetekteringen skulle välja fel underparser för en okänd sajts
+// struktur (t.ex. om texten saknar markdown-länkar helt och faller igenom
+// till den enklaste block-parsern).
+function isJunkPlayerName(namn){
+  const n=(namn||"").trim();
+  if(!n)return true;
+  if(/^\d+$/.test(n))return true; // rent tröjnummer
+  if(/^[a-zA-ZÀ-ÿ]{2}$/.test(n))return true; // tvåbokstavs-landskod, t.ex. "de"
+  const norm=n.toLowerCase();
+  if(["birth date","country","appearances","goal","goals","height","weight","preferred foot","market value","position"].includes(norm))return true;
+  if(isNationalityText(n))return true;
+  return false;
+}
+function coalesceNameFragments(rows){
+  const cleaned=rows.filter(r=>!isJunkPlayerName(r.namn));
+  const normNoSpace=s=>s.replace(/\s+/g,"").toLowerCase();
+  const drop=new Array(cleaned.length).fill(false);
+  for(let i=0;i<cleaned.length;i++){
+    if(drop[i])continue;
+    for(let j=i+1;j<Math.min(i+4,cleaned.length);j++){
+      if(drop[j])continue;
+      if(cleaned[j].pos!==cleaned[i].pos)continue;
+      const ni=normNoSpace(cleaned[i].namn), nj=normNoSpace(cleaned[j].namn);
+      if(ni===nj){ drop[j]=true; continue; } // exakt dubblett
+      if(nj.includes(ni)&&nj.length>ni.length){ drop[i]=true; break; } // i är ett fragment av j (j är fylligare)
+      if(ni.includes(nj)&&ni.length>nj.length){ drop[j]=true; } // j är ett fragment av i
+    }
+  }
+  return cleaned.filter((_,idx)=>!drop[idx]);
+}
 function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
@@ -7095,12 +7131,20 @@ function parsePlayersImportText(text){
   const hasPositionCards=positionWordCount>6;
   const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
-  console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"positionWordCount:",positionWordCount,"hasPositionCards:",hasPositionCards,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
+  const chosenParser=hasPositionCards?"CardFormat":hasBulletLinks?"BulletLinkFormat":hasDelimiters?"StructuredFormat":"BlockFormat";
+  console.warn("🔍 IMPORT-DEBUG v3 – rader:",lines.length,"positionWordCount:",positionWordCount,"hasPositionCards:",hasPositionCards,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters,"→ VALD PARSER:",chosenParser);
   lines.slice(0,6).forEach((l,i)=>console.warn(`  rad ${i}:`,JSON.stringify(l)));
-  const rawRows = hasPositionCards ? parsePlayersCardFormat(lines)
+  const rawRowsPre = hasPositionCards ? parsePlayersCardFormat(lines)
     : hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
     : hasDelimiters ? parsePlayersStructuredFormat(lines)
     : parsePlayersBlockFormat(lines);
+  // Säkerhetsnät oavsett vilken underparser som användes: städa bort skräp
+  // (landskoder, etiketter typ "Birth date", rena siffror, kända
+  // nationaliteter) och slå ihop namn-fragment ("Manuel"/"Neuer") med den
+  // fullständiga formen ("Manuel Neuer") om den dyker upp i närheten på
+  // samma position. Fångar dubblett-/fragmentproblem även om detekteringen
+  // ovan skulle välja fel underparser för en okänd sajts format.
+  const rawRows=coalesceNameFragments(rawRowsPre);
   const seenInBatch=new Set();
   return rawRows.map(r=>{
     const key=normalizeStr(r.namn);
