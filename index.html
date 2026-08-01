@@ -7079,11 +7079,20 @@ function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
   const bulletLinkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
+  // Kort-format (t.ex. slgr.gr): varje spelare är en serie länkrader UTAN
+  // rubrik – position anges direkt som en egen länk ("[GOALKEEPER](url)")
+  // omgiven av tröjnummer/födelsedatum/land/matcher/mål. Skiljs från det
+  // vanliga bullet-länk-formatet (som kräver en rubrikrad typ "Goalkeepers"
+  // före varje grupp) genom att kolla om NÅGON rad har ett positionsord som
+  // hela länkinnehållet, utan att vara en fristående rubrikrad.
+  const cardPosPattern=/^\[(goalkeeper|goalkeepers|defender|defenders|midfielder|midfielders|forward|forwards)\]\(.*\)$/i;
+  const hasPositionCards=lines.some(l=>cardPosPattern.test(l));
   const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
-  console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
+  console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"hasPositionCards:",hasPositionCards,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
   lines.slice(0,6).forEach((l,i)=>console.warn(`  rad ${i}:`,JSON.stringify(l)));
-  const rawRows = hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
+  const rawRows = hasPositionCards ? parsePlayersCardFormat(lines)
+    : hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
     : hasDelimiters ? parsePlayersStructuredFormat(lines)
     : parsePlayersBlockFormat(lines);
   const seenInBatch=new Set();
@@ -7160,6 +7169,48 @@ function parsePlayersBulletLinkFormat(lines){
     console.warn("  → NAMN:",JSON.stringify(content));
     out.push({namn:content,pos:currentPos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
   });
+  return out;
+}
+// Tolkar "kort-format" som t.ex. slgr.gr (Super League Greece) – varje
+// spelare listas som en serie länkrader UTAN rubrik, i valfri inbördes
+// ordning runt själva positionsraden:
+//   [1](url)                    ← tröjnummer, ignoreras
+//   [THOMAS STRAKOSHA](url)     ← namnet, raden direkt före positionen
+//   [GOALKEEPER](url)           ← positionen, avgör att ovanstående var namnet
+//   [Birth date1995-03-19](url) ← ignoreras
+//   [CountryGreece](url)        ← ignoreras (vi sparar inte nationalitet)
+//   [Appearances0](url)         ← ignoreras
+//   [Goal0](url)                ← ignoreras
+// Vi letar helt enkelt upp varje rad vars länkinnehåll ÄR ett positionsord
+// (GOALKEEPER/DEFENDER/MIDFIELDER/FORWARD) och plockar närmast föregående
+// rad som inte är ett rent tröjnummer som namnet – robust oavsett om
+// tröjnumret saknas eller extra rader dyker upp. Namn i VERSALER (vanligt
+// på klubbsidor) görs om till Stor Bokstav Per Ord för snyggare visning.
+function toDisplayName(s){
+  if(s===s.toUpperCase()&&s!==s.toLowerCase()){
+    return s.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu,c=>c.toUpperCase());
+  }
+  return s;
+}
+function parsePlayersCardFormat(lines){
+  const posWordMap={goalkeeper:"GK",goalkeepers:"GK",defender:"DEF",defenders:"DEF",midfielder:"MID",midfielders:"MID",forward:"FW",forwards:"FW"};
+  const linkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
+  const contents=lines.map(line=>{
+    const m=line.match(linkPattern);
+    return m?m[1].trim():line;
+  });
+  const out=[];
+  for(let i=0;i<contents.length;i++){
+    const norm=contents[i].toLowerCase().trim();
+    const pos=posWordMap[norm];
+    if(!pos)continue;
+    let j=i-1;
+    while(j>=0&&/^\d+$/.test(contents[j].trim()))j--; // hoppa över tröjnummer
+    if(j<0)continue;
+    const namn=toDisplayName(contents[j].trim());
+    if(!namn||posWordMap[namn.toLowerCase()])continue; // undvik felmatchning om två positionsord ligger i följd
+    out.push({namn,pos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+  }
   return out;
 }
 function parsePlayersStructuredFormat(lines){
