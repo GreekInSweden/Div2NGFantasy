@@ -7167,23 +7167,70 @@ function parsePlayersBulletLinkFormat(lines){
   // en stor bokstav mitt i efternamnet (t.ex. "McGregor" → "Mc Gregor") –
   // kontrollera Mc-/Mac-/De-namn extra noga i granskningsvyn.
   const splitConcatenatedName=s=>s.replace(/(\p{Ll})(\p{Lu})/gu,"$1 $2");
+  // Tvåbokstavs-landskod (t.ex. "de" för Tyskland) – bundesliga.com lägger in
+  // flaggans alt-text som en egen länkrad mellan namnet och tröjnumret.
+  const isCountryCode=content=>/^[a-zA-ZÀ-ÿ]{2}$/.test(content.trim());
   // Målvakter listas ofta överst helt utan egen rubrik – anta GK som
   // startläge (markerat som "gissat", inte bekräftat) tills en riktig
   // rubrik påträffas.
   let currentPos="GK", currentPosMatched=false;
   const out=[];
+  const pushPlayer=namn=>out.push({namn:splitConcatenatedName(namn),pos:currentPos,posMatched:currentPosMatched,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+  // Namn-liknande rader för EN spelare kan komma i flera fragment innan
+  // tröjnumret/nästa rubrik avslutar blocket – t.ex. bundesliga.com ger
+  // "Manuel" / "Neuer" / "Manuel Neuer" (samma spelare tre gånger, där bara
+  // den sista raden redan har rätt mellanslag – den kompletta formen).
+  // "fragments" samlar de ordelade bitarna (utan mellanslag) och "bestSpaced"
+  // håller den bästa (växande) kompletta formen. Om ett nytt mellanslagsnamn
+  // dyker upp som INTE är en del av bestSpaced (t.ex. nästa spelare börjar
+  // direkt utan att tröjnumret syntes, som "Felipe Chávez" efter "David
+  // Santos Daiber") avslutas föregående spelare direkt istället för att
+  // fragmenten går förlorade eller blandas ihop.
+  let fragments=[], bestSpaced=null;
+  const flushBlock=()=>{
+    if(!fragments.length&&!bestSpaced)return;
+    const bestNorm=bestSpaced?bestSpaced.replace(/\s+/g,"").toLowerCase():null;
+    if(bestSpaced) pushPlayer(bestSpaced);
+    const seen=new Set();
+    fragments.forEach(f=>{
+      if(bestNorm&&bestNorm.includes(f.toLowerCase()))return; // ingår redan i den kompletta formen
+      const key=f.toLowerCase();
+      if(seen.has(key))return; seen.add(key);
+      pushPlayer(f); // orelaterat fragment = egen spelare (troligen utan egen "komplett form"-rad)
+    });
+    fragments=[]; bestSpaced=null;
+  };
   lines.forEach(line=>{
     const norm=normalizeStr(line);
-    if(posHeaderMap[norm]){ currentPos=posHeaderMap[norm]; currentPosMatched=true; console.warn("  → rubrik:",norm,"->",currentPos); return; }
-    if(stopHeaders.has(norm)){ currentPos=null; console.warn("  → icke-spelarrubrik, stoppar insamling:",norm); return; }
+    if(posHeaderMap[norm]){ flushBlock(); currentPos=posHeaderMap[norm]; currentPosMatched=true; console.warn("  → rubrik:",norm,"->",currentPos); return; }
+    if(stopHeaders.has(norm)){ flushBlock(); currentPos=null; console.warn("  → icke-spelarrubrik, stoppar insamling:",norm); return; }
     const m=line.match(linkPattern);
     if(!m||!currentPos){ console.warn("  → hoppar (ingen länk-match eller ingen position ännu):",JSON.stringify(line)); return; }
     const content=m[1].trim();
-    if(/^\d+$/.test(content)){ console.warn("  → tröjnummer, hoppar:",content); return; }
-    if(isNationalityText(content)){ console.warn("  → KÄND NATIONALITET, hoppar:",JSON.stringify(content)); return; }
-    console.warn("  → NAMN:",JSON.stringify(content));
-    out.push({namn:splitConcatenatedName(content),pos:currentPos,posMatched:currentPosMatched,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+    if(/^\d+$/.test(content)){ console.warn("  → tröjnummer, avslutar spelare:",content); flushBlock(); return; }
+    if(isNationalityText(content)||isCountryCode(content)){ console.warn("  → landskod/nationalitet, hoppar:",JSON.stringify(content)); return; }
+    if(/\s/.test(content)){
+      if(bestSpaced===null) bestSpaced=content;
+      else if(content.toLowerCase().includes(bestSpaced.toLowerCase())) bestSpaced=content; // växte till en fylligare form
+      else if(bestSpaced.toLowerCase().includes(content.toLowerCase())) { /* delmängd av redan känd form, ignorera */ }
+      else {
+        // orelaterat → en ny spelare börjar här. Eventuella redan buffrade
+        // fragment som hör till DEN NYA spelaren (t.ex. "Felipe"/"Chávez"
+        // innan "Felipe Chávez" dyker upp) ska följa med till nästa block,
+        // inte kastas bort som skräp tillsammans med den gamla spelaren.
+        const newNorm=content.replace(/\s+/g,"").toLowerCase();
+        const carry=fragments.filter(f=>newNorm.includes(f.toLowerCase()));
+        fragments=fragments.filter(f=>!newNorm.includes(f.toLowerCase()));
+        flushBlock();
+        fragments=carry;
+        bestSpaced=content;
+      }
+      return;
+    }
+    console.warn("  → namn-fragment:",JSON.stringify(content));
+    fragments.push(content);
   });
+  flushBlock();
   return out;
 }
 // Tolkar "kort-format" som t.ex. slgr.gr (Super League Greece) – varje
