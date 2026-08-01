@@ -7122,7 +7122,7 @@ function parsePlayersImportText(text){
   // spelare. Vi räknar hur många gånger ett positionsord förekommer – få
   // gånger (≤6) tyder på gruppdrubriker, många gånger (>6) tyder på att
   // varje spelare har sin egen positionsrad.
-  const posWordPattern=/^(goalkeeper|goalkeepers|defender|defenders|midfielder|midfielders|forward|forwards)$/i;
+  const posWordPattern=/^(goalkeeper|goalkeepers|keeper|defender|defenders|centre-back|center-back|centre back|center back|right-back|left-back|right back|left back|wing-back|wingback|sweeper|full-back|fullback|full back|midfielder|midfielders|central midfielder|centre midfielder|center midfielder|defensive midfielder|attacking midfielder|left midfielder|right midfielder|holding midfielder|forward|forwards|striker|strikers|centre-forward|center-forward|centre forward|center forward|winger|left winger|right winger|attacker)$/i;
   const positionWordCount=lines.filter(l=>{
     const m=l.match(bulletLinkPattern);
     const val=(m?m[1]:l).trim();
@@ -7138,6 +7138,7 @@ function parsePlayersImportText(text){
     : hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
     : hasDelimiters ? parsePlayersStructuredFormat(lines)
     : parsePlayersBlockFormat(lines);
+  console.warn("🔍 IMPORT-DEBUG v3 → rader från",chosenParser+":",rawRowsPre.length,rawRowsPre.slice(0,10).map(r=>r.namn));
   // Säkerhetsnät oavsett vilken underparser som användes: städa bort skräp
   // (landskoder, etiketter typ "Birth date", rena siffror, kända
   // nationaliteter) och slå ihop namn-fragment ("Manuel"/"Neuer") med den
@@ -7145,6 +7146,7 @@ function parsePlayersImportText(text){
   // samma position. Fångar dubblett-/fragmentproblem även om detekteringen
   // ovan skulle välja fel underparser för en okänd sajts format.
   const rawRows=coalesceNameFragments(rawRowsPre);
+  console.warn("🔍 IMPORT-DEBUG v3 → rader EFTER städning/hopslagning:",rawRows.length,rawRows.slice(0,10).map(r=>r.namn));
   const seenInBatch=new Set();
   return rawRows.map(r=>{
     const key=normalizeStr(r.namn);
@@ -7315,7 +7317,26 @@ function isJunkCardContent(content){
   return false;
 }
 function parsePlayersCardFormat(lines){
-  const posWordMap={goalkeeper:"GK",goalkeepers:"GK",defender:"DEF",defenders:"DEF",midfielder:"MID",midfielders:"MID",forward:"FW",forwards:"FW"};
+  // Bredare igenkänning än bara de fyra grundpositionerna – vissa sajter
+  // använder mer specifika etiketter (t.ex. "Centre-Back", "Attacking
+  // Midfielder", "Striker", "Winger"). Om en sådan missas helt tappas
+  // spelaren (och allt därefter riskerar att hamna fel), så hellre täcka in
+  // fler varianter än för få.
+  const posWordMap={
+    goalkeeper:"GK",goalkeepers:"GK",keeper:"GK",
+    defender:"DEF",defenders:"DEF",
+    "centre-back":"DEF","center-back":"DEF","centre back":"DEF","center back":"DEF","centreback":"DEF","centerback":"DEF",
+    "right-back":"DEF","left-back":"DEF","right back":"DEF","left back":"DEF","rightback":"DEF","leftback":"DEF",
+    "wing-back":"DEF","wingback":"DEF","right wing-back":"DEF","left wing-back":"DEF",
+    "sweeper":"DEF","full-back":"DEF","fullback":"DEF","full back":"DEF",
+    midfielder:"MID",midfielders:"MID",
+    "central midfielder":"MID","centre midfielder":"MID","center midfielder":"MID","defensive midfielder":"MID",
+    "attacking midfielder":"MID","left midfielder":"MID","right midfielder":"MID","holding midfielder":"MID","box-to-box midfielder":"MID",
+    forward:"FW",forwards:"FW",striker:"FW",strikers:"FW",
+    "centre-forward":"FW","center-forward":"FW","centre forward":"FW","center forward":"FW",
+    winger:"FW","left winger":"FW","right winger":"FW","left wing":"FW","right wing":"FW",
+    "second striker":"FW","attacker":"FW"
+  };
   const linkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
   const out=[];
   let pendingName=null;
