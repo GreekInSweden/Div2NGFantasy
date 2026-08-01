@@ -7111,6 +7111,57 @@ function coalesceNameFragments(rows){
   }
   return cleaned.filter((_,idx)=>!drop[idx]);
 }
+// Tolkar "tabell-format" som fotmob.com – varje spelare är uppdelad i flera
+// rader (troligen från en HTML-tabell där varje cell blir en egen rad vid
+// kopiering): NAMN, ev. en skaderad-beskrivning ("Sträckning baksida lår -
+// Mitten av augusti 2026"), POSITIONSKOD(ER) (svenska förkortningar som
+// "MV"/"MB, VM"/"DM, AM, M, HY", eller helt utstavat "Målvakt"/"Mittfältare"
+// för spelare med bara en position), LAND, och till sist tröjnummer/ålder/
+// längd/övergångsvärde tabbseparerat på en rad. Vi använder positionsraden
+// som ankare och letar namnet bakåt – hoppar över en ev. skaderad-rad genom
+// att känna igen att den innehåller " - " (mellanslag-bindestreck-mellanslag,
+// vanligt i skadebeskrivningar, ovanligt i spelarnamn). Tränare ("Tränare"
+// som position) matchar inget känt positionsord och utesluts därför
+// automatiskt utan särskild specialhantering.
+const POSITION_CODE_MAP={mv:"GK",mb:"DEF",vb:"DEF",hb:"DEF",dm:"MID",m:"MID",am:"MID",vm:"MID",hm:"MID",vy:"FW",hy:"FW",a:"FW"};
+const POSITION_WORD_MAP={"målvakt":"GK","försvarare":"DEF","mittfältare":"MID","anfallare":"FW"};
+function isPositionTableLine(line){
+  const c=line.trim();
+  if(!c)return false;
+  if(POSITION_WORD_MAP[c.toLowerCase()])return true;
+  const codes=c.split(",").map(s=>s.trim().toLowerCase());
+  return codes.length>0&&codes.every(code=>POSITION_CODE_MAP[code]);
+}
+function mapPositionTableLine(line){
+  const c=line.trim().toLowerCase();
+  if(POSITION_WORD_MAP[c])return POSITION_WORD_MAP[c];
+  const codes=c.split(",").map(s=>s.trim());
+  return POSITION_CODE_MAP[codes[0]]||null; // första koden = huvudposition
+}
+function parsePlayersTableFormat(lines){
+  const headerJunk=new Set(["översikt","tabell","matcher","trupp","spelarstatistik","lagstatistik","övergångar","historik","nyheter","spelare","position","land","tröja","ålder","längd","övergångsvärde"]);
+  const out=[];
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line||headerJunk.has(line.toLowerCase()))continue;
+    if(!isPositionTableLine(line))continue; // vi utgår ifrån positionsraden
+    const pos=mapPositionTableLine(line);
+    if(!pos)continue; // t.ex. "Tränare" – utesluts automatiskt
+    let j=i-1;
+    while(j>=0&&(!lines[j].trim()||headerJunk.has(lines[j].trim().toLowerCase())))j--;
+    if(j<0)continue;
+    let nameLine=lines[j].trim();
+    if(nameLine.includes(" - ")){ // skaderad-beskrivning – gå ytterligare en rad bakåt
+      j--;
+      while(j>=0&&!lines[j].trim())j--;
+      if(j<0)continue;
+      nameLine=lines[j].trim();
+    }
+    if(!nameLine||isPositionTableLine(nameLine))continue; // säkerhetskoll
+    out.push({namn:nameLine,pos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+  }
+  return out;
+}
 function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
@@ -7129,12 +7180,22 @@ function parsePlayersImportText(text){
     return posWordPattern.test(val);
   }).length;
   const hasPositionCards=positionWordCount>6;
+  // Tabell-format (t.ex. fotmob.com): varje spelare är NAMN / [ev. skaderad-text]
+  // / POSITIONSKOD(ER) / LAND / tröjnummer-ålder-längd-värde (tabbseparerat på
+  // en rad). Positionerna anges som svenska koder ("MV","MB","AM","A" osv,
+  // ibland flera kommaseparerade) eller stavas ut i sin helhet för spelare med
+  // bara en position ("Målvakt","Mittfältare"...). Måste kollas FÖRE
+  // hasDelimiters, annars kapas den bara av tabbtecknen i sifferraden och
+  // hamnar fel i det generella strukturerade formatet.
+  const positionTableLineCount=lines.filter(l=>isPositionTableLine(l)).length;
+  const hasPositionTableFormat=positionTableLineCount>3;
   const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
-  const chosenParser=hasPositionCards?"CardFormat":hasBulletLinks?"BulletLinkFormat":hasDelimiters?"StructuredFormat":"BlockFormat";
-  console.warn("🔍 IMPORT-DEBUG v3 – rader:",lines.length,"positionWordCount:",positionWordCount,"hasPositionCards:",hasPositionCards,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters,"→ VALD PARSER:",chosenParser);
+  const chosenParser=hasPositionCards?"CardFormat":hasPositionTableFormat?"TableFormat":hasBulletLinks?"BulletLinkFormat":hasDelimiters?"StructuredFormat":"BlockFormat";
+  console.warn("🔍 IMPORT-DEBUG v3 – rader:",lines.length,"positionWordCount:",positionWordCount,"positionTableLineCount:",positionTableLineCount,"hasPositionCards:",hasPositionCards,"hasPositionTableFormat:",hasPositionTableFormat,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters,"→ VALD PARSER:",chosenParser);
   lines.slice(0,6).forEach((l,i)=>console.warn(`  rad ${i}:`,JSON.stringify(l)));
   const rawRowsPre = hasPositionCards ? parsePlayersCardFormat(lines)
+    : hasPositionTableFormat ? parsePlayersTableFormat(lines)
     : hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
     : hasDelimiters ? parsePlayersStructuredFormat(lines)
     : parsePlayersBlockFormat(lines);
