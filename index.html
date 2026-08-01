@@ -195,10 +195,18 @@ window.saveTips = async function(){
   try {
     const rd = rounds[String(userSelectedRound||cfg.omg)];
     if(!rd || !rd.matches.length){ if(statusEl) statusEl.textContent="Inga matcher att tippa på."; return; }
+    const savedTips=(currentUser.tips&&currentUser.tips[String(userSelectedRound||cfg.omg)])||[];
+    const savedBoostMatch=savedTips.find(t=>t.boost);
+    const boostKey=tipDraft._boost!==undefined?tipDraft._boost:(savedBoostMatch?savedBoostMatch.hId+"-"+savedBoostMatch.aId:null);
+    if(!boostKey){
+      if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">⚡ Välj en boost-match innan du sparar – klicka blixten bredvid en av matcherna.</span>';
+      return;
+    }
     const tipsArr = rd.matches.map(m => {
       const hEl = document.querySelector('[data-hid="'+m.hId+'"][data-aid="'+m.aId+'"][data-side="h"]');
       const aEl = document.querySelector('[data-hid="'+m.hId+'"][data-aid="'+m.aId+'"][data-side="a"]');
-      return { hId:m.hId, aId:m.aId, predH: hEl?Number(hEl.value)||0:0, predA: aEl?Number(aEl.value)||0:0 };
+      const key=m.hId+"-"+m.aId;
+      return { hId:m.hId, aId:m.aId, predH: hEl?Number(hEl.value)||0:0, predA: aEl?Number(aEl.value)||0:0, boost: key===boostKey };
     });
     const allTips = Object.assign({}, currentUser.tips || {});
     allTips[String(userSelectedRound||cfg.omg)] = tipsArr;
@@ -209,7 +217,8 @@ window.saveTips = async function(){
     }
     currentUser = Object.assign({}, currentUser, { tips: allTips });
     users = users.map(u => u.id === currentUser.id ? Object.assign({}, u, { tips: allTips }) : u);
-    if(statusEl) statusEl.innerHTML = '<span style="color:#1a6b3c;font-weight:500">✓ Tips sparade!</span>';
+    tipDraft._boost=undefined;
+    if(statusEl) statusEl.innerHTML = '<span style="color:#1a6b3c;font-weight:500">✓ Tips sparade! ⚡ Boost på vald match.</span>';
   } catch(e){
     if(statusEl) statusEl.innerHTML = '<span style="color:#A32D2D">JS-fel: '+e.message+'</span>';
   }
@@ -2130,7 +2139,8 @@ function userTipRoundPts(u,r){
   let tot=0;
   rd.matches.forEach(m=>{
     const pred=tipsForRound.find(t=>t.hId===m.hId&&t.aId===m.aId);
-    tot+=tipMatchPts(pred,m.hMål,m.aMål);
+    const pts=tipMatchPts(pred,m.hMål,m.aMål);
+    tot+=pred&&pred.boost?pts*2:pts;
   });
   return tot;
 }
@@ -3442,7 +3452,8 @@ function renderTippUserView(u,r){
     rowsHtml=rd.matches.map(m=>{
       const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
       const pred=savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId);
-      const pts=resultsShown?tipMatchPts(pred,m.hMål,m.aMål):0;
+      const basePts=resultsShown?tipMatchPts(pred,m.hMål,m.aMål):0;
+      const pts=(pred&&pred.boost)?basePts*2:basePts;
       return `<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:2px">
           <span style="flex:1;text-align:right">${esc(hTeam?hTeam.name:"")}</span>
@@ -3495,8 +3506,11 @@ function renderTippTab(){
     const rows = rd.matches.map(m=>{
       const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
       const pred=savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId);
-      const pts=tipMatchPts(pred,m.hMål,m.aMål);
+      const basePts=tipMatchPts(pred,m.hMål,m.aMål);
+      const isBoost=pred&&pred.boost;
+      const pts=isBoost?basePts*2:basePts;
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+        ${isBoost?'<span title="Boost" style="font-size:14px">⚡</span>':'<span style="width:14px"></span>'}
         <span style="flex:1;text-align:right">${esc(hTeam?hTeam.name:"")}</span>
         <span style="font-weight:500">${pred?pred.predH:"–"} – ${pred?pred.predA:"–"}</span>
         <span style="flex:1">${esc(aTeam?aTeam.name:"")}</span>
@@ -3510,21 +3524,26 @@ function renderTippTab(){
     </div>`;
   } else {
     const savedTips = (user.tips && user.tips[String(activeRound)]) || [];
+    const savedBoostMatch=savedTips.find(t=>t.boost);
+    const boostKey=tipDraft._boost!==undefined?tipDraft._boost:(savedBoostMatch?savedBoostMatch.hId+"-"+savedBoostMatch.aId:null);
     const rows = rd.matches.map((m,i)=>{
       const key=m.hId+"-"+m.aId;
       const existing = tipDraft[key] !== undefined ? tipDraft[key] : (savedTips.find(t=>t.hId===m.hId&&t.aId===m.aId) || {predH:"",predA:""});
       const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
+      const isBoost=boostKey===key;
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <span style="flex:1;text-align:right;font-size:13px">${esc(hTeam?hTeam.name:"")}</span>
         <input class="fg-input" data-act="tip-input" data-side="h" data-hid="${m.hId}" data-aid="${m.aId}" type="number" min="0" max="20" value="${existing.predH}" style="width:50px;text-align:center;padding:6px 4px"/>
         <span style="color:var(--color-text-secondary)">–</span>
         <input class="fg-input" data-act="tip-input" data-side="a" data-hid="${m.hId}" data-aid="${m.aId}" type="number" min="0" max="20" value="${existing.predA}" style="width:50px;text-align:center;padding:6px 4px"/>
         <span style="flex:1;font-size:13px">${esc(aTeam?aTeam.name:"")}</span>
+        <button data-act="toggle-tip-boost" data-key="${key}" title="Boost – dubbla poäng för denna match" style="background:${isBoost?'#fff3d6':'var(--color-background-secondary)'};border:0.5px solid ${isBoost?'#e6a817':'#ccc'};color:${isBoost?'#e6a817':'var(--color-text-secondary)'};border-radius:50%;width:28px;height:28px;flex-shrink:0;cursor:pointer;font-size:14px">⚡</button>
       </div>`;
     }).join("");
     inputSection = `<div class="fg-card">
       <div style="font-weight:500;margin-bottom:4px">Tippa omgång ${activeRound}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Gissa resultatet på varje match. Spara innan omgången startar!</div>
+      <div style="background:#fff3d6;border:0.5px solid #e6a817;border-radius:8px;padding:10px 12px;font-size:12px;color:#8a6412;margin-bottom:10px;line-height:1.5">⚡ <b>Krav:</b> välj en match som din boost – dubblar dina poäng för just den matchen. Klicka blixten bredvid matchen du vill boosta.</div>
       ${rows}
       <div id="tipp-status" style="font-size:13px;margin-top:10px;min-height:20px"></div>
       <button class="fg-btn" style="margin-top:8px" onclick="window.saveTips()">Spara mina tips</button>
@@ -8514,6 +8533,11 @@ function attachHandlers(){
         boostedIds.push(pid);
       }
       pickState={...pickState,chipMeta:{boostedIds}};
+      render();
+    }
+    else if(act==="toggle-tip-boost"){
+      const key=el.dataset.key;
+      tipDraft._boost = tipDraft._boost===key ? null : key;
       render();
     }
     else if(act==="clear-team"){
