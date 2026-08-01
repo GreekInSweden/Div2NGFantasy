@@ -7321,9 +7321,12 @@ function parsePlayersCardFormat(lines){
   let pendingName=null;
   lines.forEach(line=>{
     const m=line.match(linkPattern);
-    const linkContent=m?m[1].trim():null;
-    // Positionen kan vara en egen länk ELLER ren text – kolla båda.
-    const posCandidate=(linkContent!==null?linkContent:line.trim()).toLowerCase();
+    // Innehållet kan komma som "[Namn](url)" ELLER som helt ren text utan
+    // några länkar alls (vissa sajter/kopieringssätt ger inga markdown-länkar
+    // överhuvudtaget) – behandla båda likadant istället för att bara leta
+    // efter positionsord i den ena och namn i den andra.
+    const content=(m?m[1]:line).trim();
+    const posCandidate=content.toLowerCase();
     const pos=posWordMap[posCandidate];
     if(pos){
       if(pendingName){
@@ -7332,9 +7335,8 @@ function parsePlayersCardFormat(lines){
       }
       return;
     }
-    if(linkContent===null)return; // annan ren text (t.ex. säsongsrubrik) utan positionsord – hoppa
-    if(isJunkCardContent(linkContent))return;
-    pendingName=linkContent;
+    if(isJunkCardContent(content))return;
+    pendingName=content;
   });
   return out;
 }
