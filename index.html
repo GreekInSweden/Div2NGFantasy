@@ -7079,17 +7079,23 @@ function parsePlayersImportText(text){
   const normalizeStr=s=>s.toLowerCase().replace(/\s+/g," ").trim();
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
   const bulletLinkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
-  // Kort-format (t.ex. slgr.gr): varje spelare är en serie länkrader UTAN
-  // rubrik – position anges direkt som en egen länk ("[GOALKEEPER](url)")
-  // omgiven av tröjnummer/födelsedatum/land/matcher/mål. Skiljs från det
-  // vanliga bullet-länk-formatet (som kräver en rubrikrad typ "Goalkeepers"
-  // före varje grupp) genom att kolla om NÅGON rad har ett positionsord som
-  // hela länkinnehållet, utan att vara en fristående rubrikrad.
-  const cardPosPattern=/^\[(goalkeeper|goalkeepers|defender|defenders|midfielder|midfielders|forward|forwards)\]\(.*\)$/i;
-  const hasPositionCards=lines.some(l=>cardPosPattern.test(l));
+  // Kort-format (t.ex. slgr.gr): varje SPELARE har sin egen positionsrad
+  // ("GOALKEEPER"/"DEFENDER" osv – antingen som ren text direkt under namnet,
+  // eller inbäddad i en länk), till skillnad från bundesliga.com-formatet där
+  // samma positionsord istället är en RUBRIK som gäller för en hel grupp
+  // spelare. Vi räknar hur många gånger ett positionsord förekommer – få
+  // gånger (≤6) tyder på gruppdrubriker, många gånger (>6) tyder på att
+  // varje spelare har sin egen positionsrad.
+  const posWordPattern=/^(goalkeeper|goalkeepers|defender|defenders|midfielder|midfielders|forward|forwards)$/i;
+  const positionWordCount=lines.filter(l=>{
+    const m=l.match(bulletLinkPattern);
+    const val=(m?m[1]:l).trim();
+    return posWordPattern.test(val);
+  }).length;
+  const hasPositionCards=positionWordCount>6;
   const hasBulletLinks=lines.some(l=>bulletLinkPattern.test(l));
   const hasDelimiters=lines.some(l=>l.includes(";")||l.includes("\t"));
-  console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"hasPositionCards:",hasPositionCards,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
+  console.warn("🔍 IMPORT-DEBUG v2 – rader:",lines.length,"positionWordCount:",positionWordCount,"hasPositionCards:",hasPositionCards,"hasBulletLinks:",hasBulletLinks,"hasDelimiters:",hasDelimiters);
   lines.slice(0,6).forEach((l,i)=>console.warn(`  rad ${i}:`,JSON.stringify(l)));
   const rawRows = hasPositionCards ? parsePlayersCardFormat(lines)
     : hasBulletLinks ? parsePlayersBulletLinkFormat(lines)
@@ -7233,46 +7239,59 @@ function parsePlayersBulletLinkFormat(lines){
   flushBlock();
   return out;
 }
-// Tolkar "kort-format" som t.ex. slgr.gr (Super League Greece) – varje
-// spelare listas som en serie länkrader UTAN rubrik, i valfri inbördes
-// ordning runt själva positionsraden:
-//   [1](url)                    ← tröjnummer, ignoreras
-//   [THOMAS STRAKOSHA](url)     ← namnet, raden direkt före positionen
-//   [GOALKEEPER](url)           ← positionen, avgör att ovanstående var namnet
-//   [Birth date1995-03-19](url) ← ignoreras
-//   [CountryGreece](url)        ← ignoreras (vi sparar inte nationalitet)
-//   [Appearances0](url)         ← ignoreras
-//   [Goal0](url)                ← ignoreras
-// Vi letar helt enkelt upp varje rad vars länkinnehåll ÄR ett positionsord
-// (GOALKEEPER/DEFENDER/MIDFIELDER/FORWARD) och plockar närmast föregående
-// rad som inte är ett rent tröjnummer som namnet – robust oavsett om
-// tröjnumret saknas eller extra rader dyker upp. Namn i VERSALER (vanligt
-// på klubbsidor) görs om till Stor Bokstav Per Ord för snyggare visning.
+// Tolkar "profilkort-format" som slgr.gr (Super League Greece) faktiskt
+// använder – varje spelare listas som en serie fristående länkrader kring en
+// positionsrad, men till skillnad från det ursprungliga (förenklade) antagandet
+// är IIINTE allt ihopslaget: etikett och värde ligger på EGNA rader, och
+// positionen kan stå som REN TEXT (utan länk) direkt under namnet:
+//   [1location-team](url)     ← tröjnummer hopklistrat med ett skräplänk-namn, hoppas över
+//   [THOMAS STRAKOSHA](url)   ← namnet, plockas som väntande kandidat
+//   GOALKEEPER                ← positionen (ofta ren text) – kopplas till senast sedda namn
+//   [Birth date](url)         ← etikett, hoppas över
+//   [1995-03-19](url)         ← värde, hoppas över (rent tröjnummer/datum-mönster)
+//   [Country](url)            ← etikett, hoppas över
+//   [Greece](url)             ← nationalitet, hoppas över (kända landsnamn)
+//   [Appearances](url)        ← etikett, hoppas över
+//   [0](url)                  ← värde, hoppas över
+//   [Goal](url)                ← etikett, hoppas över
+//   [0](url)                  ← värde, hoppas över
+// Namn i VERSALER (vanligt på klubbsidor) görs om till Stor Bokstav Per Ord.
 function toDisplayName(s){
   if(s===s.toUpperCase()&&s!==s.toLowerCase()){
     return s.toLowerCase().replace(/(^|[\s\-'])\p{L}/gu,c=>c.toUpperCase());
   }
   return s;
 }
+function isJunkCardContent(content){
+  const c=content.trim();
+  if(/^\d/.test(c))return true; // tröjnummer, ev. hopklistrat med skräp ("1location-team")
+  const norm=c.toLowerCase();
+  if(["birth date","country","appearances","goal","goals","height","weight","preferred foot","market value","position"].includes(norm))return true;
+  if(isNationalityText(c))return true;
+  return false;
+}
 function parsePlayersCardFormat(lines){
   const posWordMap={goalkeeper:"GK",goalkeepers:"GK",defender:"DEF",defenders:"DEF",midfielder:"MID",midfielders:"MID",forward:"FW",forwards:"FW"};
   const linkPattern=/^[*-]?\s*\[(.+?)\]\(.*\)$/;
-  const contents=lines.map(line=>{
-    const m=line.match(linkPattern);
-    return m?m[1].trim():line;
-  });
   const out=[];
-  for(let i=0;i<contents.length;i++){
-    const norm=contents[i].toLowerCase().trim();
-    const pos=posWordMap[norm];
-    if(!pos)continue;
-    let j=i-1;
-    while(j>=0&&/^\d+$/.test(contents[j].trim()))j--; // hoppa över tröjnummer
-    if(j<0)continue;
-    const namn=toDisplayName(contents[j].trim());
-    if(!namn||posWordMap[namn.toLowerCase()])continue; // undvik felmatchning om två positionsord ligger i följd
-    out.push({namn,pos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
-  }
+  let pendingName=null;
+  lines.forEach(line=>{
+    const m=line.match(linkPattern);
+    const linkContent=m?m[1].trim():null;
+    // Positionen kan vara en egen länk ELLER ren text – kolla båda.
+    const posCandidate=(linkContent!==null?linkContent:line.trim()).toLowerCase();
+    const pos=posWordMap[posCandidate];
+    if(pos){
+      if(pendingName){
+        out.push({namn:toDisplayName(pendingName),pos,posMatched:true,teamId:TEAMS[0]?TEAMS[0].id:null,teamMatched:false});
+        pendingName=null;
+      }
+      return;
+    }
+    if(linkContent===null)return; // annan ren text (t.ex. säsongsrubrik) utan positionsord – hoppa
+    if(isJunkCardContent(linkContent))return;
+    pendingName=linkContent;
+  });
   return out;
 }
 function parsePlayersStructuredFormat(lines){
