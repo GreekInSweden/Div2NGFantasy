@@ -162,7 +162,7 @@ function urlBase64ToUint8Array(base64String){
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home", stodFrom="home",
     myTickets=[], adminTickets=[], ticketMessages=[], viewingTicketId=null, adminViewingTicketId=null, newTicketDraft={subject:"",body:""}, ticketReplyDraft="", inboxFrom="home",
-    announcements=[], trialFilter="all", otherVisibleLeagues=[], multiLeagueSelected=new Set(), pendingMultiLeagueReg=null, privacyFrom="home",
+    announcements=[], trialFilter="all", otherVisibleLeagues=[], multiLeagueSelected=new Set(), pendingMultiLeagueReg=null, privacyFrom="home", pickTeamFilter="",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
     viewingTeamUserId=null, viewingTeamRound=null, viewingTippUserId=null, viewingTippRound=null,
     duellenSignups=[], duellenConfig={status:"signup",total_rounds:0,season_num:1}, duellenFixtures=[],
@@ -2197,7 +2197,8 @@ function render(){
       const list=document.getElementById("player-list");
       if(list){
         const searchVal=document.getElementById("player-search")?.value.toLowerCase()||"";
-        const teamFilter=document.getElementById("team-filter")?.value||"";
+        pickTeamFilter=document.getElementById("team-filter")?.value||"";
+        const teamFilter=pickTeamFilter;
         const usedTeams=(currentUser&&currentUser.activeChip==="frittlag")?[]:usedTeamIds(null);
         const filtered=players.filter(p=>{
           if(p.pos!==pickPos)return false;
@@ -2696,7 +2697,7 @@ function renderPick(){
   const picks=pickState.picks, kap=pickState.kapten;
   const totalPicked = POSITIONS.reduce((s,pos)=>s+(picks[pos]||[]).length,0);
   const searchVal=document.getElementById("player-search")?document.getElementById("player-search").value.toLowerCase():"";
-  const teamFilter=document.getElementById("team-filter")?document.getElementById("team-filter").value:"";
+  const teamFilter=pickTeamFilter;
   const filtered=players.filter(p=>{
     if(p.pos!==pickPos) return false;
     if(searchVal && !p.namn.toLowerCase().includes(searchVal)) return false;
@@ -2750,8 +2751,8 @@ function renderPick(){
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <input id="player-search" type="search" placeholder="🔍 Sök spelare..." oninput="window._playerSearchRender&&window._playerSearchRender()" style="flex:1;padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:13px;background:var(--color-background-secondary)"/>
         <select id="team-filter" onchange="window._playerSearchRender&&window._playerSearchRender()" style="padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:12px;background:var(--color-background-secondary);max-width:130px">
-          <option value="">Alla lag</option>
-          ${TEAMS.sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join("")}
+          <option value="" ${pickTeamFilter===""?"selected":""}>Alla lag</option>
+          ${TEAMS.sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}" ${String(t.id)===String(pickTeamFilter)?"selected":""}>${esc(t.name)}</option>`).join("")}
         </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
@@ -2792,6 +2793,18 @@ function renderPick(){
           <div style="font-weight:500;margin-bottom:2px">🃏 Chip</div>
           <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">Ett per omgång, ett per säsong – välj klokt</div>
           ${rows}
+        </div>`;
+      })()}
+      ${(()=>{
+        const frittlagActive=currentUser&&currentUser.activeChip==="frittlag";
+        const usedTeamsForDisplay=frittlagActive?[]:usedTeamIds(null);
+        const badges=TEAMS.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>{
+          const used=usedTeamsForDisplay.includes(t.id);
+          return `<span style="padding:4px 10px;border-radius:14px;font-size:11px;font-weight:500;white-space:nowrap;background:${used?'#e8e8e8':G_GREENL};color:${used?'#999':G_GREEN};border:0.5px solid ${used?'#ddd':G_GREEN}">${used?"✓ ":""}${esc(t.name)}</span>`;
+        }).join("");
+        return `<div class="fg-card" style="margin-bottom:10px">
+          <div style="font-weight:500;font-size:12px;margin-bottom:8px">🏟 Lag i ditt lag${frittlagActive?' <span style="color:var(--color-text-secondary);font-weight:400">(Fritt lag aktivt – ingen spärr just nu)</span>':""}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${badges}</div>
         </div>`;
       })()}
       <div style="display:flex;gap:4px;margin-bottom:10px">${posTabs}</div>
