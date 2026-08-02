@@ -7686,7 +7686,19 @@ function parseFixtureDownloadFormat(text){
   const dataLines=lines.slice(headerIdx+1).filter(l=>!/^[\s|:-]+$/.test(l));
   if(!dataLines.length)return null;
 
-  const normalizeStr=s=>s.toLowerCase().replace(/&/g,"and").replace(/[|,]/g," ").replace(/\s+/g," ").trim();
+  // Extra tolerans för vanliga namnvarianter på tyska klubbar: siffersuffix
+  // som "04"/"05"/"07" (ofta grundningsår, utelämnas ibland) och översatta
+  // ortnamn (München/Munich, Köln/Cologne). Körs på BÅDA sidor (både det
+  // sparade lagnamnet och källtexten) så det spelar ingen roll vilken
+  // variant som står var.
+  const CLUB_NAME_SYNONYMS=[[/münchen/g,"munich"],[/köln/g,"cologne"]];
+  const normalizeStr=s=>{
+    let x=s.toLowerCase().replace(/&/g,"and").replace(/[|,]/g," ");
+    CLUB_NAME_SYNONYMS.forEach(([re,rep])=>{x=x.replace(re,rep);});
+    x=x.replace(/\bsport-?club\b/g,"sc"); // "Sport-Club Freiburg" ~ "SC Freiburg"
+    x=x.replace(/\b0\d\b/g," "); // fristående tvåsiffrigt suffix, t.ex. "04"/"05"/"07"
+    return x.replace(/\s+/g," ").trim();
+  };
 
   // Hittar alla icke-överlappande förekomster av kända lagnamn i en textbit,
   // sorterat efter var de dyker upp (vänster till höger) – längsta lagnamn
