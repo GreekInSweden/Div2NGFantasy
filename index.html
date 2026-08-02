@@ -1271,6 +1271,18 @@ async function refreshAktivitetData(){
   }catch(e){console.error(e);}
 }
 const MODE_LABELS={fantasy:"Fantasy",tipp:"Tippa resultat",snabbast:"Snabbast",måljakten:"Måljakten",ligatipp:"Tippa serien",quiz:"Quiz",streak:"Streak",matchfokus:"Matchexperten",duellen:"Duellen",malregn:"Målregn",jubel:"Båda får Jubla",investerare:"Investeraren",lts:"Last Team Standing",anytime:"Skyttekung"};
+// Översatt spelform-etikett – återanvänder de nycklar som redan finns för
+// startsidans spelformskort (home.mode.X.title) så vi slipper dubblera
+// översättningarna. MODE_LABELS ovan behålls oförändrad eftersom den även
+// används i adminpanelens (svenska) aktivitetsspårning.
+function modeLabel(mode){
+  const keyMap={fantasy:"home.mode.fantasy.title",tipp:"home.mode.tipp.title",snabbast:"home.mode.snabbast.title",
+    måljakten:"home.mode.maljakten.title",ligatipp:"home.mode.ligatipp.title",quiz:"home.mode.quiz.title",
+    streak:"home.mode.streak.title",matchfokus:"home.mode.matchfokus.title",duellen:"home.mode.duellen.title",
+    malregn:"home.mode.malregn.title",jubel:"home.mode.jubel.title",investerare:"home.mode.investerare.title",
+    lts:"home.mode.lts.title",anytime:"home.mode.anytime.title"};
+  return keyMap[mode]?t(keyMap[mode]):(MODE_LABELS[mode]||mode);
+}
 async function logModeVisit(mode){
   if(!presenceSessionId||!MODE_LABELS[mode]) return;
   try{ await sb.from("session_mode_visits").insert({session_id:presenceSessionId,user_id:currentUser.id,league_id:currentLeague.id,mode}); }catch(e){console.error(e);}
@@ -1902,20 +1914,21 @@ function duellenSeasonList(){
 
 // ── Matchexperten ──────────────────────────────────────────────────────
 function matchfokusQuestions(hName,aName){
+  const home=hName||t("matchfokus.homeTeamFallback"), away=aName||t("matchfokus.awayTeamFallback");
   return [
-    {id:"goals",label:"Hur många mål blir det i matchen?",opts:[["0-1","0-1"],["2-3","2-3"],["4+","4+"]]},
-    {id:"ht_leader",label:"Vilket lag leder i halvtid?",opts:[["H",hName||"Hemmalaget"],["X","Oavgjort"],["A",aName||"Bortalaget"]]},
-    {id:"first_scorer",label:"Vilket lag gör första målet?",opts:[["H",hName||"Hemmalaget"],["A",aName||"Bortalaget"],["N","Inget mål"]]},
-    {id:"winner",label:"Vilket lag vinner matchen?",opts:[["H",hName||"Hemmalaget"],["X","Oavgjort"],["A",aName||"Bortalaget"]]},
-    {id:"goal_before10",label:"Blir det mål i matchen innan 9:59?",opts:[["J","Ja"],["N","Nej"]]},
-    {id:"h1_goals",label:"Hur många mål blir det i första halvlek?",opts:[["0","0"],["1","1"],["2+","2+"]]},
-    {id:"both_halves_goals",label:"Blir det mål i båda halvlekarna?",opts:[["J","Ja"],["N","Nej"]]},
-    {id:"btts",label:"Gör båda lagen mål?",opts:[["J","Ja"],["N","Nej"]]},
-    {id:"most_goals_half",label:"Vilken halvlek får flest mål?",opts:[["1","1:a halvlek"],["2","2:a halvlek"],["X","Lika"]]},
-    {id:"btts_both_halves",label:"Gör båda lagen mål i båda halvlekarna?",opts:[["J","Ja"],["N","Nej"]]},
-    {id:"margin2",label:"Vinner något av lagen med minst 2 mål?",opts:[["J","Ja"],["N","Nej"]]},
-    {id:"red_card",label:"Blir det ett rött kort i matchen?",opts:[["J","Ja"],["N","Nej"]]},
-    {id:"exact_score",label:"Exakt matchresultat",type:"score"}
+    {id:"goals",label:t("matchfokus.q.goals.label"),opts:[["0-1","0-1"],["2-3","2-3"],["4+","4+"]]},
+    {id:"ht_leader",label:t("matchfokus.q.htLeader.label"),opts:[["H",home],["X",t("matchfokus.draw")],["A",away]]},
+    {id:"first_scorer",label:t("matchfokus.q.firstScorer.label"),opts:[["H",home],["A",away],["N",t("matchfokus.noGoal")]]},
+    {id:"winner",label:t("matchfokus.q.winner.label"),opts:[["H",home],["X",t("matchfokus.draw")],["A",away]]},
+    {id:"goal_before10",label:t("matchfokus.q.goalBefore10.label"),opts:[["J",t("matchfokus.yes")],["N",t("matchfokus.no")]]},
+    {id:"h1_goals",label:t("matchfokus.q.h1Goals.label"),opts:[["0","0"],["1","1"],["2+","2+"]]},
+    {id:"both_halves_goals",label:t("matchfokus.q.bothHalvesGoals.label"),opts:[["J",t("matchfokus.yes")],["N",t("matchfokus.no")]]},
+    {id:"btts",label:t("matchfokus.q.btts.label"),opts:[["J",t("matchfokus.yes")],["N",t("matchfokus.no")]]},
+    {id:"most_goals_half",label:t("matchfokus.q.mostGoalsHalf.label"),opts:[["1",t("matchfokus.firstHalf")],["2",t("matchfokus.secondHalf")],["X",t("matchfokus.equal")]]},
+    {id:"btts_both_halves",label:t("matchfokus.q.bttsBothHalves.label"),opts:[["J",t("matchfokus.yes")],["N",t("matchfokus.no")]]},
+    {id:"margin2",label:t("matchfokus.q.margin2.label"),opts:[["J",t("matchfokus.yes")],["N",t("matchfokus.no")]]},
+    {id:"red_card",label:t("matchfokus.q.redCard.label"),opts:[["J",t("matchfokus.yes")],["N",t("matchfokus.no")]]},
+    {id:"exact_score",label:t("matchfokus.q.exactScore.label"),type:"score"}
   ];
 }
 function matchfokusFocusMatch(rd){
@@ -2375,7 +2388,49 @@ const TRANSLATIONS={
     "snabbast.importantNote":"<b>Viktigt – oavgjord matchminut:</b> Om två lag gör mål i <b>exakt samma matchminut</b> går det lag som ligger <b>högst i tabellen</b> före.<br><br><b>Lag som inte gör mål:</b> Lag utan mål under omgången räknas ändå med i topp 7 – de placeras efter alla lag som gjort mål, rangordnade efter <b>tabellplacering</b> (bäst placerade lag går före).",
     "snabbast.chooseInstructions":"Välj de 7 lag du tror gör snabbast mål. Plats 1 = snabbast, plats 7 = 7:e snabbast.",
     "snabbast.chooseTeamsAdd":"Klicka ett lag för att lägga till det:","snabbast.allTeamsSelected":"Alla 7 lag valda! Glöm inte spara.",
-    "snabbast.facitTitle":"Facit – omgång {n}"
+    "snabbast.facitTitle":"Facit – omgång {n}",
+    "ligatipp.title":"📊 Tippa serien",
+    "ligatipp.halftimeLabel":"Halvtid – efter omgång {n}","ligatipp.finalLabel":"Slutställning – efter omgång {n}",
+    "ligatipp.halftimeTab":"Halvtid (Omg {n})","ligatipp.finalTab":"Slutställning (Omg {n})",
+    "ligatipp.chooseTeamsInstructions":"Klicka ett lag för att placera det på nästa lediga plats:",
+    "ligatipp.allTeamsPlaced":"Alla {n} lag är placerade! Glöm inte spara.",
+    "ligatipp.predictionsClosedNotice":"🔒 Tippning är stängd – säsongen har börjat",
+    "ligatipp.scoringTitle":"Poängregler",
+    "ligatipp.scoringBody":"Exakt rätt placering = <b>3 p</b> · Max {max} p per tillfälle ({n} lag × 3p)<br>Poäng delas ut två gånger: efter omgång {half} och efter omgång {total}",
+    "ligatipp.leaderboardTitle":"Tippa serien – poängställning",
+    "privateLeague.title":"👥 Mina privata ligor – {mode}",
+    "privateLeague.close":"✕ Stäng","privateLeague.allGamesTotal":"🏆 Alla spel – totalpoäng","privateLeague.inviteCode":"Inbjudningskod:",
+    "privateLeague.shareWithFriends":"· Dela med vänner!",
+    "privateLeague.participants":"{n} deltagare · Kod:","privateLeague.pendingApproval":"⏳ {name} väntar på godkännande av admin",
+    "privateLeague.createLeague":"+ Skapa liga","privateLeague.joinWithCode":"Gå med med kod",
+    "matchfokus.q.goals.label":"Hur många mål blir det i matchen?",
+    "matchfokus.q.htLeader.label":"Vilket lag leder i halvtid?","matchfokus.draw":"Oavgjort",
+    "matchfokus.homeTeamFallback":"Hemmalaget","matchfokus.awayTeamFallback":"Bortalaget",
+    "matchfokus.q.firstScorer.label":"Vilket lag gör första målet?","matchfokus.noGoal":"Inget mål",
+    "matchfokus.q.winner.label":"Vilket lag vinner matchen?",
+    "matchfokus.q.goalBefore10.label":"Blir det mål i matchen innan 9:59?","matchfokus.yes":"Ja","matchfokus.no":"Nej",
+    "matchfokus.q.h1Goals.label":"Hur många mål blir det i första halvlek?",
+    "matchfokus.q.bothHalvesGoals.label":"Blir det mål i båda halvlekarna?",
+    "matchfokus.q.btts.label":"Gör båda lagen mål?",
+    "matchfokus.q.mostGoalsHalf.label":"Vilken halvlek får flest mål?",
+    "matchfokus.firstHalf":"1:a halvlek","matchfokus.secondHalf":"2:a halvlek","matchfokus.equal":"Lika",
+    "matchfokus.q.bttsBothHalves.label":"Gör båda lagen mål i båda halvlekarna?",
+    "matchfokus.q.margin2.label":"Vinner något av lagen med minst 2 mål?",
+    "matchfokus.q.redCard.label":"Blir det ett rött kort i matchen?",
+    "matchfokus.q.exactScore.label":"Exakt matchresultat",
+    "matchfokus.notChosenYet":"Admin har inte valt ut Matchexperten för omgång {n} än. Kom tillbaka senare!",
+    "matchfokus.yourAnswer":"Ditt svar:","matchfokus.correctAnswer":"Rätt:",
+    "matchfokus.correctPointMark":"✓ +1p","matchfokus.wrongMark":"✗",
+    "matchfokus.answerKeyTitle":"Facit – {h} vs {a}",
+    "matchfokus.finalResultLabel":"Slutresultat {hg}-{ag} (halvtid {hth}-{hta})",
+    "matchfokus.correctCount":"{pts} / {total} rätt",
+    "matchfokus.roundLocked":"🔒 Omgången är låst",
+    "matchfokus.lockedNotice":"Dina tips för {h} vs {a} är sparade. Facit och poäng visas här så fort admin publicerat matchfakta.",
+    "matchfokus.title":"⚽ Matchexperten",
+    "matchfokus.answerAllQuestions":"Svara på alla 13 frågor. Spara innan omgången startar!",
+    "matchfokus.saveMyTips":"Spara mina tips",
+    "matchfokus.roundTitle":"⚽ Matchexperten – Omgång {n}",
+    "matchfokus.leaderboardTitle":"🏆 Ligatabell – Matchexperten"
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -2589,7 +2644,49 @@ const TRANSLATIONS={
     "snabbast.importantNote":"<b>Important – tied match minute:</b> If two teams score in the <b>exact same match minute</b>, the team <b>higher in the table</b> takes priority.<br><br><b>Teams that don't score:</b> Teams without a goal during the round are still counted in the top 7 – placed after all teams that scored, ranked by <b>league position</b> (highest-placed team first).",
     "snabbast.chooseInstructions":"Choose the 7 teams you think will score fastest. Position 1 = fastest, position 7 = 7th fastest.",
     "snabbast.chooseTeamsAdd":"Click a team to add it:","snabbast.allTeamsSelected":"All 7 teams chosen! Don't forget to save.",
-    "snabbast.facitTitle":"Result – round {n}"
+    "snabbast.facitTitle":"Result – round {n}",
+    "ligatipp.title":"📊 Predict the League",
+    "ligatipp.halftimeLabel":"Halfway – after round {n}","ligatipp.finalLabel":"Final standings – after round {n}",
+    "ligatipp.halftimeTab":"Halfway (Rd {n})","ligatipp.finalTab":"Final (Rd {n})",
+    "ligatipp.chooseTeamsInstructions":"Click a team to place it in the next open spot:",
+    "ligatipp.allTeamsPlaced":"All {n} teams placed! Don't forget to save.",
+    "ligatipp.predictionsClosedNotice":"🔒 Predictions closed – the season has started",
+    "ligatipp.scoringTitle":"Scoring rules",
+    "ligatipp.scoringBody":"Exact correct position = <b>3 p</b> · Max {max} p per checkpoint ({n} teams × 3p)<br>Points awarded twice: after round {half} and after round {total}",
+    "ligatipp.leaderboardTitle":"Predict the League – standings",
+    "privateLeague.title":"👥 My private leagues – {mode}",
+    "privateLeague.close":"✕ Close","privateLeague.allGamesTotal":"🏆 All games – total points","privateLeague.inviteCode":"Invite code:",
+    "privateLeague.shareWithFriends":"· Share with friends!",
+    "privateLeague.participants":"{n} members · Code:","privateLeague.pendingApproval":"⏳ {name} is waiting for admin approval",
+    "privateLeague.createLeague":"+ Create league","privateLeague.joinWithCode":"Join with code",
+    "matchfokus.q.goals.label":"How many goals will there be in the match?",
+    "matchfokus.q.htLeader.label":"Which team leads at half-time?","matchfokus.draw":"Draw",
+    "matchfokus.homeTeamFallback":"Home team","matchfokus.awayTeamFallback":"Away team",
+    "matchfokus.q.firstScorer.label":"Which team scores first?","matchfokus.noGoal":"No goal",
+    "matchfokus.q.winner.label":"Which team wins the match?",
+    "matchfokus.q.goalBefore10.label":"Will there be a goal before the 10th minute?","matchfokus.yes":"Yes","matchfokus.no":"No",
+    "matchfokus.q.h1Goals.label":"How many goals will there be in the first half?",
+    "matchfokus.q.bothHalvesGoals.label":"Will there be goals in both halves?",
+    "matchfokus.q.btts.label":"Will both teams score?",
+    "matchfokus.q.mostGoalsHalf.label":"Which half will have the most goals?",
+    "matchfokus.firstHalf":"1st half","matchfokus.secondHalf":"2nd half","matchfokus.equal":"Equal",
+    "matchfokus.q.bttsBothHalves.label":"Will both teams score in both halves?",
+    "matchfokus.q.margin2.label":"Will either team win by 2 goals or more?",
+    "matchfokus.q.redCard.label":"Will there be a red card in the match?",
+    "matchfokus.q.exactScore.label":"Exact match score",
+    "matchfokus.notChosenYet":"The admin hasn't chosen a Match Expert match for round {n} yet. Check back later!",
+    "matchfokus.yourAnswer":"Your answer:","matchfokus.correctAnswer":"Correct:",
+    "matchfokus.correctPointMark":"✓ +1p","matchfokus.wrongMark":"✗",
+    "matchfokus.answerKeyTitle":"Result – {h} vs {a}",
+    "matchfokus.finalResultLabel":"Final score {hg}-{ag} (half-time {hth}-{hta})",
+    "matchfokus.correctCount":"{pts} / {total} correct",
+    "matchfokus.roundLocked":"🔒 The round is locked",
+    "matchfokus.lockedNotice":"Your predictions for {h} vs {a} are saved. The result and points will show here as soon as the admin publishes the match facts.",
+    "matchfokus.title":"⚽ Match Expert",
+    "matchfokus.answerAllQuestions":"Answer all 13 questions. Save before the round starts!",
+    "matchfokus.saveMyTips":"Save my predictions",
+    "matchfokus.roundTitle":"⚽ Match Expert – Round {n}",
+    "matchfokus.leaderboardTitle":"🏆 League table – Match Expert"
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -2803,7 +2900,49 @@ const TRANSLATIONS={
     "snabbast.importantNote":"<b>Σημαντικό – ισόπαλο λεπτό αγώνα:</b> Αν δύο ομάδες σκοράρουν στο <b>ίδιο ακριβώς λεπτό</b>, προηγείται η ομάδα που βρίσκεται <b>ψηλότερα στη βαθμολογία</b>.<br><br><b>Ομάδες που δεν σκοράρουν:</b> Οι ομάδες χωρίς γκολ στον γύρο μετράνε ακόμα στην κορυφαία 7άδα – τοποθετούνται μετά από όλες τις ομάδες που σκόραραν, ταξινομημένες με βάση τη <b>θέση στη βαθμολογία</b> (η ομάδα με την καλύτερη θέση προηγείται).",
     "snabbast.chooseInstructions":"Διάλεξε τις 7 ομάδες που πιστεύεις ότι θα σκοράρουν πιο γρήγορα. Θέση 1 = πιο γρήγορη, θέση 7 = 7η πιο γρήγορη.",
     "snabbast.chooseTeamsAdd":"Πάτησε μια ομάδα για να την προσθέσεις:","snabbast.allTeamsSelected":"Και οι 7 ομάδες επιλέχθηκαν! Μην ξεχάσεις να αποθηκεύσεις.",
-    "snabbast.facitTitle":"Αποτέλεσμα – γύρος {n}"
+    "snabbast.facitTitle":"Αποτέλεσμα – γύρος {n}",
+    "ligatipp.title":"📊 Πρόβλεψε το Πρωτάθλημα",
+    "ligatipp.halftimeLabel":"Στα μισά – μετά τον γύρο {n}","ligatipp.finalLabel":"Τελική κατάταξη – μετά τον γύρο {n}",
+    "ligatipp.halftimeTab":"Στα μισά (Γύρος {n})","ligatipp.finalTab":"Τελικό (Γύρος {n})",
+    "ligatipp.chooseTeamsInstructions":"Πάτησε μια ομάδα για να την τοποθετήσεις στην επόμενη ελεύθερη θέση:",
+    "ligatipp.allTeamsPlaced":"Και οι {n} ομάδες τοποθετήθηκαν! Μην ξεχάσεις να αποθηκεύσεις.",
+    "ligatipp.predictionsClosedNotice":"🔒 Οι προβλέψεις έκλεισαν – η σεζόν έχει ξεκινήσει",
+    "ligatipp.scoringTitle":"Κανόνες βαθμολόγησης",
+    "ligatipp.scoringBody":"Ακριβώς σωστή θέση = <b>3 β.</b> · Μέγιστο {max} β. ανά έλεγχο ({n} ομάδες × 3β)<br>Οι πόντοι μοιράζονται δύο φορές: μετά τον γύρο {half} και μετά τον γύρο {total}",
+    "ligatipp.leaderboardTitle":"Πρόβλεψε το Πρωτάθλημα – κατάταξη",
+    "privateLeague.title":"👥 Οι ιδιωτικές μου σειρές – {mode}",
+    "privateLeague.close":"✕ Κλείσιμο","privateLeague.allGamesTotal":"🏆 Όλα τα παιχνίδια – συνολικοί πόντοι","privateLeague.inviteCode":"Κωδικός πρόσκλησης:",
+    "privateLeague.shareWithFriends":"· Μοιράσου με φίλους!",
+    "privateLeague.participants":"{n} μέλη · Κωδικός:","privateLeague.pendingApproval":"⏳ Το {name} περιμένει έγκριση διαχειριστή",
+    "privateLeague.createLeague":"+ Δημιουργία σειράς","privateLeague.joinWithCode":"Συμμετοχή με κωδικό",
+    "matchfokus.q.goals.label":"Πόσα γκολ θα γίνουν στον αγώνα;",
+    "matchfokus.q.htLeader.label":"Ποια ομάδα προηγείται στο ημίχρονο;","matchfokus.draw":"Ισοπαλία",
+    "matchfokus.homeTeamFallback":"Γηπεδούχος","matchfokus.awayTeamFallback":"Φιλοξενούμενη",
+    "matchfokus.q.firstScorer.label":"Ποια ομάδα σκοράρει πρώτη;","matchfokus.noGoal":"Κανένα γκολ",
+    "matchfokus.q.winner.label":"Ποια ομάδα κερδίζει τον αγώνα;",
+    "matchfokus.q.goalBefore10.label":"Θα γίνει γκολ πριν το 10ο λεπτό;","matchfokus.yes":"Ναι","matchfokus.no":"Όχι",
+    "matchfokus.q.h1Goals.label":"Πόσα γκολ θα γίνουν στο πρώτο ημίχρονο;",
+    "matchfokus.q.bothHalvesGoals.label":"Θα γίνουν γκολ και στα δύο ημίχρονα;",
+    "matchfokus.q.btts.label":"Θα σκοράρουν και οι δύο ομάδες;",
+    "matchfokus.q.mostGoalsHalf.label":"Ποιο ημίχρονο θα έχει τα περισσότερα γκολ;",
+    "matchfokus.firstHalf":"1ο ημίχρονο","matchfokus.secondHalf":"2ο ημίχρονο","matchfokus.equal":"Ίσα",
+    "matchfokus.q.bttsBothHalves.label":"Θα σκοράρουν και οι δύο ομάδες και στα δύο ημίχρονα;",
+    "matchfokus.q.margin2.label":"Θα κερδίσει κάποια ομάδα με διαφορά 2+ γκολ;",
+    "matchfokus.q.redCard.label":"Θα βγει κόκκινη κάρτα στον αγώνα;",
+    "matchfokus.q.exactScore.label":"Ακριβές αποτέλεσμα αγώνα",
+    "matchfokus.notChosenYet":"Ο διαχειριστής δεν έχει επιλέξει ακόμα αγώνα για τον Ειδικό Αγώνα στον γύρο {n}. Ξαναδοκίμασε αργότερα!",
+    "matchfokus.yourAnswer":"Η απάντησή σου:","matchfokus.correctAnswer":"Σωστό:",
+    "matchfokus.correctPointMark":"✓ +1β","matchfokus.wrongMark":"✗",
+    "matchfokus.answerKeyTitle":"Αποτέλεσμα – {h} vs {a}",
+    "matchfokus.finalResultLabel":"Τελικό σκορ {hg}-{ag} (ημίχρονο {hth}-{hta})",
+    "matchfokus.correctCount":"{pts} / {total} σωστά",
+    "matchfokus.roundLocked":"🔒 Ο γύρος είναι κλειδωμένος",
+    "matchfokus.lockedNotice":"Οι προβλέψεις σου για {h} vs {a} είναι αποθηκευμένες. Το αποτέλεσμα και οι πόντοι θα εμφανιστούν εδώ μόλις ο διαχειριστής δημοσιεύσει τα στοιχεία του αγώνα.",
+    "matchfokus.title":"⚽ Ειδικός Αγώνα",
+    "matchfokus.answerAllQuestions":"Απάντησε σε όλες τις 13 ερωτήσεις. Αποθήκευσε πριν ξεκινήσει ο γύρος!",
+    "matchfokus.saveMyTips":"Αποθήκευση προβλέψεων",
+    "matchfokus.roundTitle":"⚽ Ειδικός Αγώνα – Γύρος {n}",
+    "matchfokus.leaderboardTitle":"🏆 Κατάταξη – Ειδικός Αγώνα"
   }
 };
 function t(key,vars){
@@ -4537,13 +4676,13 @@ function renderLigatippTab(){
   const unplaced=TEAMS.filter(t=>!draft.includes(t.id));
   const totalR=cfg.totalRounds||26;
   const halvtidR=Math.ceil(totalR/2);
-  const cpLabel=ligatippCheckpoint===1?`Halvtid – efter omgång ${halvtidR}`:`Slutställning – efter omgång ${totalR}`;
+  const cpLabel=ligatippCheckpoint===1?t("ligatipp.halftimeLabel",{n:halvtidR}):t("ligatipp.finalLabel",{n:totalR});
   const checkpointResult=ligatippStandings[ligatippCheckpoint];
 
   const cpTabs=[
-    [1,`Halvtid (Omg ${halvtidR})`],
-    [2,`Slutställning (Omg ${totalR})`]
-  ].map(([cp,lbl])=>`<button data-act="ligatipp-tab" data-cp="${cp}" style="flex:1;padding:8px 4px;border-radius:6px;border:${ligatippCheckpoint===cp?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${ligatippCheckpoint===cp?G_GREENL:"var(--color-background-primary)"};color:${ligatippCheckpoint===cp?G_GREEN:"var(--color-text-secondary)"};font-size:12px;font-weight:500;cursor:pointer">${lbl}</button>`).join("");
+    [1,t("ligatipp.halftimeTab",{n:halvtidR})],
+    [2,t("ligatipp.finalTab",{n:totalR})]
+  ].map(([cp,lbl])=>`<button data-act="ligatipp-tab" data-cp="${cp}" style="flex:1;padding:8px 4px;border-radius:6px;border:${ligatippCheckpoint===cp?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${ligatippCheckpoint===cp?G_GREENL:"var(--color-background-primary)"};color:${ligatippCheckpoint===cp?G_GREEN:"var(--color-text-secondary)"};font-size:12px;font-weight:500;cursor:pointer">${esc(lbl)}</button>`).join("");
 
   // Ranked slots
   const slots=Array.from({length:TEAMS.length}).map((_,i)=>{
@@ -4555,60 +4694,59 @@ function renderLigatippTab(){
       <div style="width:28px;height:28px;border-radius:50%;background:${correct?"#e8f5ee":team?G_GREENL:"var(--color-background-secondary)"};color:${correct?"#1a6b3c":team?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0">${i+1}</div>
       ${team
         ? `<span style="flex:1;font-size:14px${correct?";font-weight:500;color:#1a6b3c":""}">${esc(team.name)}${correct?" ✓":""}</span>${locked?"":`<button data-act="ligatipp-remove" data-idx="${i}" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:18px;padding:0 4px">×</button>`}`
-        : `<span style="flex:1;font-size:13px;color:var(--color-text-secondary);font-style:italic">— välj lag nedan —</span>`}
+        : `<span style="flex:1;font-size:13px;color:var(--color-text-secondary);font-style:italic">${esc(t("common.emptySlotPlaceholder"))}</span>`}
     </div>`;
   }).join("");
 
   // Available teams
   const availableHtml=locked?"":unplaced.length
-    ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Klicka ett lag för att placera det på nästa lediga plats:</div>
+    ? `<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("ligatipp.chooseTeamsInstructions"))}</div>
        <div style="display:flex;flex-wrap:wrap;gap:6px">${unplaced.map(t=>`<button data-act="ligatipp-place" data-id="${t.id}" style="background:var(--color-background-secondary);border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer">${esc(t.name)}</button>`).join("")}</div>`
-    : `<div style="font-size:13px;color:${G_GREEN};font-weight:500">Alla ${TEAMS.length} lag är placerade! Glöm inte spara.</div>`;
+    : `<div style="font-size:13px;color:${G_GREEN};font-weight:500">${esc(t("ligatipp.allTeamsPlaced",{n:TEAMS.length}))}</div>`;
 
   // Leaderboard
   const lb=[...allLeagueTips].sort((a,b)=>userLigatippTotalPts(b)-userLigatippTotalPts(a));
-  const lbRows=lb.length ? lb.map((t,i)=>{
-    const u=users.find(u=>u.id===t.user_id);
-    const pts=userLigatippTotalPts(t);
-    const isMe=currentUser&&t.user_id===currentUser.id;
+  const lbRows=lb.length ? lb.map((row,i)=>{
+    const u=users.find(u=>u.id===row.user_id);
+    const pts=userLigatippTotalPts(row);
+    const isMe=currentUser&&row.user_id===currentUser.id;
     const medals=["🥇","🥈","🥉"];
-    const tipArr=ligatippCheckpoint===1?t.half_tip:t.full_tip;
+    const tipArr=ligatippCheckpoint===1?row.half_tip:row.full_tip;
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:6px;padding-right:6px`:""}">
       <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
-      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u?u.namn:"?")}${isMe?" (du)":""}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u?u.namn:"?")}${isMe?esc(t("tipp.you")):""}</span>
       <span style="font-size:12px;color:var(--color-text-secondary)">${tipArr?tipArr.length+"/"+TEAMS.length:""}</span>
       <span style="font-weight:500">${pts} p</span>
     </div>`;
-  }).join("") : `<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>`;
+  }).join("") : `<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("tipp.noTipsYet"))}</div>`;
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:12px">📊 Tippa serien</div>
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("ligatipp.title"))}</div>
   ${renderSponsorBanner("ligatipp")}
   <div class="fg-card" style="padding:10px">
-    ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">🔒 Tippning är stängd – säsongen har börjat</div>`:""}
+    ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">${esc(t("ligatipp.predictionsClosedNotice"))}</div>`:""}
     <div style="display:flex;gap:6px;margin-bottom:12px">${cpTabs}</div>
-    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">${cpLabel}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">${esc(cpLabel)}</div>
     ${slots}
     ${!locked?`<div style="margin-top:12px">${availableHtml}</div>`:""}
     <div id="ligatipp-status" style="font-size:13px;min-height:20px;margin-top:10px"></div>
-    ${!locked?`<button class="fg-btn" style="margin-top:8px" onclick="window.saveLigatipp()">Spara mitt tips</button>`:""}
+    ${!locked?`<button class="fg-btn" style="margin-top:8px" onclick="window.saveLigatipp()">${esc(t("common.saveMyTip"))}</button>`:""}
   </div>
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("ligatipp.scoringTitle"))}</div>
     <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-      Exakt rätt placering = <b>3 p</b> · Max ${TEAMS.length*3} p per tillfälle (${TEAMS.length} lag × 3p)<br>
-      Poäng delas ut två gånger: efter omgång ${halvtidR} och efter omgång ${totalR}
+      ${t("ligatipp.scoringBody",{max:TEAMS.length*3,n:TEAMS.length,half:halvtidR,total:totalR})}
     </div>
   </div>
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">Tippa serienen – poängställning</div>
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("ligatipp.leaderboardTitle"))}</div>
     ${lbRows}
   </div>
   ${renderPrivateLeagueSection("ligatipp")}`;
 }
 
 function renderPrivateLeagueSection(gameMode){
-  const gameModeLabel=MODE_LABELS[gameMode]||gameMode;
+  const gameModeLabel=modeLabel(gameMode);
   const myLeagues=allPrivateLeagues.filter(l=>(l.game_mode===gameMode||l.game_mode==="alla")&&l.approved&&l.private_league_members&&l.private_league_members.some(m=>m.user_id===currentUser.id));
   const pending=allPrivateLeagues.filter(l=>l.game_mode===gameMode&&!l.approved&&l.created_by===currentUser.id);
 
@@ -4627,9 +4765,9 @@ function renderPrivateLeagueSection(gameMode){
       standingsHtml=`<div class="fg-card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="font-weight:500">${esc(pl.name)}</div>
-          <button data-act="pl-close" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:13px">✕ Stäng</button>
+          <button data-act="pl-close" style="background:none;border:none;cursor:pointer;color:var(--color-text-secondary);font-size:13px">${esc(t("privateLeague.close"))}</button>
         </div>
-        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${pl.game_mode==="alla"?"🏆 Alla spel – totalpoäng":"Inbjudningskod:"} <b style="color:#111;font-weight:800;font-size:14px;letter-spacing:2px">${pl.invite_code}</b> · Dela med vänner!</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${pl.game_mode==="alla"?esc(t("privateLeague.allGamesTotal")):esc(t("privateLeague.inviteCode"))} <b style="color:#111;font-weight:800;font-size:14px;letter-spacing:2px">${pl.invite_code}</b> ${esc(t("privateLeague.shareWithFriends"))}</div>
         ${memberUsers.map((u,i)=>{
           const rank=i+1;
           const isMe=u.id===currentUser.id;
@@ -4637,7 +4775,7 @@ function renderPrivateLeagueSection(gameMode){
           const trend=prevRank===undefined?"":rank<prevRank?`<span style="color:#16a34a;font-size:14px">▲</span>`:rank>prevRank?`<span style="color:#c1272d;font-size:14px">▼</span>`:`<span style="color:var(--color-text-secondary);font-size:14px">–</span>`;
           return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?"background:"+G_GREENL+";border-radius:6px;padding-left:6px;padding-right:6px":""}">
             <span style="width:22px;text-align:center">${rank<=3?medals[rank-1]:rank}</span>
-            <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+            <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?esc(t("tipp.you")):""}</span>
             ${trend}
             <span style="font-weight:500">${getPts(u)} p</span>
           </div>`;
@@ -4651,24 +4789,24 @@ function renderPrivateLeagueSection(gameMode){
       <span style="font-size:18px">👥</span>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:500">${esc(pl.name)}</div>
-        <div style="font-size:11px;color:var(--color-text-secondary)">${(pl.private_league_members||[]).length} deltagare · Kod: <b style="color:#111;font-weight:800">${pl.invite_code}</b></div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("privateLeague.participants",{n:(pl.private_league_members||[]).length}))} <b style="color:#111;font-weight:800">${pl.invite_code}</b></div>
       </div>
       <span style="color:var(--color-text-secondary)">›</span>
     </button>`).join("");
 
   const pendingHtml=pending.map(pl=>`
     <div style="background:#fffbeb;border-radius:8px;padding:10px 12px;margin-bottom:6px;font-size:13px">
-      ⏳ <b>${esc(pl.name)}</b> väntar på godkännande av admin
+      ${t("privateLeague.pendingApproval",{name:`<b>${esc(pl.name)}</b>`})}
     </div>`).join("");
 
   return `<div class="fg-card" style="margin-top:10px">
-    <div style="font-weight:500;margin-bottom:10px">👥 Mina privata ligor – ${gameModeLabel}</div>
+    <div style="font-weight:500;margin-bottom:10px">${esc(t("privateLeague.title",{mode:gameModeLabel}))}</div>
     ${standingsHtml}
     ${ligaList}
     ${pendingHtml}
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button data-act="pl-create" data-mode="${gameMode}" class="fg-outbtn" style="flex:1;padding:8px">+ Skapa liga</button>
-      <button data-act="pl-join-open" class="fg-outbtn" style="flex:1;padding:8px">Gå med med kod</button>
+      <button data-act="pl-create" data-mode="${gameMode}" class="fg-outbtn" style="flex:1;padding:8px">${esc(t("privateLeague.createLeague"))}</button>
+      <button data-act="pl-join-open" class="fg-outbtn" style="flex:1;padding:8px">${esc(t("privateLeague.joinWithCode"))}</button>
     </div>
     <div id="pl-join-area-${gameMode}"></div>
   </div>`;
@@ -4680,14 +4818,14 @@ function renderMatchfokusTab(){
   const locked=rd&&rd.locked;
   const hTeam=m?TEAMS.find(t=>t.id===m.hId):null;
   const aTeam=m?TEAMS.find(t=>t.id===m.aId):null;
-  const hName=hTeam?hTeam.name:"Hemmalaget", aName=aTeam?aTeam.name:"Bortalaget";
+  const hName=hTeam?hTeam.name:t("matchfokus.homeTeamFallback"), aName=aTeam?aTeam.name:t("matchfokus.awayTeamFallback");
   const facts=computeMatchfokusFacts(rd);
   const qs=matchfokusQuestions(hName,aName);
   const savedAnswers=matchfokusMyTips[cfg.omg]||{};
 
   let body="";
   if(!m){
-    body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Admin har inte valt ut Matchexperten för omgång ${cfg.omg} än. Kom tillbaka senare!</div></div>`;
+    body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("matchfokus.notChosenYet",{n:cfg.omg}))}</div></div>`;
   } else if(facts){
     // Publicerat – visa facit + dina svar + poäng
     const tip=matchfokusAllTipsGlobal.find(t=>t.user_id===currentUser.id&&Number(t.round_num)===Number(cfg.omg));
@@ -4701,22 +4839,22 @@ function renderMatchfokusTab(){
       return `<div style="padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:3px">${esc(q.label)}</div>
         <div style="display:flex;align-items:center;gap:8px;font-size:13px">
-          <span>Ditt svar: <b>${mine!==undefined?esc(label(mine)):"–"}</b></span>
-          <span style="color:var(--color-text-secondary)">Rätt: <b>${esc(label(correct))}</b></span>
-          <span style="margin-left:auto;font-weight:700;color:${ok?'#1a7a3d':'#A32D2D'}">${ok?'✓ +1p':'✗'}</span>
+          <span>${esc(t("matchfokus.yourAnswer"))} <b>${mine!==undefined?esc(label(mine)):"–"}</b></span>
+          <span style="color:var(--color-text-secondary)">${esc(t("matchfokus.correctAnswer"))} <b>${esc(label(correct))}</b></span>
+          <span style="margin-left:auto;font-weight:700;color:${ok?'#1a7a3d':'#A32D2D'}">${ok?esc(t("matchfokus.correctPointMark")):esc(t("matchfokus.wrongMark"))}</span>
         </div>
       </div>`;
     }).join("");
     body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">Facit – ${esc(hName)} vs ${esc(aName)}</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Slutresultat ${m.hMål}-${m.aMål} (halvtid ${rd.focus_ht_h??0}-${rd.focus_ht_a??0})</div>
-      <div style="font-size:20px;font-weight:700;color:#1a7a3d;margin-bottom:10px">${myPts} / ${qs.length} rätt</div>
+      <div style="font-weight:500;margin-bottom:4px">${esc(t("matchfokus.answerKeyTitle",{h:hName,a:aName}))}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">${esc(t("matchfokus.finalResultLabel",{hg:m.hMål,ag:m.aMål,hth:rd.focus_ht_h??0,hta:rd.focus_ht_a??0}))}</div>
+      <div style="font-size:20px;font-weight:700;color:#1a7a3d;margin-bottom:10px">${esc(t("matchfokus.correctCount",{pts:myPts,total:qs.length}))}</div>
       ${rows}
     </div>`;
   } else if(locked){
     body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:4px">🔒 Omgången är låst</div>
-      <div style="font-size:13px;color:var(--color-text-secondary)">Dina tips för ${esc(hName)} vs ${esc(aName)} är sparade. Facit och poäng visas här så fort admin publicerat matchfakta.</div>
+      <div style="font-weight:500;margin-bottom:4px">${esc(t("matchfokus.roundLocked"))}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("matchfokus.lockedNotice",{h:hName,a:aName}))}</div>
     </div>`;
   } else {
     const pillRow=q=>{
@@ -4738,12 +4876,12 @@ function renderMatchfokusTab(){
       ${pillRow(q)}
     </div>`).join("");
     body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:2px">⚽ Matchexperten</div>
+      <div style="font-weight:500;margin-bottom:2px">${esc(t("matchfokus.title"))}</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:4px">${esc(hName)} vs ${esc(aName)}</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Svara på alla 13 frågor. Spara innan omgången startar!</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("matchfokus.answerAllQuestions"))}</div>
       ${questionsHtml}
       <div id="mf-status" style="font-size:13px;margin-top:10px;min-height:20px"></div>
-      <button class="fg-btn" style="margin-top:8px" onclick="window.saveMatchfokus()">Spara mina tips</button>
+      <button class="fg-btn" style="margin-top:8px" onclick="window.saveMatchfokus()">${esc(t("matchfokus.saveMyTips"))}</button>
     </div>`;
   }
 
@@ -4754,17 +4892,17 @@ function renderMatchfokusTab(){
     const medals=["🥇","🥈","🥉"];
     return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?'background:'+G_GREENL+';border-radius:6px;padding-left:6px;padding-right:6px':''}">
       <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
-      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?" (du)":""}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?esc(t("tipp.you")):""}</span>
       <span style="font-weight:500">${pts} p</span>
     </div>`;
-  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">Inga tips inlagda ännu.</div>`;
+  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("tipp.noTipsYet"))}</div>`;
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:12px">⚽ Matchexperten – Omgång ${cfg.omg}</div>
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("matchfokus.roundTitle",{n:cfg.omg}))}</div>
   ${renderSponsorBanner("matchfokus")}
   ${body}
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">🏆 Ligatabell – Matchexperten</div>
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("matchfokus.leaderboardTitle"))}</div>
     ${lbRows}
   </div>
   ${renderPrivateLeagueSection("matchfokus")}`;
