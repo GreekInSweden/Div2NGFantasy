@@ -2667,7 +2667,8 @@ const TRANSLATIONS={
     "stod.opensPaypalApp":"Öppnar PayPal direkt om du är på mobilen",
     "stod.orPaypalManually":"Eller besök PayPal.me manuellt:",
     "paywall.paypalNoteInstruction":"<b>Viktigt:</b> Skriv ditt namn \"<b>{name}</b>\" i anteckningsfältet när du betalar via PayPal – då hittar admin dig snabbt och markerar dig som betald.",
-    "paywall.orPaypalManuallyWithMessage":"Eller besök PayPal.me manuellt:","paywall.writeAsNotePaypal":"Skriv \"<b>{name}</b>\" i anteckningsfältet"
+    "paywall.orPaypalManuallyWithMessage":"Eller besök PayPal.me manuellt:","paywall.writeAsNotePaypal":"Skriv \"<b>{name}</b>\" i anteckningsfältet",
+    "profile.languageTitle":"🌐 Språk","profile.languageDesc":"Välj vilket språk appen ska visas på."
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3157,7 +3158,8 @@ const TRANSLATIONS={
     "stod.opensPaypalApp":"Opens PayPal directly if you're on mobile",
     "stod.orPaypalManually":"Or visit PayPal.me manually:",
     "paywall.paypalNoteInstruction":"<b>Important:</b> Write your name \"<b>{name}</b>\" in the note field when paying via PayPal – that way the admin finds you quickly and marks you as paid.",
-    "paywall.orPaypalManuallyWithMessage":"Or visit PayPal.me manually:","paywall.writeAsNotePaypal":"Write \"<b>{name}</b>\" in the note field"
+    "paywall.orPaypalManuallyWithMessage":"Or visit PayPal.me manually:","paywall.writeAsNotePaypal":"Write \"<b>{name}</b>\" in the note field",
+    "profile.languageTitle":"🌐 Language","profile.languageDesc":"Choose which language the app should display."
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3647,7 +3649,8 @@ const TRANSLATIONS={
     "stod.opensPaypalApp":"Ανοίγει απευθείας το PayPal αν είσαι σε κινητό",
     "stod.orPaypalManually":"Ή επισκέψου το PayPal.me χειροκίνητα:",
     "paywall.paypalNoteInstruction":"<b>Σημαντικό:</b> Γράψε το όνομά σου \"<b>{name}</b>\" στο πεδίο σημείωσης όταν πληρώνεις μέσω PayPal – έτσι ο διαχειριστής σε βρίσκει γρήγορα και σε σημειώνει ως πληρωμένο.",
-    "paywall.orPaypalManuallyWithMessage":"Ή επισκέψου το PayPal.me χειροκίνητα:","paywall.writeAsNotePaypal":"Γράψε \"<b>{name}</b>\" στο πεδίο σημείωσης"
+    "paywall.orPaypalManuallyWithMessage":"Ή επισκέψου το PayPal.me χειροκίνητα:","paywall.writeAsNotePaypal":"Γράψε \"<b>{name}</b>\" στο πεδίο σημείωσης",
+    "profile.languageTitle":"🌐 Γλώσσα","profile.languageDesc":"Διάλεξε σε ποια γλώσσα θα εμφανίζεται η εφαρμογή."
   }
 };
 function t(key,vars){
@@ -6645,6 +6648,16 @@ function renderProfilTab(){
         <div style="font-size:18px;font-weight:600">${esc(u.namn)}</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("profile.seasonLine",{season:String(currentLeague.season||2027),league:currentLeague.name}))}</div>
       </div>
+    </div>
+  </div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:6px">${esc(t("profile.languageTitle"))}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5">${esc(t("profile.languageDesc"))}</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      ${["sv","en","gr"].map(code=>`
+        <button data-act="set-lang" data-lang="${code}" style="padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;border:0.5px solid ${lang===code?G_GREEN:'var(--color-border-tertiary)'};background:${lang===code?G_GREENL:'none'};color:${lang===code?G_GREEN:'var(--color-text-secondary)'};font-weight:${lang===code?600:400}">${esc(t("lang.name."+code))}</button>
+      `).join("")}
     </div>
   </div>
 
