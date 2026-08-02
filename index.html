@@ -10095,6 +10095,7 @@ function attachHandlers(){
       try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
+      try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
       adminSection="round";
       flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
@@ -10113,6 +10114,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds={};
       cfg={omg:1,registrationOpen:true,ligatippLocked:false,quizEnabled:false,fantasyEnabled:true,tippEnabled:true,snabbastEnabled:true,maljaktenEnabled:true,ligatippEnabled:true,totalRounds:26};
+      allPrivateLeagues=[]; // ny säsong har inga privata ligor ännu
       await sb.from("app_config").insert({league_id:league.id,active_round:1,registration_open:true});
       adminOk=false; screen="home"; homeMode="start";
       sb.auth.signOut().catch(()=>{});
