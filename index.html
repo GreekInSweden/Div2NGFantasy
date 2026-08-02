@@ -7691,7 +7691,7 @@ function parseFixtureDownloadFormat(text){
   // ortnamn (München/Munich, Köln/Cologne). Körs på BÅDA sidor (både det
   // sparade lagnamnet och källtexten) så det spelar ingen roll vilken
   // variant som står var.
-  const CLUB_NAME_SYNONYMS=[[/münchen/g,"munich"],[/köln/g,"cologne"],[/\brennais\b/g,"rennes"]];
+  const CLUB_NAME_SYNONYMS=[[/münchen/g,"munich"],[/köln/g,"cologne"],[/\brennais\b/g,"rennes"],[/havre athletic club/g,"le havre"]];
   const normalizeStr=s=>{
     // .normalize("NFC") säkerställer att bokstäver som ü/ö/é alltid lagras på
     // SAMMA sätt oavsett om källan (t.ex. en webbläsares urklipp på Mac)
