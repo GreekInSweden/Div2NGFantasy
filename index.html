@@ -102,6 +102,12 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 (function(){
 const POSITIONS=["GK","DEF","MID","FW"];
 const POS_LABEL={GK:"Målvakt",DEF:"Försvarare",MID:"Mittfältare",FW:"Forward"};
+// Översatt positionsetikett – används i användarvänd text (Fantasy-plocket,
+// poängregler m.m.). t() och TRANSLATIONS är definierade längre ner i
+// filen, men eftersom det här bara är en funktionsdeklaration (hissas av
+// JS) spelar ordningen ingen roll – t() finns på plats när posLabel()
+// faktiskt anropas vid rendering.
+function posLabel(p){ return t("pos."+p); }
 const POS_COUNT={GK:1,DEF:4,MID:3,FW:3};
 const TOTAL_PICKS=11;
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
@@ -2244,7 +2250,47 @@ const TRANSLATIONS={
     "install.desktop.step3":"Om du inte ser ikonen: öppna webbläsarens meny (tre punkter/streck) och leta efter <b>\"Installera {app}\"</b>.",
     "install.desktop.step4":"Klicka <b>\"Installera\"</b>.",
     "install.desktop.step5":"Klart! Appen öppnas nu i ett eget fönster utan adressfält, och du hittar den bland dina vanliga program.",
-    "install.tip":"💡 Redan installerad men notiserna funkar ändå inte? Gå till <b>Min profil</b> och kontrollera att notiser är aktiverade där."
+    "install.tip":"💡 Redan installerad men notiserna funkar ändå inte? Gå till <b>Min profil</b> och kontrollera att notiser är aktiverade där.",
+    "missing.fantasy":"Fantasy – välj ditt lag","missing.tipp":"Tippa resultat","missing.snabbast":"Snabbast vinner","missing.maljakten":"Måljakten","missing.streak":"Streak","missing.quiz":"Quiz",
+    "modeselect.greeting":"Hej {name}!","modeselect.question":"Vad vill du göra?",
+    "modeselect.missingModesPrefix":"Du har inte lagt in allt för omgång {round} än:",
+    "modeselect.trialDaysLeftSingular":"⏳ {days} dag kvar av din gratis provperiod",
+    "modeselect.trialDaysLeftPlural":"⏳ {days} dagar kvar av din gratis provperiod",
+    "modeselect.trialAppliesAll":"Gäller över alla våra serier du spelar i",
+    "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Bygg ditt 4-3-3-lag och tävla i ligatabellen",
+    "modeselect.mode.tipp.title":"Tippa resultat","modeselect.mode.tipp.desc":"Gissa rätt resultat i matchen",
+    "modeselect.mode.ligatipp.title":"Tippa serien","modeselect.mode.ligatipp.desc":"Tippa tabellen vid halvtid och säsongsslut",
+    "modeselect.mode.snabbast.title":"Snabbast vinner","modeselect.mode.snabbast.desc":"Vilka 7 lag gör snabbast mål?",
+    "modeselect.mode.maljakten.title":"Måljakten","modeselect.mode.maljakten.desc":"Välj 3 lag som du tror gör flest mål",
+    "modeselect.mode.streak.title":"Streak","modeselect.mode.streak.desc":"Välj 3 matcher – håll din vinstsvit levande!",
+    "modeselect.mode.matchfokus.title":"Matchexperten","modeselect.mode.matchfokus.desc":"13 stryktips-frågor om omgångens utvalda match",
+    "modeselect.mode.duellen.title":"Duellen","modeselect.mode.duellen.desc":"Möt andra spelare hemma/borta – vinn via Tippa resultat",
+    "modeselect.mode.malregn.title":"Målregn","modeselect.mode.malregn.desc":"Gissa totalt antal mål i omgången",
+    "modeselect.mode.jubel.title":"Båda får Jubla","modeselect.mode.jubel.desc":"Gör båda lagen mål i matchen? Ja eller nej, för alla 7 matcher",
+    "modeselect.mode.investerare.title":"Investeraren","modeselect.mode.investerare.desc":"Placera 1000 kr på lag – bygg din portfölj hela säsongen",
+    "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Välj ett lag varje omgång – förlorar du tre gånger är du utslagen",
+    "modeselect.mode.anytime.title":"Skyttekung","modeselect.mode.anytime.desc":"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",
+    "modeselect.mode.standings.title":"Ställningar","modeselect.mode.standings.desc":"Se topplistan i alla spelformer på ett ställe",
+    "modeselect.mode.contact.title":"Kontakta oss","modeselect.mode.contact.desc":"Idéer, felsökning eller frågor – vi svarar här i appen",
+    "modeselect.mode.install.title":"Installera appen","modeselect.mode.install.desc":"Få push-notiser och snabbare laddning",
+    "modeselect.mode.stats.title":"Min statistik","modeselect.mode.stats.desc":"Dina poäng, placeringar och jämförelser",
+    "modeselect.mode.profile.title":"Min profil","modeselect.mode.profile.desc":"Kontaktuppgifter, PIN-kod och kontoinställningar",
+    "modeselect.mode.hof.title":"Hall of Fame","modeselect.mode.hof.desc":"Säsongsvinnare per spelform",
+    "modeselect.mode.quiz.titleSuffix":"Quiz","modeselect.mode.quiz.desc":"Allmänna frågor om {league}",
+    "common.sponsoredBy":"Sponsras av","common.visitLink":"Besök →","common.logout":"Logga ut",
+    "tabs.spelformer":"Spelformer","tabs.hem":"Hem","tabs.regler":"Regler","tabs.liga":"Liga","tabs.inbox":"Inbox","tabs.stats":"Statistik",
+    "tabs.hof":"Hall of Fame","tabs.standings":"Ställningar","tabs.profil":"Profil","tabs.stod":"Stöd oss",
+    "header.suffix.tipp":" · Tipp","header.suffix.ligatipp":" · Tippa serien","header.suffix.snabbast":" · Snabbast",
+    "header.suffix.maljakten":" · Måljakten","header.suffix.matchfokus":" · Matchexperten",
+    "common.adminLock":"🔒 Admin","common.switchLeague":"Byt serie",
+    "pos.GK":"Målvakt","pos.DEF":"Försvarare","pos.MID":"Mittfältare","pos.FW":"Forward",
+    "common.round":"Omgång {n}","common.total":"Totalt",
+    "hemtab.myTeam":"Mitt lag (4-3-3)","hemtab.editShort":"✏ Byt",
+    "hemtab.noTeamYet":"Du har inte byggt ditt lag ännu.","hemtab.buildTeamButton":"Bygg mitt lag →",
+    "hemtab.rank":"Plats {rank} av {total}","hemtab.notRanked":"Inte rankad",
+    "hemtab.scoringRules":"Poängregler","hemtab.teamResultRule":"Lagresultat: Vinst 5p · Oavgjort 2p · Förlust 0p",
+    "hemtab.tableHeaderPosition":"Position","hemtab.tableHeaderCleanSheet":"Hålla nollan","hemtab.tableHeaderGoal":"Målskytt",
+    "hemtab.captainRule":"Kapten: dubbla alla poäng · Max en spelare per lag"
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -2333,7 +2379,47 @@ const TRANSLATIONS={
     "install.desktop.step3":"If you don't see the icon: open the browser menu (three dots/lines) and look for <b>\"Install {app}\"</b>.",
     "install.desktop.step4":"Click <b>\"Install\"</b>.",
     "install.desktop.step5":"Done! The app now opens in its own window without an address bar, and you'll find it among your regular programs.",
-    "install.tip":"💡 Already installed but notifications still don't work? Go to <b>My profile</b> and check that notifications are enabled there."
+    "install.tip":"💡 Already installed but notifications still don't work? Go to <b>My profile</b> and check that notifications are enabled there.",
+    "missing.fantasy":"Fantasy – pick your team","missing.tipp":"Predict the Result","missing.snabbast":"Fastest Wins","missing.maljakten":"Goal Hunt","missing.streak":"Streak","missing.quiz":"Quiz",
+    "modeselect.greeting":"Hi {name}!","modeselect.question":"What do you want to do?",
+    "modeselect.missingModesPrefix":"You haven't filled in everything for round {round} yet:",
+    "modeselect.trialDaysLeftSingular":"⏳ {days} day left of your free trial",
+    "modeselect.trialDaysLeftPlural":"⏳ {days} days left of your free trial",
+    "modeselect.trialAppliesAll":"Applies across all our series you play in",
+    "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Build your 4-3-3 team and compete on the league table",
+    "modeselect.mode.tipp.title":"Predict the Result","modeselect.mode.tipp.desc":"Guess the correct match result",
+    "modeselect.mode.ligatipp.title":"Predict the League","modeselect.mode.ligatipp.desc":"Predict the table at halfway and season end",
+    "modeselect.mode.snabbast.title":"Fastest Wins","modeselect.mode.snabbast.desc":"Which 7 teams score fastest?",
+    "modeselect.mode.maljakten.title":"Goal Hunt","modeselect.mode.maljakten.desc":"Pick 3 teams you think will score the most",
+    "modeselect.mode.streak.title":"Streak","modeselect.mode.streak.desc":"Pick 3 matches – keep your winning streak alive!",
+    "modeselect.mode.matchfokus.title":"Match Expert","modeselect.mode.matchfokus.desc":"13 pools-style questions about the round's featured match",
+    "modeselect.mode.duellen.title":"The Duel","modeselect.mode.duellen.desc":"Face other players home/away – win via Predict the Result",
+    "modeselect.mode.malregn.title":"Goal Rain","modeselect.mode.malregn.desc":"Guess the total number of goals in the round",
+    "modeselect.mode.jubel.title":"Both Teams to Score","modeselect.mode.jubel.desc":"Will both teams score in the match? Yes or no, for all 7 matches",
+    "modeselect.mode.investerare.title":"The Investor","modeselect.mode.investerare.desc":"Invest 1000 kr on teams – build your portfolio all season",
+    "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Pick one team each round – lose three times and you're out",
+    "modeselect.mode.anytime.title":"Top Scorer","modeselect.mode.anytime.desc":"Pick 1 defender + 2 midfielders + 2 forwards to score",
+    "modeselect.mode.standings.title":"Standings","modeselect.mode.standings.desc":"See the leaderboard for all game modes in one place",
+    "modeselect.mode.contact.title":"Contact us","modeselect.mode.contact.desc":"Ideas, troubleshooting or questions – we reply here in the app",
+    "modeselect.mode.install.title":"Install the app","modeselect.mode.install.desc":"Get push notifications and faster loading",
+    "modeselect.mode.stats.title":"My statistics","modeselect.mode.stats.desc":"Your points, rankings and comparisons",
+    "modeselect.mode.profile.title":"My profile","modeselect.mode.profile.desc":"Contact details, PIN code and account settings",
+    "modeselect.mode.hof.title":"Hall of Fame","modeselect.mode.hof.desc":"Season winners per game mode",
+    "modeselect.mode.quiz.titleSuffix":"Quiz","modeselect.mode.quiz.desc":"General questions about {league}",
+    "common.sponsoredBy":"Sponsored by","common.visitLink":"Visit →","common.logout":"Log out",
+    "tabs.spelformer":"Game modes","tabs.hem":"Home","tabs.regler":"Rules","tabs.liga":"League","tabs.inbox":"Inbox","tabs.stats":"Statistics",
+    "tabs.hof":"Hall of Fame","tabs.standings":"Standings","tabs.profil":"Profile","tabs.stod":"Support us",
+    "header.suffix.tipp":" · Predict","header.suffix.ligatipp":" · Predict the League","header.suffix.snabbast":" · Fastest Wins",
+    "header.suffix.maljakten":" · Goal Hunt","header.suffix.matchfokus":" · Match Expert",
+    "common.adminLock":"🔒 Admin","common.switchLeague":"Switch series",
+    "pos.GK":"Goalkeeper","pos.DEF":"Defender","pos.MID":"Midfielder","pos.FW":"Forward",
+    "common.round":"Round {n}","common.total":"Total",
+    "hemtab.myTeam":"My team (4-3-3)","hemtab.editShort":"✏ Edit",
+    "hemtab.noTeamYet":"You haven't built your team yet.","hemtab.buildTeamButton":"Build my team →",
+    "hemtab.rank":"Rank {rank} of {total}","hemtab.notRanked":"Not ranked",
+    "hemtab.scoringRules":"Scoring rules","hemtab.teamResultRule":"Team result: Win 5p · Draw 2p · Loss 0p",
+    "hemtab.tableHeaderPosition":"Position","hemtab.tableHeaderCleanSheet":"Clean sheet","hemtab.tableHeaderGoal":"Goal",
+    "hemtab.captainRule":"Captain: doubles all points · Max one player per team"
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -2422,7 +2508,47 @@ const TRANSLATIONS={
     "install.desktop.step3":"Αν δεν βλέπεις το εικονίδιο: άνοιξε το μενού του περιηγητή (τρεις τελείες/γραμμές) και ψάξε για <b>\"Εγκατάσταση {app}\"</b>.",
     "install.desktop.step4":"Πάτησε <b>\"Εγκατάσταση\"</b>.",
     "install.desktop.step5":"Έτοιμο! Η εφαρμογή ανοίγει τώρα σε δικό της παράθυρο χωρίς γραμμή διευθύνσεων, και θα τη βρεις ανάμεσα στα προγράμματά σου.",
-    "install.tip":"💡 Το έχεις ήδη εγκαταστήσει αλλά οι ειδοποιήσεις δεν λειτουργούν; Πήγαινε στο <b>Το προφίλ μου</b> και έλεγξε αν οι ειδοποιήσεις είναι ενεργοποιημένες εκεί."
+    "install.tip":"💡 Το έχεις ήδη εγκαταστήσει αλλά οι ειδοποιήσεις δεν λειτουργούν; Πήγαινε στο <b>Το προφίλ μου</b> και έλεγξε αν οι ειδοποιήσεις είναι ενεργοποιημένες εκεί.",
+    "missing.fantasy":"Fantasy – διάλεξε την ομάδα σου","missing.tipp":"Πρόβλεψε το Αποτέλεσμα","missing.snabbast":"Ο Πιο Γρήγορος Κερδίζει","missing.maljakten":"Κυνήγι Γκολ","missing.streak":"Στριk","missing.quiz":"Κουίζ",
+    "modeselect.greeting":"Γεια σου {name}!","modeselect.question":"Τι θέλεις να κάνεις;",
+    "modeselect.missingModesPrefix":"Δεν έχεις συμπληρώσει τα πάντα για τον γύρο {round} ακόμα:",
+    "modeselect.trialDaysLeftSingular":"⏳ {days} ημέρα απομένει από τη δωρεάν δοκιμή σου",
+    "modeselect.trialDaysLeftPlural":"⏳ {days} ημέρες απομένουν από τη δωρεάν δοκιμή σου",
+    "modeselect.trialAppliesAll":"Ισχύει σε όλες τις σειρές στις οποίες παίζεις",
+    "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Φτιάξε την ομάδα σου 4-3-3 και διαγωνίσου στη βαθμολογία",
+    "modeselect.mode.tipp.title":"Πρόβλεψε το Αποτέλεσμα","modeselect.mode.tipp.desc":"Μάντεψε το σωστό αποτέλεσμα του αγώνα",
+    "modeselect.mode.ligatipp.title":"Πρόβλεψε το Πρωτάθλημα","modeselect.mode.ligatipp.desc":"Πρόβλεψε τον πίνακα στα μισά και στο τέλος της σεζόν",
+    "modeselect.mode.snabbast.title":"Ο Πιο Γρήγορος Κερδίζει","modeselect.mode.snabbast.desc":"Ποιες 7 ομάδες θα σκοράρουν πιο γρήγορα;",
+    "modeselect.mode.maljakten.title":"Κυνήγι Γκολ","modeselect.mode.maljakten.desc":"Διάλεξε 3 ομάδες που πιστεύεις ότι θα σκοράρουν τα περισσότερα γκολ",
+    "modeselect.mode.streak.title":"Στριk","modeselect.mode.streak.desc":"Διάλεξε 3 αγώνες – κράτησε ζωντανό το σερί νικών σου!",
+    "modeselect.mode.matchfokus.title":"Ειδικός Αγώνα","modeselect.mode.matchfokus.desc":"13 ερωτήσεις τύπου προπό για τον επιλεγμένο αγώνα του γύρου",
+    "modeselect.mode.duellen.title":"Η Μονομαχία","modeselect.mode.duellen.desc":"Αναμετρήσου με άλλους παίκτες εντός/εκτός – κέρδισε μέσω του Πρόβλεψε το Αποτέλεσμα",
+    "modeselect.mode.malregn.title":"Βροχή Γκολ","modeselect.mode.malregn.desc":"Μάντεψε τον συνολικό αριθμό γκολ στον γύρο",
+    "modeselect.mode.jubel.title":"Και οι Δύο Σκοράρουν","modeselect.mode.jubel.desc":"Θα σκοράρουν και οι δύο ομάδες στον αγώνα; Ναι ή όχι, για όλους τους 7 αγώνες",
+    "modeselect.mode.investerare.title":"Ο Επενδυτής","modeselect.mode.investerare.desc":"Επένδυσε 1000 kr σε ομάδες – χτίσε το χαρτοφυλάκιό σου όλη τη σεζόν",
+    "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Διάλεξε μία ομάδα κάθε γύρο – αν χάσεις τρεις φορές αποκλείεσαι",
+    "modeselect.mode.anytime.title":"Πρώτος Σκόρερ","modeselect.mode.anytime.desc":"Διάλεξε 1 αμυντικό + 2 μέσους + 2 επιθετικούς που θα σκοράρουν",
+    "modeselect.mode.standings.title":"Βαθμολογίες","modeselect.mode.standings.desc":"Δες την κατάταξη όλων των τρόπων παιχνιδιού σε ένα μέρος",
+    "modeselect.mode.contact.title":"Επικοινωνία","modeselect.mode.contact.desc":"Ιδέες, προβλήματα ή ερωτήσεις – απαντάμε εδώ μέσα στην εφαρμογή",
+    "modeselect.mode.install.title":"Εγκατάσταση εφαρμογής","modeselect.mode.install.desc":"Απόκτησε ειδοποιήσεις push και πιο γρήγορη φόρτωση",
+    "modeselect.mode.stats.title":"Τα στατιστικά μου","modeselect.mode.stats.desc":"Οι πόντοι, οι θέσεις και οι συγκρίσεις σου",
+    "modeselect.mode.profile.title":"Το προφίλ μου","modeselect.mode.profile.desc":"Στοιχεία επικοινωνίας, κωδικός PIN και ρυθμίσεις λογαριασμού",
+    "modeselect.mode.hof.title":"Hall of Fame","modeselect.mode.hof.desc":"Νικητές σεζόν ανά τρόπο παιχνιδιού",
+    "modeselect.mode.quiz.titleSuffix":"Κουίζ","modeselect.mode.quiz.desc":"Γενικές ερωτήσεις για το {league}",
+    "common.sponsoredBy":"Χορηγία από","common.visitLink":"Επίσκεψη →","common.logout":"Αποσύνδεση",
+    "tabs.spelformer":"Τρόποι παιχνιδιού","tabs.hem":"Αρχική","tabs.regler":"Κανόνες","tabs.liga":"Πρωτάθλημα","tabs.inbox":"Εισερχόμενα","tabs.stats":"Στατιστικά",
+    "tabs.hof":"Hall of Fame","tabs.standings":"Βαθμολογίες","tabs.profil":"Προφίλ","tabs.stod":"Στήριξέ μας",
+    "header.suffix.tipp":" · Πρόβλεψη","header.suffix.ligatipp":" · Πρόβλεψε το Πρωτάθλημα","header.suffix.snabbast":" · Ο Πιο Γρήγορος",
+    "header.suffix.maljakten":" · Κυνήγι Γκολ","header.suffix.matchfokus":" · Ειδικός Αγώνα",
+    "common.adminLock":"🔒 Διαχείριση","common.switchLeague":"Αλλαγή σειράς",
+    "pos.GK":"Τερματοφύλακας","pos.DEF":"Αμυντικός","pos.MID":"Μέσος","pos.FW":"Επιθετικός",
+    "common.round":"Γύρος {n}","common.total":"Σύνολο",
+    "hemtab.myTeam":"Η ομάδα μου (4-3-3)","hemtab.editShort":"✏ Αλλαγή",
+    "hemtab.noTeamYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.","hemtab.buildTeamButton":"Φτιάξε την ομάδα μου →",
+    "hemtab.rank":"Θέση {rank} από {total}","hemtab.notRanked":"Χωρίς κατάταξη",
+    "hemtab.scoringRules":"Κανόνες βαθμολόγησης","hemtab.teamResultRule":"Αποτέλεσμα ομάδας: Νίκη 5β · Ισοπαλία 2β · Ήττα 0β",
+    "hemtab.tableHeaderPosition":"Θέση","hemtab.tableHeaderCleanSheet":"Καθαρό μηδέν","hemtab.tableHeaderGoal":"Γκολ",
+    "hemtab.captainRule":"Αρχηγός: διπλασιάζει όλους τους πόντους · Μέγιστο ένας παίκτης ανά ομάδα"
   }
 };
 function t(key,vars){
@@ -2553,8 +2679,8 @@ function renderModeSelect(){
       </div>
       <div style="font-size:10px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
     </div>
-    <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:4px">Hej ${esc(currentUser.namn)}!</div>
-    <div style="font-size:20px;font-weight:500;margin-bottom:28px;text-align:center">Vad vill du göra?</div>
+    <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:4px">${esc(t("modeselect.greeting",{name:currentUser.namn}))}</div>
+    <div style="font-size:20px;font-weight:500;margin-bottom:28px;text-align:center">${esc(t("modeselect.question"))}</div>
     ${(()=>{
       const rd = rounds[String(cfg.omg)];
       const missing = (myRoundStatus.round===cfg.omg) ? missingModesList() : [];
@@ -2562,7 +2688,7 @@ function renderModeSelect(){
       if(!missing.length && !showCountdown) return "";
       return `<div class="fg-card" style="width:100%;max-width:380px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
         ${showCountdown?`<div style="font-size:20px;font-weight:800;color:#A32D2D;margin-bottom:${missing.length?'10px':'0'};letter-spacing:.2px" data-countdown-deadline="${rd.lock_deadline}">${formatCountdown(rd.lock_deadline)}</div>`:""}
-        ${missing.length?`<div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">Du har inte lagt in allt för omgång ${cfg.omg} än:</div>
+        ${missing.length?`<div style="font-weight:500;font-size:13px;color:#A32D2D;margin-bottom:6px">${esc(t("modeselect.missingModesPrefix",{round:cfg.omg}))}</div>
         <div style="display:flex;flex-direction:column;gap:4px">
           ${missing.map(m=>`<div style="font-size:12px;color:#A32D2D">${m.ico} ${esc(m.label)}</div>`).join("")}
         </div>`:""}
@@ -2574,122 +2700,122 @@ function renderModeSelect(){
       const daysLeft=Math.max(0,Math.ceil((cfg.trialDays||14)-daysSince));
       if(isTrialExpired(currentUser)) return "";
       return `<div class="fg-card" style="width:100%;max-width:380px;background:#eef6ff;border:0.5px solid #2563eb;margin-bottom:16px;text-align:center">
-        <div style="font-size:13px;color:#2563eb;font-weight:500">⏳ ${daysLeft} dag${daysLeft!==1?"ar":""} kvar av din gratis provperiod</div>
-        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">Gäller över alla våra serier du spelar i</div>
+        <div style="font-size:13px;color:#2563eb;font-weight:500">${esc(t(daysLeft!==1?"modeselect.trialDaysLeftPlural":"modeselect.trialDaysLeftSingular",{days:daysLeft}))}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${esc(t("modeselect.trialAppliesAll"))}</div>
       </div>`;
     })()}
     <div style="width:100%;max-width:380px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
       ${cfg.fantasyEnabled?`<button data-act="pick-mode" data-mode="fantasy" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">⚽</span>
-        <div><div style="font-weight:500;font-size:16px">Fantasy</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Bygg ditt 4-3-3-lag och tävla i ligatabellen</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.fantasy.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.fantasy.desc"))}</div></div>
       </button>`:""}
       ${cfg.tippEnabled?`<button data-act="pick-mode" data-mode="tipp" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🎯</span>
-        <div><div style="font-weight:500;font-size:16px">Tippa resultat</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Gissa rätt resultat i matchen</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.tipp.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.tipp.desc"))}</div></div>
       </button>`:""}
       ${cfg.ligatippEnabled?`<button data-act="pick-mode" data-mode="ligatipp" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">📊</span>
-        <div><div style="font-weight:500;font-size:16px">Tippa serien</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Tippa tabellen vid halvtid och säsongsslut</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.ligatipp.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.ligatipp.desc"))}</div></div>
       </button>`:""}
       ${cfg.snabbastEnabled?`<button data-act="pick-mode" data-mode="snabbast" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">⚡</span>
-        <div><div style="font-weight:500;font-size:16px">Snabbast vinner</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Vilka 7 lag gör snabbast mål?</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.snabbast.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.snabbast.desc"))}</div></div>
       </button>`:""}
       ${cfg.maljaktenEnabled?`<button data-act="pick-mode" data-mode="måljakten" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🎯</span>
-        <div><div style="font-weight:500;font-size:16px">Måljakten</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 lag som du tror gör flest mål</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.maljakten.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.maljakten.desc"))}</div></div>
       </button>`:""}
       ${cfg.streakEnabled?`<button data-act="pick-mode" data-mode="streak" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🔥</span>
-        <div><div style="font-weight:500;font-size:16px">Streak</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 3 matcher – håll din vinstsvit levande!</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.streak.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.streak.desc"))}</div></div>
       </button>`:""}
       ${cfg.matchfokusEnabled?`<button data-act="pick-mode" data-mode="matchfokus" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">⚽</span>
-        <div><div style="font-weight:500;font-size:16px">Matchexperten</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">13 stryktips-frågor om omgångens utvalda match</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.matchfokus.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.matchfokus.desc"))}</div></div>
       </button>`:""}
       ${cfg.duellenEnabled?`<button data-act="pick-mode" data-mode="duellen" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🥊</span>
-        <div><div style="font-weight:500;font-size:16px">Duellen</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Möt andra spelare hemma/borta – vinn via Tippa resultat</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.duellen.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.duellen.desc"))}</div></div>
       </button>`:""}
       ${cfg.malregnEnabled?`<button data-act="pick-mode" data-mode="malregn" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🌧️</span>
-        <div><div style="font-weight:500;font-size:16px">Målregn</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Gissa totalt antal mål i omgången</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.malregn.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.malregn.desc"))}</div></div>
       </button>`:""}
       ${cfg.jubelEnabled?`<button data-act="pick-mode" data-mode="jubel" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🙌</span>
-        <div><div style="font-weight:500;font-size:16px">Båda får Jubla</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Gör båda lagen mål i matchen? Ja eller nej, för alla 7 matcher</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.jubel.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.jubel.desc"))}</div></div>
       </button>`:""}
       ${cfg.investerareEnabled?`<button data-act="pick-mode" data-mode="investerare" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">💰</span>
-        <div><div style="font-weight:500;font-size:16px">Investeraren</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Placera 1000 kr på lag – bygg din portfölj hela säsongen</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.investerare.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.investerare.desc"))}</div></div>
       </button>`:""}
       ${cfg.ltsEnabled?`<button data-act="pick-mode" data-mode="lts" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">💀</span>
-        <div><div style="font-weight:500;font-size:16px">Last Team Standing</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Välj ett lag varje omgång – förlorar du tre gånger är du utslagen</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.lts.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.lts.desc"))}</div></div>
       </button>`:""}
       ${cfg.anytimeEnabled?`<button data-act="pick-mode" data-mode="anytime" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
         <span style="font-size:28px">🎯</span>
-        <div><div style="font-weight:500;font-size:16px">Skyttekung</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.anytime.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.anytime.desc"))}</div></div>
       </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Ställningar</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Se topplistan i alla spelformer på ett ställe</div>
+          <div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.standings.title"))}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.standings.desc"))}</div>
         </div>
       </button>
       <button data-act="go-inbox-from-mode" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px;position:relative">
         <span style="font-size:28px">📬</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Kontakta oss</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Idéer, felsökning eller frågor – vi svarar här i appen</div>
+          <div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.contact.title"))}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.contact.desc"))}</div>
         </div>
         ${myTickets.some(t=>t.unread_by_user)?`<span style="position:absolute;top:12px;right:12px;width:10px;height:10px;border-radius:50%;background:#c1272d"></span>`:""}
       </button>
       <button data-act="go-install-home" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">📲</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Installera appen</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Få push-notiser och snabbare laddning</div>
+          <div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.install.title"))}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.install.desc"))}</div>
         </div>
       </button>
       <button data-act="pick-mode" data-mode="statistik" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">📈</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Min statistik</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Dina poäng, placeringar och jämförelser</div>
+          <div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.stats.title"))}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.stats.desc"))}</div>
         </div>
       </button>
       <button data-act="pick-mode" data-mode="profil" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">👤</span>
         <div>
-          <div style="font-weight:500;font-size:16px">Min profil</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Kontaktuppgifter, PIN-kod och kontoinställningar</div>
+          <div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.profile.title"))}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.profile.desc"))}</div>
         </div>
       </button>
       ${cfg.hofEnabled?`<button data-act="pick-mode" data-mode="hof" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px;width:100%">
         <span style="font-size:28px">🏆</span>
-        <div><div style="font-weight:500;font-size:16px">Hall of Fame</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">Säsongsvinnare per spelform</div></div>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.hof.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.hof.desc"))}</div></div>
       </button>`:""}
       ${cfg.quizEnabled?`<button data-act="pick-mode" data-mode="quiz" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🧠</span>
         <div>
-          <div style="font-weight:500;font-size:16px">${esc(currentLeague.name)} Quiz</div>
-          <div style="font-size:12px;color:var(--color-text-secondary)">Allmänna frågor om Div2 NG</div>
+          <div style="font-weight:500;font-size:16px">${esc(currentLeague.name)} ${esc(t("modeselect.mode.quiz.titleSuffix"))}</div>
+          <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.quiz.desc",{league:currentLeague.name}))}</div>
         </div>
       </button>`:""}
 
@@ -2698,15 +2824,15 @@ function renderModeSelect(){
         <a href="${esc(s.link_url)}" onclick="window._logSponsorClick(${s.id})" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:14px;background:var(--color-background-secondary);border-radius:12px;padding:12px 14px;margin-bottom:10px;text-decoration:none;color:var(--color-text-primary)">
           ${s.logo_url?`<img src="${esc(s.logo_url)}" alt="" style="width:64px;height:64px;object-fit:contain;border-radius:9px;flex-shrink:0;background:var(--color-background-primary)"/>`:""}
           <div style="flex:1">
-            <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">Sponsras av</div>
+            <div style="font-size:10px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.5px">${esc(t("common.sponsoredBy"))}</div>
             <div style="font-weight:700;font-size:16px">${esc(s.name)}</div>
             ${s.description?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${esc(s.description)}</div>`:""}
           </div>
-          <span style="font-size:12px;color:${G_GREEN};font-weight:600;flex-shrink:0">Besök →</span>
+          <span style="font-size:12px;color:${G_GREEN};font-weight:600;flex-shrink:0">${esc(t("common.visitLink"))}</span>
         </a>`).join("")}
     </div>`:""}
 
-    <button data-act="logout" style="margin-top:6px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">Logga ut</button>
+    <button data-act="logout" style="margin-top:6px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">${esc(t("common.logout"))}</button>
     </div>
   </div>`;
 }
@@ -3671,19 +3797,19 @@ function renderInstallGuide(){
 function renderMain(){
   const sorted=sortedUsers();
   const tabsDef = appMode==="statistik"
-    ? [["spelformer","🎮","Spelformer"],["statistik","📈","Statistik"],["inbox","📬","Inbox"]]
+    ? [["spelformer","🎮",t("tabs.spelformer")],["statistik","📈",t("tabs.stats")],["inbox","📬",t("tabs.inbox")]]
     : appMode==="streak"
-    ? [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["inbox","📬","Inbox"]]
+    ? [["spelformer","🎮",t("tabs.spelformer")],["hem","🏠",t("tabs.hem")],["regler","📋",t("tabs.regler")],["liga","📊",t("tabs.liga")],["inbox","📬",t("tabs.inbox")]]
     : appMode==="hof"
-    ? [["spelformer","🎮","Spelformer"],["hof","🏆","Hall of Fame"],["inbox","📬","Inbox"]]
+    ? [["spelformer","🎮",t("tabs.spelformer")],["hof","🏆",t("tabs.hof")],["inbox","📬",t("tabs.inbox")]]
     : appMode==="standings"
-    ? [["spelformer","🎮","Spelformer"],["standings","🏆","Ställningar"],["inbox","📬","Inbox"]]
+    ? [["spelformer","🎮",t("tabs.spelformer")],["standings","🏆",t("tabs.standings")],["inbox","📬",t("tabs.inbox")]]
     : appMode==="profil"
-    ? [["spelformer","🎮","Spelformer"],["profil","👤","Profil"],["inbox","📬","Inbox"]]
-    : [["spelformer","🎮","Spelformer"],["hem","🏠","Hem"],["regler","📋","Regler"],["liga","📊","Liga"],["inbox","📬","Inbox"]];
+    ? [["spelformer","🎮",t("tabs.spelformer")],["profil","👤",t("tabs.profil")],["inbox","📬",t("tabs.inbox")]]
+    : [["spelformer","🎮",t("tabs.spelformer")],["hem","🏠",t("tabs.hem")],["regler","📋",t("tabs.regler")],["liga","📊",t("tabs.liga")],["inbox","📬",t("tabs.inbox")]];
   if(cfg.stodEnabled&&cfg.stodSwishNumber){
-    const inboxIdx=tabsDef.findIndex(t=>t[0]==="inbox");
-    if(inboxIdx>=0) tabsDef.splice(inboxIdx,0,["stod","❤️","Stöd oss"]);
+    const inboxIdx=tabsDef.findIndex(tb=>tb[0]==="inbox");
+    if(inboxIdx>=0) tabsDef.splice(inboxIdx,0,["stod","❤️",t("tabs.stod")]);
   }
   // Rundstripp för alla spelformer
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
@@ -3734,7 +3860,7 @@ function renderMain(){
     :id==="stod"
     ?`<button class="fg-tabbtn" data-act="go-stod"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
     :id==="inbox"
-    ?`<button class="fg-tabbtn" data-act="go-inbox-from-tab" style="position:relative"><span style="font-size:18px">${ico}</span><span>${lbl}</span>${myTickets.some(t=>t.unread_by_user)?`<span style="position:absolute;top:4px;right:20%;width:8px;height:8px;border-radius:50%;background:#c1272d"></span>`:""}</button>`
+    ?`<button class="fg-tabbtn" data-act="go-inbox-from-tab" style="position:relative"><span style="font-size:18px">${ico}</span><span>${lbl}</span>${myTickets.some(tk=>tk.unread_by_user)?`<span style="position:absolute;top:4px;right:20%;width:8px;height:8px;border-radius:50%;background:#c1272d"></span>`:""}</button>`
     :`<button class="fg-tabbtn ${mainTab===id?'active':''}" data-act="main-tab" data-tab="${id}"><span style="font-size:18px">${ico}</span><span>${lbl}</span></button>`
   ).join("");
 
@@ -3743,7 +3869,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh">
-    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?" · Tipp":appMode==="ligatipp"?" · Tippa serien":appMode==="snabbast"?" · Snabbast":appMode==="måljakten"?" · Måljakten":appMode==="matchfokus"?" · Matchexperten":""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="main-tab" data-tab="adm" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">🔒 Admin</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">Byt serie</button></div>
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?esc(t("header.suffix.tipp")):appMode==="ligatipp"?esc(t("header.suffix.ligatipp")):appMode==="snabbast"?esc(t("header.suffix.snabbast")):appMode==="måljakten"?esc(t("header.suffix.maljakten")):appMode==="matchfokus"?esc(t("header.suffix.matchfokus")):""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="main-tab" data-tab="adm" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">${esc(t("common.adminLock"))}</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">${esc(t("common.switchLeague"))}</button></div>
     <div class="fg-topbar-tabs">${tabs}</div>
     ${announcements.length?`<div class="fg-ticker-wrap"><div class="fg-ticker-track">${announcements.map(a=>`<span>📢 ${esc(a.message)}</span>`).join("")}${announcements.map(a=>`<span>📢 ${esc(a.message)}</span>`).join("")}</div></div>`:""}
     ${roundStrip}
@@ -3764,8 +3890,8 @@ function renderHemTab(sorted){
     const rd=rounds[String(cfg.omg)];
     teamHtml = `<div class="fg-card">
       <div style="display:flex;justify-content:space-between;margin-bottom:10px">
-        <div style="font-weight:500">Mitt lag (4-3-3)</div>
-        <button data-act="edit-team" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer">✏ Byt</button>
+        <div style="font-weight:500">${esc(t("hemtab.myTeam"))}</div>
+        <button data-act="edit-team" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer">${esc(t("hemtab.editShort"))}</button>
       </div>
       ${POSITIONS.map(pos=>{
         const ids=user.picks[pos]||[];
@@ -3787,14 +3913,14 @@ function renderHemTab(sorted){
     </div>`;
   } else {
     teamHtml = `<div class="fg-card" style="text-align:center;padding:2rem">
-      <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">Du har inte byggt ditt lag ännu.</div>
-      <button class="fg-btn" data-act="edit-team">Bygg mitt lag →</button>
+      <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">${esc(t("hemtab.noTeamYet"))}</div>
+      <button class="fg-btn" data-act="edit-team">${esc(t("hemtab.buildTeamButton"))}</button>
     </div>`;
   }
 
   const rulesRows = POSITIONS.map(pos=>`
     <tr style="border-top:0.5px solid var(--color-border-tertiary)">
-      <td style="padding:5px 0">${POS_LABEL[pos]} (${POS_COUNT[pos]} st)</td>
+      <td style="padding:5px 0">${esc(posLabel(pos))} (${POS_COUNT[pos]} st)</td>
       <td style="text-align:center;font-weight:500">+${POS_PTS[pos].clean}</td>
       <td style="text-align:center;font-weight:500">+${POS_PTS[pos].goal}</td>
     </tr>`).join("");
@@ -3802,23 +3928,23 @@ function renderHemTab(sorted){
   return `
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
     <div style="width:46px;height:46px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500;font-size:18px">${esc(user.namn[0])}</div>
-    <div style="flex:1"><div style="font-weight:500;font-size:17px">${esc(user.namn)}</div><div style="font-size:12px;color:var(--color-text-secondary)">${rank>0?`Plats ${rank} av ${sorted.length}`:"Inte rankad"}</div></div>
-    <button data-act="logout" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Logga ut</button>
+    <div style="flex:1"><div style="font-weight:500;font-size:17px">${esc(user.namn)}</div><div style="font-size:12px;color:var(--color-text-secondary)">${rank>0?esc(t("hemtab.rank",{rank,total:sorted.length})):esc(t("hemtab.notRanked"))}</div></div>
+    <button data-act="logout" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">${esc(t("common.logout"))}</button>
   </div>
   ${renderSponsorBanner("fantasy")}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-    <div style="background:${G_GREENL};border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:${G_GREEN}">Omgång ${cfg.omg}</div><div style="font-size:28px;font-weight:500;color:${G_GREEN}">${omgP}</div></div>
-    <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:var(--color-text-secondary)">Totalt</div><div style="font-size:28px;font-weight:500">${totP}</div></div>
+    <div style="background:${G_GREENL};border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:${G_GREEN}">${esc(t("common.round",{n:cfg.omg}))}</div><div style="font-size:28px;font-weight:500;color:${G_GREEN}">${omgP}</div></div>
+    <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("common.total"))}</div><div style="font-size:28px;font-weight:500">${totP}</div></div>
   </div>
   ${teamHtml}
   <div class="fg-card">
-    <div style="font-weight:500;margin-bottom:8px">Poängregler</div>
-    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Lagresultat: Vinst 5p · Oavgjort 2p · Förlust 0p</div>
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("hemtab.scoringRules"))}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("hemtab.teamResultRule"))}</div>
     <table style="width:100%;font-size:13px;border-collapse:collapse">
-      <thead><tr style="color:var(--color-text-secondary);font-size:11px"><td>Position</td><td style="text-align:center">Hålla nollan</td><td style="text-align:center">Målskytt</td></tr></thead>
+      <thead><tr style="color:var(--color-text-secondary);font-size:11px"><td>${esc(t("hemtab.tableHeaderPosition"))}</td><td style="text-align:center">${esc(t("hemtab.tableHeaderCleanSheet"))}</td><td style="text-align:center">${esc(t("hemtab.tableHeaderGoal"))}</td></tr></thead>
       <tbody>${rulesRows}</tbody>
     </table>
-    <div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px">Kapten: dubbla alla poäng · Max en spelare per lag</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px">${esc(t("hemtab.captainRule"))}</div>
   </div>
   ${renderPrivateLeagueSection("fantasy")}`;
 }
