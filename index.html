@@ -9510,7 +9510,11 @@ function attachHandlers(){
     }
     else if(act==="import-preview"){
       const text=document.getElementById("import-text").value;
+      console.warn("🔍 SCHEDULE-IMPORT-DEBUG – textlängd:",text.length);
+      console.warn("🔍 SCHEDULE-IMPORT-DEBUG – första 300 tecknen (JSON, visar dolda tecken):",JSON.stringify(text.slice(0,300)));
+      console.warn("🔍 SCHEDULE-IMPORT-DEBUG – TEAMS just nu:",TEAMS.map(t=>t.name));
       const parsed=parseAnyScheduleText(text);
+      console.warn("🔍 SCHEDULE-IMPORT-DEBUG – antal omgångar hittade:",parsed?parsed.length:0,"totalt antal matcher:",parsed?parsed.reduce((s,r)=>s+r.matches.length,0):0);
       const previewArea=document.getElementById("import-preview-area");
       if(!parsed.length){
         previewArea.innerHTML=`<div class="fg-card" style="color:#c1272d;font-size:13px">Inga omgångar hittades. Kontrollera att texten innehåller "Omgång X" och lagnamn, eller matchlänkar från en stödd sida.</div>`;
