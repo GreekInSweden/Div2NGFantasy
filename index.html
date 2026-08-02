@@ -7691,7 +7691,7 @@ function parseFixtureDownloadFormat(text){
   // ortnamn (München/Munich, Köln/Cologne). Körs på BÅDA sidor (både det
   // sparade lagnamnet och källtexten) så det spelar ingen roll vilken
   // variant som står var.
-  const CLUB_NAME_SYNONYMS=[[/münchen/g,"munich"],[/köln/g,"cologne"]];
+  const CLUB_NAME_SYNONYMS=[[/münchen/g,"munich"],[/köln/g,"cologne"],[/\brennais\b/g,"rennes"]];
   const normalizeStr=s=>{
     // .normalize("NFC") säkerställer att bokstäver som ü/ö/é alltid lagras på
     // SAMMA sätt oavsett om källan (t.ex. en webbläsares urklipp på Mac)
@@ -7745,9 +7745,18 @@ function parseFixtureDownloadFormat(text){
     remainder=remainder.replace(/(\d+\s*-\s*\d+|-)\s*\|?\s*$/,""); // avslutande resultat
     const occ=findTeamOccurrences(remainder);
     if(!byRound[roundNum])byRound[roundNum]={roundNum,roundGuessed:false,matches:[],errors:[],infos:[]};
-    if(occ.length>=2){
-      const h=occ[0].team,a=occ[1].team;
-      byRound[roundNum].matches.push({hId:h.id,aId:a.id,hRaw:h.name,aRaw:a.name});
+    // Ta INTE bara de två första förekomsterna rakt av – om en arena råkar
+    // heta samma sak som hemmalaget (t.ex. "Stadium de Toulouse" för
+    // Toulouse FC) skulle det annars ge en falsk "Toulouse vs Toulouse"-
+    // match. Leta istället efter det första PARET av olika lag, i den
+    // ordning de dyker upp i texten.
+    let home=null,away=null;
+    for(const o of occ){
+      if(!home){home=o;continue;}
+      if(o.team.id!==home.team.id){away=o;break;}
+    }
+    if(home&&away){
+      byRound[roundNum].matches.push({hId:home.team.id,aId:away.team.id,hRaw:home.team.name,aRaw:away.team.name});
     } else {
       unmatchedLines.push(line);
     }
