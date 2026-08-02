@@ -7654,6 +7654,65 @@ function parsePlayersBlockFormat(lines){
 // Omgångsnumret plockas ur en ev. "matchweek/ÅÅÅÅ_N"-webbadress om den finns
 // (variant A) – annars (variant B, ingen webbadress alls) antas aktuell omgång,
 // tydligt märkt i förhandsgranskningen så admin kan dubbelkolla.
+// Tolkar tabellformatet från fixturedownload.com – en ren tabell med
+// kolumnerna "Round Number / Date / Location / Home Team / Away Team /
+// Result". Fungerar med BÅDE riktig nedladdad CSV (kommaseparerad) OCH
+// texten man klistrar in direkt från förhandsgranskningssidan (pipe-
+// separerad markdown-tabell, "| 1 | 28/08/2026... | ... |"). Omgångsnumret
+// kommer direkt från kolumnen – ingen gissning behövs, till skillnad från
+// de andra formaten. Samma källa fungerar för alla ligor på sajten
+// (Premier League, Bundesliga, La Liga, Serie A, Ligue 1 m.fl.) eftersom
+// strukturen är identisk oavsett liga.
+function parseFixtureDownloadFormat(text){
+  const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
+  const headerIdx=lines.findIndex(l=>/round\s*number/i.test(l)&&/home\s*team/i.test(l));
+  if(headerIdx===-1)return null; // signalerar "inte det här formatet" till dispatchern
+  const delim=lines[headerIdx].includes("|")?"|":",";
+  const splitRow=line=>{
+    let parts=line.split(delim).map(p=>p.trim());
+    if(delim==="|") parts=parts.filter((p,i)=>!((i===0||i===parts.length-1)&&p===""));
+    return parts;
+  };
+  const headers=splitRow(lines[headerIdx]).map(h=>h.toLowerCase());
+  const colIdx=name=>headers.findIndex(h=>h.includes(name));
+  const iRound=colIdx("round"),iHome=colIdx("home"),iAway=colIdx("away");
+  if(iRound===-1||iHome===-1||iAway===-1)return null;
+  // Hoppa ev. markdown-separatorrad ("| --- | --- | ...")
+  const dataLines=lines.slice(headerIdx+1).filter(l=>!/^[\s|:-]+$/.test(l));
+
+  const normalizeStr=s=>s.toLowerCase().replace(/&/g,"and").replace(/\s+/g," ").trim();
+  const findTeam=name=>{
+    const n=normalizeStr(name);
+    return TEAMS.find(t=>normalizeStr(t.name)===n)
+      || TEAMS.find(t=>normalizeStr(t.name).includes(n)||n.includes(normalizeStr(t.name)))
+      || null;
+  };
+
+  const byRound={};
+  const unmatched=new Set();
+  dataLines.forEach(line=>{
+    const parts=splitRow(line);
+    if(parts.length<=Math.max(iRound,iHome,iAway))return;
+    const roundNum=parseInt(parts[iRound],10);
+    if(!roundNum)return;
+    const homeName=parts[iHome],awayName=parts[iAway];
+    if(!homeName||!awayName)return;
+    if(!byRound[roundNum])byRound[roundNum]={roundNum,roundGuessed:false,matches:[],errors:[],infos:[]};
+    const h=findTeam(homeName),a=findTeam(awayName);
+    if(h&&a){
+      byRound[roundNum].matches.push({hId:h.id,aId:a.id,hRaw:h.name,aRaw:a.name});
+    } else {
+      if(!h)unmatched.add(homeName);
+      if(!a)unmatched.add(awayName);
+    }
+  });
+  const results=Object.values(byRound).sort((a,b)=>a.roundNum-b.roundNum);
+  if(unmatched.size){
+    const msg=`Lag som inte kunde matchas mot något känt lag i serien: ${[...unmatched].map(n=>`"${n}"`).join(", ")} – kontrollera att lagnamnen i Admin → Lag stämmer exakt.`;
+    results.forEach(r=>r.infos.push(msg));
+  }
+  return results;
+}
 function parseWebFixturesText(text){
   const lines=text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n").map(l=>l.trim()).filter(l=>l.length>0);
   const normalizeStr=s=>s.toLowerCase().replace(/&/g,"and").replace(/\s+/g," ").trim();
@@ -7737,6 +7796,8 @@ function parseWebFixturesText(text){
 // admin inte behöver välja manuellt mellan svenska Fotbollskollen-formatet och
 // länkbaserade sidor som premierleague.com.
 function parseAnyScheduleText(text){
+  const fixtureDownloadResult = parseFixtureDownloadFormat(text);
+  if(fixtureDownloadResult) return fixtureDownloadResult;
   const looksLikeWebFixtures = /^\[.+?\]\(.*\)$/m.test(text)
     || /matchweek\//i.test(text)
     || /^(mon|tue|wed|thu|fri|sat|sun)\s+\d{1,2}\s+[a-z]{3,}/im.test(text)
