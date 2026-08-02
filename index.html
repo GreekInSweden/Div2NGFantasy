@@ -162,6 +162,7 @@ function urlBase64ToUint8Array(base64String){
 let TEAMS=[];
 let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leagues", homeMode="start", pickPos="GK", rulesFrom="home", stodFrom="home",
     installGuideFrom="leagues", installGuideTab="ios",
+    lang=(function(){try{return localStorage.getItem("div2ng_lang")||"sv";}catch(e){return "sv";}})(),
     myTickets=[], adminTickets=[], ticketMessages=[], viewingTicketId=null, adminViewingTicketId=null, newTicketDraft={subject:"",body:""}, ticketReplyDraft="", inboxFrom="home",
     announcements=[], trialFilter="all", otherVisibleLeagues=[], multiLeagueSelected=new Set(), pendingMultiLeagueReg=null, privacyFrom="home", pickTeamFilter="",
     pendingLoginUser=null, loginErr="", leagues=[], currentLeague=null, pendingCrossLeagueUser=null,
@@ -2148,6 +2149,41 @@ function userTipRoundPts(u,r){
 function userTipTotalPts(u){ return Object.keys(rounds).reduce((s,r)=>s+userTipRoundPts(u,Number(r)),0); }
 function sortedUsers(){return [...users].filter(u=>pickCount(u)>0).sort((a,b)=>userTotPts(b)-userTotPts(a));}
 function esc(str){const d=document.createElement("div");d.textContent=str==null?"":String(str);return d.innerHTML;}
+// ── Språkstöd (Fas 0 – infrastruktur) ───────────────────────────────────
+// TRANSLATIONS innehåller nycklar per språk. Svenska (sv) är källan/
+// fallback – saknas en nyckel i valt språk används sv, saknas den även
+// där returneras nyckeln rakt av (syns tydligt att något inte är
+// översatt än, istället för att tyst visa fel eller krascha).
+// Fylls på sektion för sektion enligt planen (Fas 1–5); ett par
+// exempelnycklar finns redan här för att visa att mekaniken fungerar.
+const TRANSLATIONS={
+  sv:{
+    "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
+    "onboarding.title":"Vad heter du?",
+    "onboarding.subtitle":"Sök ditt namn så hittar vi rätt serie åt dig direkt – oavsett hur många serier du spelar i."
+  },
+  en:{
+    "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
+    "onboarding.title":"What's your name?",
+    "onboarding.subtitle":"Search your name and we'll find the right series for you instantly – no matter how many series you play in."
+  },
+  gr:{
+    "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
+    "onboarding.title":"Πώς σε λένε;",
+    "onboarding.subtitle":"Αναζήτησε το όνομά σου και θα βρούμε αμέσως τη σωστή σειρά για εσένα – όσες σειρές κι αν παίζεις."
+  }
+};
+function t(key,vars){
+  let str=(TRANSLATIONS[lang]&&TRANSLATIONS[lang][key]!=null)?TRANSLATIONS[lang][key]:TRANSLATIONS.sv[key];
+  if(str==null)return key; // saknad nyckel i alla språk – syns tydligt i UI istället för att tystna
+  if(vars)Object.keys(vars).forEach(k=>{str=str.replace(new RegExp("\\{"+k+"\\}","g"),vars[k]);});
+  return str;
+}
+function setLang(newLang){
+  lang=newLang;
+  try{localStorage.setItem("div2ng_lang",newLang);}catch(e){}
+  render();
+}
 // Appens produktnamn beror på vilken domän man besöker – samma logik som sätter
 // sidtiteln i huvud-scriptet, men den variabeln når inte hit (annan <script>-tagg).
 function getAppName(){
@@ -2448,9 +2484,14 @@ function renderLeagues(){
     </button>`).join("");
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+    <div style="display:flex;gap:6px;margin-bottom:16px">
+      ${["sv","en","gr"].map(code=>`
+        <button data-act="set-lang" data-lang="${code}" style="padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:0.5px solid ${lang===code?G_GREEN:'var(--color-border-tertiary)'};background:${lang===code?G_GREENL:'none'};color:${lang===code?G_GREEN:'var(--color-text-secondary)'};font-weight:${lang===code?600:400}">${esc(t("lang.name."+code))}</button>
+      `).join("")}
+    </div>
     <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">⚽</div>
-    <div style="font-size:22px;font-weight:500;margin-bottom:6px;text-align:center">Vad heter du?</div>
-    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;text-align:center;max-width:320px">Sök ditt namn så hittar vi rätt serie åt dig direkt – oavsett hur många serier du spelar i.</div>
+    <div style="font-size:22px;font-weight:500;margin-bottom:6px;text-align:center">${esc(t("onboarding.title"))}</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;text-align:center;max-width:320px">${esc(t("onboarding.subtitle"))}</div>
     <div style="width:100%;max-width:340px;margin-bottom:8px">
       <input class="fg-input" id="entry-search" placeholder="🔍 Skriv ditt namn…" oninput="window._doEntrySearch&&window._doEntrySearch()" autocomplete="off" autocorrect="off"/>
       <div id="entry-search-results" style="margin-top:10px"></div>
@@ -8294,6 +8335,7 @@ function attachHandlers(){
     else if(act==="rules-back-home"){ screen="home"; homeMode="start"; render(); }
     else if(act==="rules-back-main"){ screen="main"; render(); }
     else if(act==="go-install-leagues"){ installGuideFrom="leagues"; screen="install"; render(); }
+    else if(act==="set-lang"){ setLang(el.dataset.lang); }
     else if(act==="go-install-home"){ installGuideFrom="home"; screen="install"; render(); }
     else if(act==="install-back-leagues"){ screen="leagues"; render(); }
     else if(act==="install-back-home"){ screen="home"; homeMode="start"; render(); }
