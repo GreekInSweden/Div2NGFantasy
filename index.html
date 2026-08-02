@@ -2029,12 +2029,12 @@ function missingModesList(){
   const rd=rounds[String(rnd)];
   if(!rd || rd.locked) return [];
   const missing=[];
-  if(cfg.fantasyEnabled && !(pickCount(currentUser)===TOTAL_PICKS && currentUser.kapten)) missing.push({ico:"⚽",label:"Fantasy – välj ditt lag"});
-  if(cfg.tippEnabled && !(currentUser.tips&&(currentUser.tips[String(rnd)]||[]).length>0)) missing.push({ico:"🎯",label:"Tippa resultat"});
-  if(cfg.snabbastEnabled && !myRoundStatus.snabbast) missing.push({ico:"⚡",label:"Snabbast vinner"});
-  if(cfg.maljaktenEnabled && !myRoundStatus.maljakten) missing.push({ico:"🎯",label:"Måljakten"});
-  if(cfg.streakEnabled && !myRoundStatus.streak) missing.push({ico:"🔥",label:"Streak"});
-  if(cfg.quizEnabled && !myRoundStatus.quiz) missing.push({ico:"🧠",label:"Quiz"});
+  if(cfg.fantasyEnabled && !(pickCount(currentUser)===TOTAL_PICKS && currentUser.kapten)) missing.push({ico:"⚽",label:t("missing.fantasy")});
+  if(cfg.tippEnabled && !(currentUser.tips&&(currentUser.tips[String(rnd)]||[]).length>0)) missing.push({ico:"🎯",label:t("missing.tipp")});
+  if(cfg.snabbastEnabled && !myRoundStatus.snabbast) missing.push({ico:"⚡",label:t("missing.snabbast")});
+  if(cfg.maljaktenEnabled && !myRoundStatus.maljakten) missing.push({ico:"🎯",label:t("missing.maljakten")});
+  if(cfg.streakEnabled && !myRoundStatus.streak) missing.push({ico:"🔥",label:t("missing.streak")});
+  if(cfg.quizEnabled && !myRoundStatus.quiz) missing.push({ico:"🧠",label:t("missing.quiz")});
   return missing;
 }
 
