@@ -667,6 +667,8 @@ async function fetchConfig(){
     stodAmount:data.stod_amount||null,
     stodMessage:data.stod_message||"Stöd föreningen",
     stodQrImageUrl:data.stod_qr_image_url||"",
+    stodPaypalHandle:data.stod_paypal_handle||"",
+    stodPaypalAmount:data.stod_paypal_amount||null,
     trialEnabled:!!data.trial_enabled,
     trialDays:data.trial_days||14,
     trialPrice:data.trial_price||null,
@@ -2659,7 +2661,13 @@ const TRANSLATIONS={
     "omg.legendResultsReady":"■ Resultat klara","omg.legendClosed":"■ Tippning stängd",
     "omg.legendTipMade":"■ Tips lagd","omg.legendNotEntered":"□ Ej inlagd",
     "omg.resultsReady":"✅ Resultat klara","omg.closed":"🔒 Stängd","omg.open":"🟢 Öppen",
-    "omg.matchesNotEntered":"Matcher ej inlagda.","omg.fantasyPointsLabel":"Fantasy-poäng","omg.noRoundsYet":"Inga omgångar inlagda ännu."
+    "omg.matchesNotEntered":"Matcher ej inlagda.","omg.fantasyPointsLabel":"Fantasy-poäng","omg.noRoundsYet":"Inga omgångar inlagda ännu.",
+    "stod.swishButtonAmount":"Swisha {amount} kr","stod.swishButtonFree":"Swisha – valfritt belopp",
+    "stod.paypalButtonAmount":"Betala {amount} via PayPal","stod.paypalButtonFree":"Betala via PayPal – valfritt belopp",
+    "stod.opensPaypalApp":"Öppnar PayPal direkt om du är på mobilen",
+    "stod.orPaypalManually":"Eller besök PayPal.me manuellt:",
+    "paywall.paypalNoteInstruction":"<b>Viktigt:</b> Skriv ditt namn \"<b>{name}</b>\" i anteckningsfältet när du betalar via PayPal – då hittar admin dig snabbt och markerar dig som betald.",
+    "paywall.orPaypalManuallyWithMessage":"Eller besök PayPal.me manuellt:","paywall.writeAsNotePaypal":"Skriv \"<b>{name}</b>\" i anteckningsfältet"
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3143,7 +3151,13 @@ const TRANSLATIONS={
     "omg.legendResultsReady":"■ Results ready","omg.legendClosed":"■ Predictions closed",
     "omg.legendTipMade":"■ Prediction made","omg.legendNotEntered":"□ Not entered",
     "omg.resultsReady":"✅ Results ready","omg.closed":"🔒 Closed","omg.open":"🟢 Open",
-    "omg.matchesNotEntered":"Matches not entered.","omg.fantasyPointsLabel":"Fantasy points","omg.noRoundsYet":"No rounds added yet."
+    "omg.matchesNotEntered":"Matches not entered.","omg.fantasyPointsLabel":"Fantasy points","omg.noRoundsYet":"No rounds added yet.",
+    "stod.swishButtonAmount":"Swish {amount} kr","stod.swishButtonFree":"Swish – any amount",
+    "stod.paypalButtonAmount":"Pay {amount} via PayPal","stod.paypalButtonFree":"Pay via PayPal – any amount",
+    "stod.opensPaypalApp":"Opens PayPal directly if you're on mobile",
+    "stod.orPaypalManually":"Or visit PayPal.me manually:",
+    "paywall.paypalNoteInstruction":"<b>Important:</b> Write your name \"<b>{name}</b>\" in the note field when paying via PayPal – that way the admin finds you quickly and marks you as paid.",
+    "paywall.orPaypalManuallyWithMessage":"Or visit PayPal.me manually:","paywall.writeAsNotePaypal":"Write \"<b>{name}</b>\" in the note field"
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3627,7 +3641,13 @@ const TRANSLATIONS={
     "omg.legendResultsReady":"■ Αποτελέσματα έτοιμα","omg.legendClosed":"■ Προβλέψεις κλειστές",
     "omg.legendTipMade":"■ Πρόβλεψη έγινε","omg.legendNotEntered":"□ Δεν έχει καταχωρηθεί",
     "omg.resultsReady":"✅ Αποτελέσματα έτοιμα","omg.closed":"🔒 Κλειστός","omg.open":"🟢 Ανοιχτός",
-    "omg.matchesNotEntered":"Δεν έχουν καταχωρηθεί αγώνες.","omg.fantasyPointsLabel":"Πόντοι Fantasy","omg.noRoundsYet":"Δεν έχουν προστεθεί γύροι ακόμα."
+    "omg.matchesNotEntered":"Δεν έχουν καταχωρηθεί αγώνες.","omg.fantasyPointsLabel":"Πόντοι Fantasy","omg.noRoundsYet":"Δεν έχουν προστεθεί γύροι ακόμα.",
+    "stod.swishButtonAmount":"Swish {amount} kr","stod.swishButtonFree":"Swish – οποιοδήποτε ποσό",
+    "stod.paypalButtonAmount":"Πλήρωσε {amount} μέσω PayPal","stod.paypalButtonFree":"Πλήρωσε μέσω PayPal – οποιοδήποτε ποσό",
+    "stod.opensPaypalApp":"Ανοίγει απευθείας το PayPal αν είσαι σε κινητό",
+    "stod.orPaypalManually":"Ή επισκέψου το PayPal.me χειροκίνητα:",
+    "paywall.paypalNoteInstruction":"<b>Σημαντικό:</b> Γράψε το όνομά σου \"<b>{name}</b>\" στο πεδίο σημείωσης όταν πληρώνεις μέσω PayPal – έτσι ο διαχειριστής σε βρίσκει γρήγορα και σε σημειώνει ως πληρωμένο.",
+    "paywall.orPaypalManuallyWithMessage":"Ή επισκέψου το PayPal.me χειροκίνητα:","paywall.writeAsNotePaypal":"Γράψε \"<b>{name}</b>\" στο πεδίο σημείωσης"
   }
 };
 function t(key,vars){
@@ -3656,7 +3676,21 @@ function buildSwishUrl(swishNumber,amount,message){
   return url;
 }
 function swishButtonLabel(amount){
-  return amount ? `Swisha ${amount} kr` : "Swisha – valfritt belopp";
+  return amount ? t("stod.swishButtonAmount",{amount}) : t("stod.swishButtonFree");
+}
+function buildPaypalUrl(handle,amount){
+  if(!handle) return "";
+  let url=`https://paypal.me/${encodeURIComponent(handle)}`;
+  if(amount) url+=`/${encodeURIComponent(amount)}`;
+  return url;
+}
+function paypalButtonLabel(amount){
+  return amount ? t("stod.paypalButtonAmount",{amount}) : t("stod.paypalButtonFree");
+}
+// Svenska användare (lang==="sv") ser Swish, alla andra ser PayPal.me –
+// Swish fungerar bara i Sverige så det är den rimliga defaulten per språk.
+function supportMethod(){
+  return lang==="sv" ? "swish" : "paypal";
 }
 function toDatetimeLocal(iso){
   const d=new Date(iso);
@@ -4122,8 +4156,8 @@ function renderHome(){
       ${sponsors.some(s=>s.active)?`<button data-act="go-sponsors" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline;margin-top:4px">
         ${esc(t("home.sponsorsLink"))}
       </button>`:""}
-      ${cfg.stodEnabled&&cfg.stodSwishNumber?`<button data-act="go-stod" style="display:block;width:100%;text-align:center;background:#1a6b3c;color:#fff;border-radius:8px;padding:13px;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:6px">
-        ❤️ ${swishButtonLabel(cfg.stodAmount)} ${esc(t("home.supportSuffix"))}
+      ${cfg.stodEnabled&&(supportMethod()==="paypal"?cfg.stodPaypalHandle:cfg.stodSwishNumber)?`<button data-act="go-stod" style="display:block;width:100%;text-align:center;background:#1a6b3c;color:#fff;border-radius:8px;padding:13px;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:6px">
+        ❤️ ${supportMethod()==="paypal"?paypalButtonLabel(cfg.stodPaypalAmount):swishButtonLabel(cfg.stodAmount)} ${esc(t("home.supportSuffix"))}
       </button>`:""}
     </div>
 
@@ -4349,24 +4383,28 @@ function renderSponsorsScreen(){
   </div>`;
 }
 function renderStodScreen(){
-  const swishUrl=buildSwishUrl(cfg.stodSwishNumber,cfg.stodAmount,cfg.stodMessage);
-  const qrUrl=cfg.stodQrImageUrl||`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(swishUrl)}`;
+  const method=supportMethod();
+  const isPaypal=method==="paypal"&&cfg.stodPaypalHandle;
+  const payUrl=isPaypal?buildPaypalUrl(cfg.stodPaypalHandle,cfg.stodPaypalAmount):buildSwishUrl(cfg.stodSwishNumber,cfg.stodAmount,cfg.stodMessage);
+  const qrUrl=(!isPaypal&&cfg.stodQrImageUrl)?cfg.stodQrImageUrl:`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(payUrl)}`;
+  const buttonLabel=isPaypal?paypalButtonLabel(cfg.stodPaypalAmount):swishButtonLabel(cfg.stodAmount);
   return `
   <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
     <button data-act="stod-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">${esc(t("common.back"))}</button>
     <div style="font-family:Georgia,serif;font-style:italic;font-size:24px;margin-bottom:6px">${esc(t("stod.title",{league:currentLeague.name}))}</div>
     <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px">${esc(cfg.stodMessage||t("stod.defaultMessage"))}</div>
 
-    <a href="${esc(swishUrl)}" target="_blank" rel="noopener noreferrer" class="fg-btn" style="display:block;text-align:center;text-decoration:none;padding:16px;font-size:16px;margin-bottom:8px">
-      ❤️ ${swishButtonLabel(cfg.stodAmount)}
+    <a href="${esc(payUrl)}" target="_blank" rel="noopener noreferrer" class="fg-btn" style="display:block;text-align:center;text-decoration:none;padding:16px;font-size:16px;margin-bottom:8px">
+      ❤️ ${buttonLabel}
     </a>
-    <div style="font-size:12px;color:var(--color-text-secondary);text-align:center;margin-bottom:24px">${esc(t("stod.opensSwishApp"))}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);text-align:center;margin-bottom:24px">${esc(isPaypal?t("stod.opensPaypalApp"):t("stod.opensSwishApp"))}</div>
 
     <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:20px;text-align:center">
       <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(t("stod.atComputer"))}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("stod.scanQr"))}</div>
-      <img src="${qrUrl}" alt="QR-kod för Swish-betalning" style="width:220px;height:auto;max-width:100%;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px;image-rendering:crisp-edges"/>
-      ${cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">${esc(t("stod.orSwishManually"))}<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b></div>`:""}
+      <img src="${qrUrl}" alt="QR" style="width:220px;height:auto;max-width:100%;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px;image-rendering:crisp-edges"/>
+      ${isPaypal?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">${esc(t("stod.orPaypalManually"))}<br><b style="color:var(--color-text-primary);font-size:15px">paypal.me/${esc(cfg.stodPaypalHandle)}</b></div>`:
+        cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">${esc(t("stod.orSwishManually"))}<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b></div>`:""}
     </div>
   </div>`;
 }
@@ -4393,8 +4431,10 @@ function renderPrivacyScreen(){
 }
 function renderPaywallScreen(){
   const personalMsg=currentUser?currentUser.namn:(cfg.stodMessage||"");
-  const swishUrl=buildSwishUrl(cfg.stodSwishNumber,cfg.trialPrice,personalMsg);
-  const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(swishUrl)}`;
+  const method=supportMethod();
+  const isPaypal=method==="paypal"&&cfg.stodPaypalHandle;
+  const payUrl=isPaypal?buildPaypalUrl(cfg.stodPaypalHandle,cfg.trialPrice):buildSwishUrl(cfg.stodSwishNumber,cfg.trialPrice,personalMsg);
+  const qrUrl=`https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=10&data=${encodeURIComponent(payUrl)}`;
   return `
   <div style="min-height:100vh;padding:24px;max-width:340px;margin:0 auto">
     <button data-act="paywall-back" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">${esc(t("common.back"))}</button>
@@ -4404,19 +4444,20 @@ function renderPaywallScreen(){
     </div>
 
     <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;margin-bottom:16px;font-size:13px">
-      ${t("paywall.important",{name:esc(personalMsg)})}
+      ${isPaypal?t("paywall.paypalNoteInstruction",{name:esc(personalMsg)}):t("paywall.important",{name:esc(personalMsg)})}
     </div>
 
-    <a href="${esc(swishUrl)}" target="_blank" rel="noopener noreferrer" class="fg-btn" style="display:block;text-align:center;text-decoration:none;padding:16px;font-size:16px;margin-bottom:8px">
-      ❤️ ${swishButtonLabel(cfg.trialPrice)}
+    <a href="${esc(payUrl)}" target="_blank" rel="noopener noreferrer" class="fg-btn" style="display:block;text-align:center;text-decoration:none;padding:16px;font-size:16px;margin-bottom:8px">
+      ❤️ ${isPaypal?paypalButtonLabel(cfg.trialPrice):swishButtonLabel(cfg.trialPrice)}
     </a>
-    <div style="font-size:12px;color:var(--color-text-secondary);text-align:center;margin-bottom:24px">${esc(t("stod.opensSwishApp"))}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);text-align:center;margin-bottom:24px">${esc(isPaypal?t("stod.opensPaypalApp"):t("stod.opensSwishApp"))}</div>
 
     <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:20px;text-align:center">
       <div style="font-size:13px;font-weight:500;margin-bottom:4px">${esc(t("stod.atComputer"))}</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("stod.scanQr"))}</div>
-      <img src="${qrUrl}" alt="QR-kod för Swish-betalning" style="width:220px;height:auto;max-width:100%;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px;image-rendering:crisp-edges"/>
-      ${cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">${esc(t("paywall.orSwishManuallyWithMessage"))}<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b><br>${t("paywall.writeAsMessage",{name:esc(personalMsg)})}</div>`:""}
+      <img src="${qrUrl}" alt="QR" style="width:220px;height:auto;max-width:100%;border-radius:8px;border:0.5px solid var(--color-border-tertiary);background:#fff;padding:10px;image-rendering:crisp-edges"/>
+      ${isPaypal?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">${esc(t("paywall.orPaypalManuallyWithMessage"))}<br><b style="color:var(--color-text-primary);font-size:15px">paypal.me/${esc(cfg.stodPaypalHandle)}</b><br>${t("paywall.writeAsNotePaypal",{name:esc(personalMsg)})}</div>`:
+        cfg.stodSwishNumber?`<div style="font-size:12px;color:var(--color-text-secondary);margin-top:14px">${esc(t("paywall.orSwishManuallyWithMessage"))}<br><b style="color:var(--color-text-primary);font-size:15px">${esc(cfg.stodSwishNumber)}</b><br>${t("paywall.writeAsMessage",{name:esc(personalMsg)})}</div>`:""}
     </div>
   </div>`;
 }
@@ -4844,7 +4885,7 @@ function renderMain(){
     : appMode==="profil"
     ? [["spelformer","🎮",t("tabs.spelformer")],["profil","👤",t("tabs.profil")],["inbox","📬",t("tabs.inbox")]]
     : [["spelformer","🎮",t("tabs.spelformer")],["hem","🏠",t("tabs.hem")],["regler","📋",t("tabs.regler")],["liga","📊",t("tabs.liga")],["inbox","📬",t("tabs.inbox")]];
-  if(cfg.stodEnabled&&cfg.stodSwishNumber){
+  if(cfg.stodEnabled&&(supportMethod()==="paypal"?cfg.stodPaypalHandle:cfg.stodSwishNumber)){
     const inboxIdx=tabsDef.findIndex(tb=>tb[0]==="inbox");
     if(inboxIdx>=0) tabsDef.splice(inboxIdx,0,["stod","❤️",t("tabs.stod")]);
   }
@@ -7936,6 +7977,9 @@ Liverpool
     const swishPreviewUrl=cfg.stodSwishNumber
       ? buildSwishUrl(cfg.stodSwishNumber,cfg.stodAmount,cfg.stodMessage)
       : null;
+    const paypalPreviewUrl=cfg.stodPaypalHandle
+      ? buildPaypalUrl(cfg.stodPaypalHandle,cfg.stodPaypalAmount)
+      : null;
     body=`<div class="fg-card" style="background:${cfg.stodEnabled?'#e8f5ee':'var(--color-background-primary)'}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:500">${cfg.stodEnabled?'✅ Stöd oss-knappen är synlig':'⏸ Stöd oss-knappen är dold'}</div>
@@ -7945,8 +7989,11 @@ Liverpool
       </div>
       <div style="font-size:12px;color:var(--color-text-secondary)">${cfg.stodEnabled?'Syns på startsidan för alla besökare.':'Syns bara här i admin tills du aktiverar den.'}</div>
     </div>
+    <div class="fg-card" style="background:#fffbeb">
+      <div style="font-size:12px;color:#92400e;line-height:1.5">💡 Appen visar automatiskt rätt betalsätt: <b>Swish</b> för användare med svenska som språk, <b>PayPal</b> för de med engelska eller grekiska (Swish funkar bara i Sverige). Fyll i båda nedan.</div>
+    </div>
     <div class="fg-card">
-      <div style="font-weight:500;margin-bottom:10px">❤️ Inställningar</div>
+      <div style="font-weight:500;margin-bottom:10px">🇸🇪 Swish (visas för svenska språket)</div>
       <label class="fg-label">Swish-nummer (t.ex. 123 456 78 90 eller ett Swish-handelsnummer)</label>
       <input class="fg-input" id="stod-swish-number" value="${esc(cfg.stodSwishNumber||"")}" placeholder="t.ex. 1234567890" style="margin-bottom:12px"/>
       <label class="fg-label">Fast belopp (kr) – lämna tomt för att låta betalaren välja själv</label>
@@ -7955,16 +8002,33 @@ Liverpool
       <input class="fg-input" id="stod-message" value="${esc(cfg.stodMessage||"Stöd föreningen")}" placeholder="t.ex. Stöd Div2 Norra Götaland" style="margin-bottom:14px"/>
       <label class="fg-label">Egen QR-kodbild (valfritt, URL)</label>
       <input class="fg-input" id="stod-qr-url" value="${esc(cfg.stodQrImageUrl||"")}" placeholder="t.ex. https://dindomän.se/swish-qr.png" style="margin-bottom:6px"/>
-      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px;line-height:1.5">Lämna tomt för en automatiskt genererad QR-kod. Vill du använda din egen officiella Swish-bild (t.ex. genererad på swish.nu): ladda upp bilden till ditt projekt (samma sätt som icon.svg) och klistra in webbadressen hit.</div>
-      <button class="fg-btn" data-act="save-stod-settings">Spara inställningar</button>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:6px;line-height:1.5">Lämna tomt för en automatiskt genererad QR-kod. Vill du använda din egen officiella Swish-bild (t.ex. genererad på swish.nu): ladda upp bilden till ditt projekt (samma sätt som icon.svg) och klistra in webbadressen hit.</div>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:10px">🌍 PayPal (visas för engelska/grekiska språket)</div>
+      <label class="fg-label">PayPal.me-handle (utan "paypal.me/", t.ex. greekinsweden)</label>
+      <input class="fg-input" id="stod-paypal-handle" value="${esc(cfg.stodPaypalHandle||"")}" placeholder="t.ex. greekinsweden" style="margin-bottom:12px"/>
+      <label class="fg-label">Fast belopp – lämna tomt för att låta betalaren välja själv (PayPal.me väljer valuta utifrån betalarens land)</label>
+      <input class="fg-input" id="stod-paypal-amount" type="number" min="1" value="${cfg.stodPaypalAmount||""}" placeholder="t.ex. 20 (valfritt)" style="margin-bottom:6px"/>
+      <div style="font-size:11px;color:var(--color-text-secondary);line-height:1.5">Obs: PayPal.me-länkar kan inte bära med sig ett förifyllt meddelande som Swish – användaren instrueras istället att skriva sitt namn manuellt i anteckningsfältet vid betalning.</div>
+    </div>
+    <div class="fg-card">
+      <button class="fg-btn" data-act="save-stod-settings" style="width:100%">Spara inställningar</button>
     </div>
     ${swishPreviewUrl?`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">Förhandsvisning</div>
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Så här ser knappen ut för användarna (klicka för att testa att länken öppnar Swish korrekt på din mobil):</div>
+      <div style="font-weight:500;margin-bottom:8px">Förhandsvisning – Swish</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Så här ser knappen ut för svenska användare (klicka för att testa att länken öppnar Swish korrekt på din mobil):</div>
       <a href="${esc(swishPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a1a1a;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
         ❤️ ${swishButtonLabel(cfg.stodAmount)}
       </a>
-    </div>`:`<div class="fg-card" style="background:#fffbeb"><div style="font-size:12px;color:#92400e">Fyll i ett Swish-nummer ovan för att se en förhandsvisning av knappen.</div></div>`}`;
+    </div>`:`<div class="fg-card" style="background:#fffbeb"><div style="font-size:12px;color:#92400e">Fyll i ett Swish-nummer ovan för att se en förhandsvisning av Swish-knappen.</div></div>`}
+    ${paypalPreviewUrl?`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">Förhandsvisning – PayPal</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Så här ser knappen ut för engelska/grekiska användare:</div>
+      <a href="${esc(paypalPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a1a1a;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
+        ❤️ ${paypalButtonLabel(cfg.stodPaypalAmount)}
+      </a>
+    </div>`:`<div class="fg-card" style="background:#fffbeb"><div style="font-size:12px;color:#92400e">Fyll i ett PayPal.me-handle ovan för att se en förhandsvisning av PayPal-knappen.</div></div>`}`;
   } else if(adminSection==="trial"){
     const trialSearchQ=document.getElementById("trial-user-search")?document.getElementById("trial-user-search").value.toLowerCase():"";
     const relevantUsers=users.filter(u=>u.trialStartedAt!=null);
@@ -10297,9 +10361,12 @@ function attachHandlers(){
       const amount=amountRaw?Number(amountRaw):null;
       const message=document.getElementById("stod-message").value.trim()||"Stöd föreningen";
       const qrImageUrl=document.getElementById("stod-qr-url").value.trim();
-      const {error}=await sb.from("app_config").update({stod_swish_number:swishNumber,stod_amount:amount,stod_message:message,stod_qr_image_url:qrImageUrl}).eq("league_id",currentLeague.id);
-      if(error){flash("Fel: "+error.message);return;}
-      cfg={...cfg,stodSwishNumber:swishNumber,stodAmount:amount,stodMessage:message,stodQrImageUrl:qrImageUrl};
+      const paypalHandle=document.getElementById("stod-paypal-handle").value.trim().replace(/^@/,"");
+      const paypalAmountRaw=document.getElementById("stod-paypal-amount").value.trim();
+      const paypalAmount=paypalAmountRaw?Number(paypalAmountRaw):null;
+      const {error}=await sb.from("app_config").update({stod_swish_number:swishNumber,stod_amount:amount,stod_message:message,stod_qr_image_url:qrImageUrl,stod_paypal_handle:paypalHandle,stod_paypal_amount:paypalAmount}).eq("league_id",currentLeague.id);
+      if(error){flash("Fel: "+error.message+" (har du kört SQL:en som lägger till stod_paypal_handle och stod_paypal_amount på app_config?)");return;}
+      cfg={...cfg,stodSwishNumber:swishNumber,stodAmount:amount,stodMessage:message,stodQrImageUrl:qrImageUrl,stodPaypalHandle:paypalHandle,stodPaypalAmount:paypalAmount};
       flash("✓ Inställningar sparade!");
     }
     else if(act==="toggle-trial"){
