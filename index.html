@@ -7696,7 +7696,9 @@ function parseFixtureDownloadFormat(text){
     [/atlético de madrid/g,"atlético madrid"],
     [/\bcelta\b(?!\s+vigo)/g,"celta vigo"],
     [/\br\.?\s*racing club\b/g,"racing santander"],
-    [/\brc deportivo\b/g,"deportivo la coruña"]
+    [/\brc deportivo\b/g,"deportivo la coruña"],
+    [/\binter\b(?!\s+milan)/g,"inter milan"],
+    [/(?<!ac\s)(?<!inter\s)\bmilan\b/g,"ac milan"]
   ];
   const normalizeStr=s=>{
     // .normalize("NFC") säkerställer att bokstäver som ü/ö/é alltid lagras på
