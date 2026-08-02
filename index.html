@@ -7955,7 +7955,7 @@ Liverpool
       fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});
     }
     const isActiveView=adminSection==="activeleagues";
-    const listData=isActiveView?allLeaguesData.filter(l=>l.admin_active):allLeaguesData;
+    const listData=isActiveView?allLeaguesData.filter(l=>l.admin_active):allLeaguesData.filter(l=>!l.admin_active);
     const leagueRow=l=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap">
         <div style="flex:1;min-width:150px">
@@ -7966,9 +7966,8 @@ Liverpool
             <button data-act="save-league-season" data-id="${l.id}" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer;color:var(--color-text-secondary)">Spara säsong</button>
           </div>
         </div>
-        ${l.admin_active?`<span style="background:#fff3d6;color:#8a6412;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">⭐ Aktiv</span>`:`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔧 Under uppbyggnad</span>`}
         ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
-        <button data-act="toggle-league-active" data-id="${l.id}" data-active="${l.admin_active?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.admin_active?"Markera som under uppbyggnad":"Markera som aktiv"}</button>
+        <button data-act="toggle-league-active" data-id="${l.id}" data-active="${l.admin_active?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.admin_active?"⭐ Markera som under uppbyggnad":"⭐ Markera som aktiv"}</button>
         <button data-act="toggle-league-hidden" data-id="${l.id}" data-hidden="${l.hidden?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.hidden?"Gör synlig":"Dölj"}</button>
         <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
@@ -7976,15 +7975,18 @@ Liverpool
     const seasonRows=listData.map(leagueRow).join("");
     body=isActiveView
       ? `<div class="fg-card" style="background:var(--color-background-secondary)">
-          <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här ser du bara de serier du markerat som ⭐ Aktiva – dvs. de som faktiskt är igång, till skillnad från de du fortfarande bygger upp bakom kulisserna. Markera serier under "🌍 Alla serier".</div>
+          <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här ser du bara de serier du markerat som ⭐ Aktiva. Markerar du en som "under uppbyggnad" igen flyttas den tillbaka till "🌍 Alla serier".</div>
         </div>
         <div class="fg-card">
           <div style="font-weight:500;margin-bottom:8px">⭐ Aktiva serier (${listData.length})</div>
-          ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier markerade som aktiva ännu. Gå till "🌍 Alla serier" och klicka "Markera som aktiv" på de serier som är igång.</div>`}
+          ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier markerade som aktiva ännu. Gå till "🌍 Alla serier" och klicka "⭐ Markera som aktiv" på de serier som är igång.</div>`}
         </div>`
-      : `<div class="fg-card">
-          <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier (${allLeaguesData.length})</div>
-          ${seasonRows}
+      : `<div class="fg-card" style="background:var(--color-background-secondary)">
+          <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här ser du serier som fortfarande byggs upp bakom kulisserna. Markerar du en som ⭐ Aktiv flyttas den till "⭐ Aktiva serier" och försvinner härifrån.</div>
+        </div>
+        <div class="fg-card">
+          <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier – under uppbyggnad (${listData.length})</div>
+          ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier under uppbyggnad just nu – allt du har är markerat som aktivt. Se "⭐ Aktiva serier".</div>`}
         </div>`;
   } else if(adminSection==="stod"){
     const swishPreviewUrl=cfg.stodSwishNumber
