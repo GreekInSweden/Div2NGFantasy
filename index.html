@@ -7733,13 +7733,30 @@ function parseFixtureDownloadFormat(text){
   // sparade lagnamnet och källtexten) så det spelar ingen roll vilken
   // variant som står var.
   const CLUB_NAME_SYNONYMS=[
+    // Turkiska specialtecken vikta till sina ASCII-motsvarigheter FÖRST, så
+    // att synonymerna nedan (skrivna med vanliga bokstäver) matchar oavsett
+    // om källan skrev "Çorum"/"Gençlerbirligi" eller vi själva "Corum"/
+    // "Genclerbirligi". Påverkar inte tyska/franska/grekiska namn ovan,
+    // eftersom ç/ş/ğ/ı inte förekommer i de språkens klubbnamn.
+    [/ç/g,"c"],[/ş/g,"s"],[/ğ/g,"g"],[/ı/g,"i"],
     [/münchen/g,"munich"],[/köln/g,"cologne"],[/\brennais\b/g,"rennes"],[/havre athletic club/g,"le havre"],
     [/atlético de madrid/g,"atlético madrid"],
     [/\bcelta\b(?!\s+vigo)/g,"celta vigo"],
     [/\br\.?\s*racing club\b/g,"racing santander"],
     [/\brc deportivo\b/g,"deportivo la coruña"],
     [/\binter\b(?!\s+milan)/g,"inter milan"],
-    [/(?<!ac\s)(?<!inter\s)\bmilan\b/g,"ac milan"]
+    [/(?<!ac\s)(?<!inter\s)\bmilan\b/g,"ac milan"],
+    // Turkiska Süper Lig: källan (fixturedownload.com) använder ofta bara
+    // grundnamnet utan klubbändelse ("Besiktas","Gaziantep","Erzurumspor"),
+    // medan sparade lagnamn ofta har en tillagd ändelse ("Besiktas JK" osv)
+    // – eller ett helt annat vedertaget namn ("Amedspor" ~ "Amed SK").
+    [/\bbesiktas\b(?!\s+jk)/g,"besiktas jk"],
+    [/\bgaziantep\b(?!\s+fk)/g,"gaziantep fk"],
+    [/\bcorum\b(?!\s+fk)/g,"corum fk"],
+    [/\bgenclerbirligi\b(?!\s+ankara)/g,"genclerbirligi ankara"],
+    [/\berzurumspor\b(?!\s+fk)/g,"erzurumspor fk"],
+    [/\bamedspor\b/g,"amed sk"],
+    [/istanbul basaksehir/g,"basaksehir fk"]
   ];
   const normalizeStr=s=>{
     // .normalize("NFC") säkerställer att bokstäver som ü/ö/é alltid lagras på
