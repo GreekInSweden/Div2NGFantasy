@@ -2160,17 +2160,269 @@ const TRANSLATIONS={
   sv:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
     "onboarding.title":"Vad heter du?",
-    "onboarding.subtitle":"Sök ditt namn så hittar vi rätt serie åt dig direkt – oavsett hur många serier du spelar i."
+    "onboarding.subtitle":"Sök ditt namn så hittar vi rätt serie åt dig direkt – oavsett hur många serier du spelar i.",
+    "onboarding.searchPlaceholder":"🔍 Skriv ditt namn…",
+    "onboarding.newPlayerPrompt":"Ny spelare, eller hittade vi dig inte? Välj serie att gå med i:",
+    "onboarding.noLeaguesAvailable":"Inga serier tillgängliga ännu.",
+    "onboarding.installLink":"📲 Så installerar du appen på din telefon",
+    "common.back":"← Tillbaka",
+    "common.loginButtonArrow":"Logga in →",
+    "common.pinCode":"PIN-kod",
+    "common.season":"Säsong {season}",
+    "login.crossleague.greeting":"Hej {name}!",
+    "login.crossleague.subtitle":"Logga in i {league}",
+    "login.enterPin":"Ange din 5-siffriga PIN",
+    "login.noPlayerFound":"Ingen spelare hittades.",
+    "login.noRecentDevice":"Ingen tidigare inloggning på den här enheten.<br>Sök ditt namn ovan för att hitta dig.",
+    "login.searchResults":"Sökresultat",
+    "login.recentOnDevice":"Senast inloggade på den här enheten",
+    "login.choosePlayer":"Välj din spelare",
+    "login.searchPlaceholder":"🔍 Sök ditt namn...",
+    "home.loginButton":"Logga in",
+    "home.registerButton":"Ny spelare – Registrera dig",
+    "home.registrationClosed":"🔒 Registrering är stängd",
+    "home.readRulesLink":"Läs om spelformerna →",
+    "home.sponsorsLink":"Våra sponsorer →",
+    "home.supportSuffix":"– Stöd oss",
+    "home.supportedBy":"Stöttas av",
+    "home.liverapportering":"Liverapportering",
+    "home.mode.fantasy.title":"Fantasy","home.mode.fantasy.desc":"Bygg ditt lag, välj kapten",
+    "home.mode.tipp.title":"Tippa resultat","home.mode.tipp.desc":"Gissa rätt resultat i matchen",
+    "home.mode.ligatipp.title":"Tippa serien","home.mode.ligatipp.desc":"Rangordna alla {n} lag",
+    "home.mode.snabbast.title":"Snabbast vinner","home.mode.snabbast.desc":"Vilka 7 lag gör snabbast mål?",
+    "home.mode.maljakten.title":"Måljakten","home.mode.maljakten.desc":"Välj 3 lag som du tror gör flest mål",
+    "home.mode.quiz.title":"Quiz","home.mode.quiz.desc":"Allmänna frågor om {league}",
+    "home.mode.streak.title":"Streak","home.mode.streak.desc":"Håll din vinstsvit vid liv",
+    "home.mode.matchfokus.title":"Matchexperten","home.mode.matchfokus.desc":"13 stryktips-frågor om en utvald match",
+    "home.mode.duellen.title":"Duellen","home.mode.duellen.desc":"Möt andra spelare hemma/borta via Tippa resultat",
+    "home.mode.malregn.title":"Målregn","home.mode.malregn.desc":"Gissa totalt antal mål i omgången",
+    "home.mode.jubel.title":"Båda får Jubla","home.mode.jubel.desc":"Gör båda lagen mål i matchen? Ja eller nej",
+    "home.mode.investerare.title":"Investeraren","home.mode.investerare.desc":"Placera 1000 kr på lag – bygg din portfölj",
+    "home.mode.lts.title":"Last Team Standing","home.mode.lts.desc":"Välj ett lag varje omgång – tre förluster och du är utslagen",
+    "home.mode.anytime.title":"Skyttekung","home.mode.anytime.desc":"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",
+    "reg.accountReady":"🎉 Kontot är klart!",
+    "reg.multiLeaguePrompt":"Vill du gå med i fler av våra serier direkt, med samma namn och PIN-kod? Bocka i de du vill vara med i – helt valfritt.",
+    "reg.joinSelected":"Gå med i valda serier",
+    "reg.skipMultiLeague":"Hoppa över, fortsätt till {league}",
+    "reg.title":"Ny spelare",
+    "reg.nameLabel":"Ditt namn",
+    "reg.namePlaceholder":"T.ex. Marcus N",
+    "reg.nameHint":"Spelar du redan i en annan serie? Skriv exakt samma namn som där.",
+    "reg.pinLabel":"Välj en 5-siffrig PIN-kod",
+    "reg.pinPlaceholder":"T.ex. 48215",
+    "reg.pinHint":"Du behöver PIN-koden varje gång du loggar in – kom ihåg den!",
+    "reg.sameAccountInfo":"🔑 Spelar du redan i en annan serie? Ange <b>samma namn och samma PIN</b> som där, så kopplas kontona ihop automatiskt – du slipper logga in på nytt nästa gång du byter serie.",
+    "reg.trialInfoFree":"⏳ <b>Gratis i {days} dagar</b>",
+    "reg.trialInfoPricePaid":" – därefter {price} kr för att fortsätta",
+    "reg.trialInfoPriceFree":" – därefter en frivillig summa för att fortsätta",
+    "reg.trialInfoRest":". Gäller över alla våra serier, inte bara den här. Du kan när som helst se allt gratis, betalningen krävs bara för att göra nya val.",
+    "reg.termsPrefix":"Genom att registrera dig godkänner du vår ",
+    "reg.termsLink":"integritetspolicy & villkor",
+    "reg.submitButton":"Registrera →",
+    "install.title":"📲 Installera appen",
+    "install.subtitle":"Så funkar {app} som bäst – på under en minut",
+    "install.introText":"Genom att lägga till {app} på hemskärmen får du:",
+    "install.benefit1":"Snabbare laddning och offline-stöd för redan hämtad data.",
+    "install.benefit2":"En egen app-ikon, utan adressfält eller webbläsarmeny i vägen.",
+    "install.benefit3":"Push-notiser när nytt omgångsresultat publiceras eller ditt lag behöver uppdateras.",
+    "install.iphoneNote":"<b>📱 iPhone:</b> installation är obligatoriskt – Apple tillåter inte notiser i Safari annars.",
+    "install.androidNote":"<b>🤖 Android:</b> notiser funkar redan i webbläsaren, men installation ger snabbare/smidigare app-känsla ändå.",
+    "install.tabIos":"📱 iPhone","install.tabAndroid":"🤖 Android","install.tabDesktop":"💻 Dator",
+    "install.ios.step1":"Öppna <b>bonnboll.se</b> i <b>Safari</b> (måste vara Safari – fungerar inte i Chrome eller andra appar på iPhone).",
+    "install.ios.step2":"Tryck på <b>Dela-ikonen</b> (en fyrkant med en pil uppåt) längst ned i menyraden.",
+    "install.ios.step3":"Scrolla ner i listan och välj <b>\"Lägg till på hemskärmen\"</b>.",
+    "install.ios.step4":"Tryck <b>\"Lägg till\"</b> uppe i högra hörnet.",
+    "install.ios.step5":"Klart! {app} dyker nu upp som en egen ikon på hemskärmen, precis som en vanlig app.",
+    "install.android.banner":"✅ Push-notiser funkar redan i webbläsaren på Android – du behöver <b>inte</b> installera för att få notiser. Stegen nedan ger dig ändå en snabbare app-känsla med egen ikon.",
+    "install.android.step1":"Öppna <b>bonnboll.se</b> i <b>Chrome</b>.",
+    "install.android.step2":"Tryck på de <b>tre punkterna</b> uppe i högra hörnet för att öppna menyn.",
+    "install.android.step3":"Välj <b>\"Installera app\"</b> eller <b>\"Lägg till på startskärmen\"</b> (texten kan skilja lite mellan telefoner).",
+    "install.android.step4":"Bekräfta genom att trycka <b>\"Installera\"</b>.",
+    "install.android.step5":"Klart! {app} dyker nu upp som en egen ikon på hemskärmen.",
+    "install.desktop.step1":"Öppna <b>bonnboll.se</b> i Chrome eller Edge.",
+    "install.desktop.step2":"Leta efter en <b>installationsikon</b> i adressfältet (ser oftast ut som en skärm med en nedåtpil, eller ett litet plustecken).",
+    "install.desktop.step3":"Om du inte ser ikonen: öppna webbläsarens meny (tre punkter/streck) och leta efter <b>\"Installera {app}\"</b>.",
+    "install.desktop.step4":"Klicka <b>\"Installera\"</b>.",
+    "install.desktop.step5":"Klart! Appen öppnas nu i ett eget fönster utan adressfält, och du hittar den bland dina vanliga program.",
+    "install.tip":"💡 Redan installerad men notiserna funkar ändå inte? Gå till <b>Min profil</b> och kontrollera att notiser är aktiverade där."
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
     "onboarding.title":"What's your name?",
-    "onboarding.subtitle":"Search your name and we'll find the right series for you instantly – no matter how many series you play in."
+    "onboarding.subtitle":"Search your name and we'll find the right series for you instantly – no matter how many series you play in.",
+    "onboarding.searchPlaceholder":"🔍 Type your name…",
+    "onboarding.newPlayerPrompt":"New player, or couldn't we find you? Choose a series to join:",
+    "onboarding.noLeaguesAvailable":"No series available yet.",
+    "onboarding.installLink":"📲 How to install the app on your phone",
+    "common.back":"← Back",
+    "common.loginButtonArrow":"Log in →",
+    "common.pinCode":"PIN code",
+    "common.season":"Season {season}",
+    "login.crossleague.greeting":"Hi {name}!",
+    "login.crossleague.subtitle":"Log in to {league}",
+    "login.enterPin":"Enter your 5-digit PIN",
+    "login.noPlayerFound":"No player found.",
+    "login.noRecentDevice":"No previous login on this device.<br>Search your name above to find yourself.",
+    "login.searchResults":"Search results",
+    "login.recentOnDevice":"Recently logged in on this device",
+    "login.choosePlayer":"Choose your player",
+    "login.searchPlaceholder":"🔍 Search your name...",
+    "home.loginButton":"Log in",
+    "home.registerButton":"New player – Register",
+    "home.registrationClosed":"🔒 Registration is closed",
+    "home.readRulesLink":"Read about the game modes →",
+    "home.sponsorsLink":"Our sponsors →",
+    "home.supportSuffix":"– Support us",
+    "home.supportedBy":"Supported by",
+    "home.liverapportering":"Live reporting",
+    "home.mode.fantasy.title":"Fantasy","home.mode.fantasy.desc":"Build your team, pick a captain",
+    "home.mode.tipp.title":"Predict the Result","home.mode.tipp.desc":"Guess the correct match result",
+    "home.mode.ligatipp.title":"Predict the League","home.mode.ligatipp.desc":"Rank all {n} teams",
+    "home.mode.snabbast.title":"Fastest Wins","home.mode.snabbast.desc":"Which 7 teams score fastest?",
+    "home.mode.maljakten.title":"Goal Hunt","home.mode.maljakten.desc":"Pick 3 teams you think will score the most",
+    "home.mode.quiz.title":"Quiz","home.mode.quiz.desc":"General questions about {league}",
+    "home.mode.streak.title":"Streak","home.mode.streak.desc":"Keep your winning streak alive",
+    "home.mode.matchfokus.title":"Match Expert","home.mode.matchfokus.desc":"13 pools-style questions about a featured match",
+    "home.mode.duellen.title":"The Duel","home.mode.duellen.desc":"Face other players home/away via Predict the Result",
+    "home.mode.malregn.title":"Goal Rain","home.mode.malregn.desc":"Guess the total number of goals in the round",
+    "home.mode.jubel.title":"Both Teams to Score","home.mode.jubel.desc":"Will both teams score in the match? Yes or no",
+    "home.mode.investerare.title":"The Investor","home.mode.investerare.desc":"Invest 1000 kr on teams – build your portfolio",
+    "home.mode.lts.title":"Last Team Standing","home.mode.lts.desc":"Pick one team each round – three losses and you're out",
+    "home.mode.anytime.title":"Top Scorer","home.mode.anytime.desc":"Pick 1 defender + 2 midfielders + 2 forwards to score",
+    "reg.accountReady":"🎉 Your account is ready!",
+    "reg.multiLeaguePrompt":"Want to join more of our series right away, with the same name and PIN code? Check the ones you want to join – completely optional.",
+    "reg.joinSelected":"Join selected series",
+    "reg.skipMultiLeague":"Skip, continue to {league}",
+    "reg.title":"New player",
+    "reg.nameLabel":"Your name",
+    "reg.namePlaceholder":"E.g. Marcus N",
+    "reg.nameHint":"Already playing in another series? Type the exact same name as there.",
+    "reg.pinLabel":"Choose a 5-digit PIN code",
+    "reg.pinPlaceholder":"E.g. 48215",
+    "reg.pinHint":"You'll need the PIN every time you log in – remember it!",
+    "reg.sameAccountInfo":"🔑 Already playing in another series? Enter the <b>same name and same PIN</b> as there, and the accounts will be linked automatically – no need to log in again next time you switch series.",
+    "reg.trialInfoFree":"⏳ <b>Free for {days} days</b>",
+    "reg.trialInfoPricePaid":" – then {price} kr to continue",
+    "reg.trialInfoPriceFree":" – then a voluntary amount to continue",
+    "reg.trialInfoRest":". Applies across all our series, not just this one. You can always see everything for free – payment is only needed to make new picks.",
+    "reg.termsPrefix":"By registering you agree to our ",
+    "reg.termsLink":"privacy policy & terms",
+    "reg.submitButton":"Register →",
+    "install.title":"📲 Install the app",
+    "install.subtitle":"How {app} works best – in under a minute",
+    "install.introText":"By adding {app} to your home screen you get:",
+    "install.benefit1":"Faster loading and offline support for already fetched data.",
+    "install.benefit2":"Your own app icon, without an address bar or browser menu in the way.",
+    "install.benefit3":"Push notifications when new round results are published or your team needs updating.",
+    "install.iphoneNote":"<b>📱 iPhone:</b> installation is mandatory – Apple doesn't allow notifications in Safari otherwise.",
+    "install.androidNote":"<b>🤖 Android:</b> notifications already work in the browser, but installing still gives a faster, smoother app feel.",
+    "install.tabIos":"📱 iPhone","install.tabAndroid":"🤖 Android","install.tabDesktop":"💻 Computer",
+    "install.ios.step1":"Open <b>bonnboll.se</b> in <b>Safari</b> (must be Safari – doesn't work in Chrome or other apps on iPhone).",
+    "install.ios.step2":"Tap the <b>Share icon</b> (a square with an arrow pointing up) at the bottom of the menu bar.",
+    "install.ios.step3":"Scroll down the list and select <b>\"Add to Home Screen\"</b>.",
+    "install.ios.step4":"Tap <b>\"Add\"</b> in the top right corner.",
+    "install.ios.step5":"Done! {app} now appears as its own icon on your home screen, just like a regular app.",
+    "install.android.banner":"✅ Push notifications already work in the browser on Android – you do <b>not</b> need to install to get notifications. The steps below still give you a faster app feel with your own icon.",
+    "install.android.step1":"Open <b>bonnboll.se</b> in <b>Chrome</b>.",
+    "install.android.step2":"Tap the <b>three dots</b> in the top right corner to open the menu.",
+    "install.android.step3":"Select <b>\"Install app\"</b> or <b>\"Add to Home screen\"</b> (the text may vary slightly between phones).",
+    "install.android.step4":"Confirm by tapping <b>\"Install\"</b>.",
+    "install.android.step5":"Done! {app} now appears as its own icon on your home screen.",
+    "install.desktop.step1":"Open <b>bonnboll.se</b> in Chrome or Edge.",
+    "install.desktop.step2":"Look for an <b>install icon</b> in the address bar (usually looks like a screen with a down arrow, or a small plus sign).",
+    "install.desktop.step3":"If you don't see the icon: open the browser menu (three dots/lines) and look for <b>\"Install {app}\"</b>.",
+    "install.desktop.step4":"Click <b>\"Install\"</b>.",
+    "install.desktop.step5":"Done! The app now opens in its own window without an address bar, and you'll find it among your regular programs.",
+    "install.tip":"💡 Already installed but notifications still don't work? Go to <b>My profile</b> and check that notifications are enabled there."
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
     "onboarding.title":"Πώς σε λένε;",
-    "onboarding.subtitle":"Αναζήτησε το όνομά σου και θα βρούμε αμέσως τη σωστή σειρά για εσένα – όσες σειρές κι αν παίζεις."
+    "onboarding.subtitle":"Αναζήτησε το όνομά σου και θα βρούμε αμέσως τη σωστή σειρά για εσένα – όσες σειρές κι αν παίζεις.",
+    "onboarding.searchPlaceholder":"🔍 Γράψε το όνομά σου…",
+    "onboarding.newPlayerPrompt":"Νέος παίκτης, ή δεν σε βρήκαμε; Διάλεξε σειρά για να συμμετάσχεις:",
+    "onboarding.noLeaguesAvailable":"Δεν υπάρχουν ακόμα διαθέσιμες σειρές.",
+    "onboarding.installLink":"📲 Πώς να εγκαταστήσεις την εφαρμογή στο κινητό σου",
+    "common.back":"← Πίσω",
+    "common.loginButtonArrow":"Σύνδεση →",
+    "common.pinCode":"Κωδικός PIN",
+    "common.season":"Σεζόν {season}",
+    "login.crossleague.greeting":"Γεια σου {name}!",
+    "login.crossleague.subtitle":"Σύνδεση στο {league}",
+    "login.enterPin":"Εισάγετε τον 5ψήφιο κωδικό PIN",
+    "login.noPlayerFound":"Δεν βρέθηκε παίκτης.",
+    "login.noRecentDevice":"Καμία προηγούμενη σύνδεση σε αυτή τη συσκευή.<br>Αναζήτησε το όνομά σου παραπάνω για να σε βρούμε.",
+    "login.searchResults":"Αποτελέσματα αναζήτησης",
+    "login.recentOnDevice":"Πρόσφατες συνδέσεις σε αυτή τη συσκευή",
+    "login.choosePlayer":"Διάλεξε τον παίκτη σου",
+    "login.searchPlaceholder":"🔍 Αναζήτησε το όνομά σου...",
+    "home.loginButton":"Σύνδεση",
+    "home.registerButton":"Νέος παίκτης – Εγγραφή",
+    "home.registrationClosed":"🔒 Οι εγγραφές είναι κλειστές",
+    "home.readRulesLink":"Διάβασε για τους τρόπους παιχνιδιού →",
+    "home.sponsorsLink":"Οι χορηγοί μας →",
+    "home.supportSuffix":"– Στήριξέ μας",
+    "home.supportedBy":"Με την υποστήριξη",
+    "home.liverapportering":"Ζωντανή αναμετάδοση",
+    "home.mode.fantasy.title":"Fantasy","home.mode.fantasy.desc":"Φτιάξε την ομάδα σου, διάλεξε αρχηγό",
+    "home.mode.tipp.title":"Πρόβλεψε το Αποτέλεσμα","home.mode.tipp.desc":"Μάντεψε το σωστό αποτέλεσμα του αγώνα",
+    "home.mode.ligatipp.title":"Πρόβλεψε το Πρωτάθλημα","home.mode.ligatipp.desc":"Κατάταξε όλες τις {n} ομάδες",
+    "home.mode.snabbast.title":"Ο Πιο Γρήγορος Κερδίζει","home.mode.snabbast.desc":"Ποιες 7 ομάδες θα σκοράρουν πιο γρήγορα;",
+    "home.mode.maljakten.title":"Κυνήγι Γκολ","home.mode.maljakten.desc":"Διάλεξε 3 ομάδες που πιστεύεις ότι θα σκοράρουν τα περισσότερα γκολ",
+    "home.mode.quiz.title":"Κουίζ","home.mode.quiz.desc":"Γενικές ερωτήσεις για το {league}",
+    "home.mode.streak.title":"Στριק","home.mode.streak.desc":"Κράτησε ζωντανό το σερί νικών σου",
+    "home.mode.matchfokus.title":"Ειδικός Αγώνα","home.mode.matchfokus.desc":"13 ερωτήσεις τύπου προπό για έναν επιλεγμένο αγώνα",
+    "home.mode.duellen.title":"Η Μονομαχία","home.mode.duellen.desc":"Αναμετρήσου με άλλους παίκτες εντός/εκτός μέσω του Πρόβλεψε το Αποτέλεσμα",
+    "home.mode.malregn.title":"Βροχή Γκολ","home.mode.malregn.desc":"Μάντεψε τον συνολικό αριθμό γκολ στον γύρο",
+    "home.mode.jubel.title":"Και οι Δύο Σκοράρουν","home.mode.jubel.desc":"Θα σκοράρουν και οι δύο ομάδες στον αγώνα; Ναι ή όχι",
+    "home.mode.investerare.title":"Ο Επενδυτής","home.mode.investerare.desc":"Επένδυσε 1000 kr σε ομάδες – χτίσε το χαρτοφυλάκιό σου",
+    "home.mode.lts.title":"Last Team Standing","home.mode.lts.desc":"Διάλεξε μία ομάδα κάθε γύρο – τρεις ήττες και αποκλείεσαι",
+    "home.mode.anytime.title":"Πρώτος Σκόρερ","home.mode.anytime.desc":"Διάλεξε 1 αμυντικό + 2 μέσους + 2 επιθετικούς που θα σκοράρουν",
+    "reg.accountReady":"🎉 Ο λογαριασμός σου είναι έτοιμος!",
+    "reg.multiLeaguePrompt":"Θέλεις να συμμετάσχεις σε περισσότερες σειρές μας αμέσως, με το ίδιο όνομα και κωδικό PIN; Επίλεξε αυτές που θέλεις – εντελώς προαιρετικό.",
+    "reg.joinSelected":"Συμμετοχή στις επιλεγμένες σειρές",
+    "reg.skipMultiLeague":"Παράλειψη, συνέχεια στο {league}",
+    "reg.title":"Νέος παίκτης",
+    "reg.nameLabel":"Το όνομά σου",
+    "reg.namePlaceholder":"π.χ. Γιώργος Π",
+    "reg.nameHint":"Παίζεις ήδη σε άλλη σειρά; Γράψε ακριβώς το ίδιο όνομα όπως εκεί.",
+    "reg.pinLabel":"Διάλεξε έναν 5ψήφιο κωδικό PIN",
+    "reg.pinPlaceholder":"π.χ. 48215",
+    "reg.pinHint":"Θα χρειάζεσαι τον κωδικό PIN κάθε φορά που συνδέεσαι – θυμήσου τον!",
+    "reg.sameAccountInfo":"🔑 Παίζεις ήδη σε άλλη σειρά; Βάλε <b>το ίδιο όνομα και τον ίδιο κωδικό PIN</b> όπως εκεί, και οι λογαριασμοί θα συνδεθούν αυτόματα – δεν χρειάζεται να ξανασυνδεθείς την επόμενη φορά που θα αλλάξεις σειρά.",
+    "reg.trialInfoFree":"⏳ <b>Δωρεάν για {days} ημέρες</b>",
+    "reg.trialInfoPricePaid":" – μετά {price} kr για να συνεχίσεις",
+    "reg.trialInfoPriceFree":" – μετά ένα προαιρετικό ποσό για να συνεχίσεις",
+    "reg.trialInfoRest":". Ισχύει σε όλες τις σειρές μας, όχι μόνο σε αυτή. Μπορείς πάντα να βλέπεις τα πάντα δωρεάν – η πληρωμή χρειάζεται μόνο για νέες επιλογές.",
+    "reg.termsPrefix":"Με την εγγραφή σου αποδέχεσαι την ",
+    "reg.termsLink":"πολιτική απορρήτου & τους όρους",
+    "reg.submitButton":"Εγγραφή →",
+    "install.title":"📲 Εγκατάσταση εφαρμογής",
+    "install.subtitle":"Πώς λειτουργεί καλύτερα το {app} – σε λιγότερο από ένα λεπτό",
+    "install.introText":"Προσθέτοντας το {app} στην αρχική οθόνη αποκτάς:",
+    "install.benefit1":"Ταχύτερη φόρτωση και υποστήριξη εκτός σύνδεσης για δεδομένα που έχεις ήδη κατεβάσει.",
+    "install.benefit2":"Δικό σου εικονίδιο εφαρμογής, χωρίς γραμμή διευθύνσεων ή μενού περιηγητή στη μέση.",
+    "install.benefit3":"Ειδοποιήσεις push όταν δημοσιεύονται νέα αποτελέσματα γύρου ή όταν η ομάδα σου χρειάζεται ενημέρωση.",
+    "install.iphoneNote":"<b>📱 iPhone:</b> η εγκατάσταση είναι υποχρεωτική – διαφορετικά η Apple δεν επιτρέπει ειδοποιήσεις στο Safari.",
+    "install.androidNote":"<b>🤖 Android:</b> οι ειδοποιήσεις λειτουργούν ήδη στον περιηγητή, αλλά η εγκατάσταση δίνει έτσι κι αλλιώς πιο γρήγορη εμπειρία εφαρμογής.",
+    "install.tabIos":"📱 iPhone","install.tabAndroid":"🤖 Android","install.tabDesktop":"💻 Υπολογιστής",
+    "install.ios.step1":"Άνοιξε το <b>bonnboll.se</b> στο <b>Safari</b> (πρέπει να είναι Safari – δεν λειτουργεί σε Chrome ή άλλες εφαρμογές στο iPhone).",
+    "install.ios.step2":"Πάτησε το <b>εικονίδιο Κοινοποίησης</b> (ένα τετράγωνο με βέλος προς τα πάνω) στο κάτω μέρος της γραμμής μενού.",
+    "install.ios.step3":"Κύλισε προς τα κάτω και επίλεξε <b>\"Προσθήκη στην Αρχική οθόνη\"</b>.",
+    "install.ios.step4":"Πάτησε <b>\"Προσθήκη\"</b> επάνω δεξιά.",
+    "install.ios.step5":"Έτοιμο! Το {app} εμφανίζεται τώρα ως δικό του εικονίδιο στην αρχική οθόνη, όπως μια κανονική εφαρμογή.",
+    "install.android.banner":"✅ Οι ειδοποιήσεις push λειτουργούν ήδη στον περιηγητή σε Android – <b>δεν</b> χρειάζεται να εγκαταστήσεις για να λαμβάνεις ειδοποιήσεις. Τα παρακάτω βήματα δίνουν έτσι κι αλλιώς πιο γρήγορη εμπειρία με δικό σου εικονίδιο.",
+    "install.android.step1":"Άνοιξε το <b>bonnboll.se</b> στο <b>Chrome</b>.",
+    "install.android.step2":"Πάτησε τις <b>τρεις τελείες</b> επάνω δεξιά για να ανοίξεις το μενού.",
+    "install.android.step3":"Επίλεξε <b>\"Εγκατάσταση εφαρμογής\"</b> ή <b>\"Προσθήκη στην αρχική οθόνη\"</b> (το κείμενο μπορεί να διαφέρει λίγο ανάλογα με το τηλέφωνο).",
+    "install.android.step4":"Επιβεβαίωσε πατώντας <b>\"Εγκατάσταση\"</b>.",
+    "install.android.step5":"Έτοιμο! Το {app} εμφανίζεται τώρα ως δικό του εικονίδιο στην αρχική οθόνη.",
+    "install.desktop.step1":"Άνοιξε το <b>bonnboll.se</b> σε Chrome ή Edge.",
+    "install.desktop.step2":"Ψάξε για ένα <b>εικονίδιο εγκατάστασης</b> στη γραμμή διευθύνσεων (συνήθως μοιάζει με μια οθόνη με βέλος προς τα κάτω, ή ένα μικρό σύμβολο συν).",
+    "install.desktop.step3":"Αν δεν βλέπεις το εικονίδιο: άνοιξε το μενού του περιηγητή (τρεις τελείες/γραμμές) και ψάξε για <b>\"Εγκατάσταση {app}\"</b>.",
+    "install.desktop.step4":"Πάτησε <b>\"Εγκατάσταση\"</b>.",
+    "install.desktop.step5":"Έτοιμο! Η εφαρμογή ανοίγει τώρα σε δικό της παράθυρο χωρίς γραμμή διευθύνσεων, και θα τη βρεις ανάμεσα στα προγράμματά σου.",
+    "install.tip":"💡 Το έχεις ήδη εγκαταστήσει αλλά οι ειδοποιήσεις δεν λειτουργούν; Πήγαινε στο <b>Το προφίλ μου</b> και έλεγξε αν οι ειδοποιήσεις είναι ενεργοποιημένες εκεί."
   }
 };
 function t(key,vars){
@@ -2465,14 +2717,14 @@ function renderLeagues(){
     return `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
       <div style="width:64px;height:64px;background:#c1272d;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingCrossLeagueUser.namn[0])}</div>
-      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">Hej ${esc(pendingCrossLeagueUser.namn)}!</div>
-      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">Logga in i ${esc(lg?lg.name:"")}</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingCrossLeagueUser.namn}))}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.crossleague.subtitle",{league:lg?lg.name:""}))}</div>
       <div style="width:100%;max-width:300px">
-        <label class="fg-label">PIN-kod</label>
+        <label class="fg-label">${esc(t("common.pinCode"))}</label>
         <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
         ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
-        <button class="fg-btn" data-act="submit-entry-pin" style="margin-bottom:8px">Logga in →</button>
-        <button class="fg-outbtn" data-act="entry-cancel-pin" style="width:100%">← Tillbaka</button>
+        <button class="fg-btn" data-act="submit-entry-pin" style="margin-bottom:8px">${esc(t("common.loginButtonArrow"))}</button>
+        <button class="fg-outbtn" data-act="entry-cancel-pin" style="width:100%">${esc(t("common.back"))}</button>
       </div>
     </div>`;
   }
@@ -2493,14 +2745,14 @@ function renderLeagues(){
     <div style="font-size:22px;font-weight:500;margin-bottom:6px;text-align:center">${esc(t("onboarding.title"))}</div>
     <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;text-align:center;max-width:320px">${esc(t("onboarding.subtitle"))}</div>
     <div style="width:100%;max-width:340px;margin-bottom:8px">
-      <input class="fg-input" id="entry-search" placeholder="🔍 Skriv ditt namn…" oninput="window._doEntrySearch&&window._doEntrySearch()" autocomplete="off" autocorrect="off"/>
+      <input class="fg-input" id="entry-search" placeholder="${esc(t("onboarding.searchPlaceholder"))}" oninput="window._doEntrySearch&&window._doEntrySearch()" autocomplete="off" autocorrect="off"/>
       <div id="entry-search-results" style="margin-top:10px"></div>
     </div>
     <div style="width:100%;max-width:340px;border-top:0.5px solid var(--color-border-tertiary);padding-top:16px;margin-top:8px">
-      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">Ny spelare, eller hittade vi dig inte? Välj serie att gå med i:</div>
-      ${list || '<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">Inga serier tillgängliga ännu.</div>'}
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">${esc(t("onboarding.newPlayerPrompt"))}</div>
+      ${list || `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("onboarding.noLeaguesAvailable"))}</div>`}
     </div>
-    <button data-act="go-install-leagues" style="margin-top:20px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">📲 Så installerar du appen på din telefon</button>
+    <button data-act="go-install-leagues" style="margin-top:20px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">${esc(t("onboarding.installLink"))}</button>
   </div>`;
 }
 window._entrySearchTimer=null;
@@ -2540,13 +2792,13 @@ function renderHome(){
     const u=pendingLoginUser;
     return `
     <div style="min-height:100vh;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
-      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;position:absolute;top:20px;left:20px;border-color:#444;color:#888;font-size:13px">← Tillbaka</button>
+      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;position:absolute;top:20px;left:20px;border-color:#444;color:#888;font-size:13px">${esc(t("common.back"))}</button>
       <div style="width:60px;height:60px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;margin-bottom:14px">${esc(u.namn[0])}</div>
       <div style="font-size:20px;font-weight:600;color:#fff;margin-bottom:4px">${esc(u.namn)}</div>
-      <div style="font-size:13px;color:#888;margin-bottom:24px">Ange din 5-siffriga PIN</div>
+      <div style="font-size:13px;color:#888;margin-bottom:24px">${esc(t("login.enterPin"))}</div>
       <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" style="max-width:180px;text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:8px;background:#2a2a2a;border-color:#444;color:#fff" autofocus/>
       ${loginErr?`<div style="color:#ff6b6b;font-size:12px;margin-bottom:8px">${esc(loginErr)}</div>`:""}
-      <button class="fg-btn" data-act="submit-pin" style="max-width:220px;margin-top:10px">Logga in →</button>
+      <button class="fg-btn" data-act="submit-pin" style="max-width:220px;margin-top:10px">${esc(t("common.loginButtonArrow"))}</button>
     </div>`;
   }
 
@@ -2563,23 +2815,23 @@ function renderHome(){
         <div style="flex:1;color:#fff;font-weight:500;font-size:15px">${esc(u.namn)}</div>
         <span style="color:#555;font-size:20px">›</span>
       </button>`).join("")||(searching
-        ?'<div style="font-size:13px;color:#666;text-align:center;padding:20px">Ingen spelare hittades.</div>'
-        :'<div style="font-size:13px;color:#666;text-align:center;padding:20px;line-height:1.6">Ingen tidigare inloggning på den här enheten.<br>Sök ditt namn ovan för att hitta dig.</div>');
+        ?`<div style="font-size:13px;color:#666;text-align:center;padding:20px">${esc(t("login.noPlayerFound"))}</div>`
+        :`<div style="font-size:13px;color:#666;text-align:center;padding:20px;line-height:1.6">${t("login.noRecentDevice")}</div>`);
     window._refreshUserList=()=>{
       const q=document.getElementById("user-search")?.value.toLowerCase()||"";
       const el=document.getElementById("user-list-login");
       const label=document.getElementById("user-list-label");
       const list=q?users.filter(u=>u.namn.toLowerCase().includes(q)):recentUsers;
-      if(label) label.textContent=q?"Sökresultat":"Senast inloggade på den här enheten";
+      if(label) label.textContent=q?t("login.searchResults"):t("login.recentOnDevice");
       if(el) el.innerHTML=makeList(list,!!q);
       attachHandlers();
     };
     return `
     <div style="min-height:100vh;background:#1f1f1f;padding:24px">
-      <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">← Tillbaka</button>
-      <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:16px">Välj din spelare</div>
-      <input id="user-search" type="search" placeholder="🔍 Sök ditt namn..." oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#2a2a2a;border:0.5px solid #555;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
-      <div id="user-list-label" style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">${isShowingRecent?"Senast inloggade på den här enheten":"Sökresultat"}</div>
+      <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">${esc(t("common.back"))}</button>
+      <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:16px">${esc(t("login.choosePlayer"))}</div>
+      <input id="user-search" type="search" placeholder="${esc(t("login.searchPlaceholder"))}" oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#2a2a2a;border:0.5px solid #555;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
+      <div id="user-list-label" style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">${isShowingRecent?esc(t("login.recentOnDevice")):esc(t("login.searchResults"))}</div>
       <div id="user-list-login">${makeList(filteredUsers,!!searchQ)}</div>
     </div>`;
   }
@@ -2597,20 +2849,20 @@ function renderHome(){
 
   // Spelformskort – visar bara aktiverade spelformer
   const allModes=[
-    {ico:"⚽",title:"Fantasy",desc:"Bygg ditt lag, välj kapten",on:cfg.fantasyEnabled!==false},
-    {ico:"🎯",title:"Tippa resultat",desc:"Gissa rätt resultat i matchen",on:cfg.tippEnabled!==false},
-    {ico:"📊",title:"Tippa serien",desc:`Rangordna alla ${TEAMS.length||14} lag`,on:cfg.ligatippEnabled!==false},
-    {ico:"⚡",title:"Snabbast vinner",desc:"Vilka 7 lag gör snabbast mål?",on:cfg.snabbastEnabled!==false},
-    {ico:"🎯",title:"Måljakten",desc:"Välj 3 lag som du tror gör flest mål",on:cfg.maljaktenEnabled!==false},
-    {ico:"🧠",title:"Quiz",desc:`Allmänna frågor om ${currentLeague.name}`,on:!!cfg.quizEnabled},
-    {ico:"🔥",title:"Streak",desc:"Håll din vinstsvit vid liv",on:!!cfg.streakEnabled},
-    {ico:"⚽",title:"Matchexperten",desc:"13 stryktips-frågor om en utvald match",on:!!cfg.matchfokusEnabled},
-    {ico:"🥊",title:"Duellen",desc:"Möt andra spelare hemma/borta via Tippa resultat",on:!!cfg.duellenEnabled},
-    {ico:"🌧️",title:"Målregn",desc:"Gissa totalt antal mål i omgången",on:!!cfg.malregnEnabled},
-    {ico:"🙌",title:"Båda får Jubla",desc:"Gör båda lagen mål i matchen? Ja eller nej",on:!!cfg.jubelEnabled},
-    {ico:"💰",title:"Investeraren",desc:"Placera 1000 kr på lag – bygg din portfölj",on:!!cfg.investerareEnabled},
-    {ico:"💀",title:"Last Team Standing",desc:"Välj ett lag varje omgång – tre förluster och du är utslagen",on:!!cfg.ltsEnabled},
-    {ico:"🎯",title:"Skyttekung",desc:"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",on:!!cfg.anytimeEnabled},
+    {ico:"⚽",title:t("home.mode.fantasy.title"),desc:t("home.mode.fantasy.desc"),on:cfg.fantasyEnabled!==false},
+    {ico:"🎯",title:t("home.mode.tipp.title"),desc:t("home.mode.tipp.desc"),on:cfg.tippEnabled!==false},
+    {ico:"📊",title:t("home.mode.ligatipp.title"),desc:t("home.mode.ligatipp.desc",{n:TEAMS.length||14}),on:cfg.ligatippEnabled!==false},
+    {ico:"⚡",title:t("home.mode.snabbast.title"),desc:t("home.mode.snabbast.desc"),on:cfg.snabbastEnabled!==false},
+    {ico:"🎯",title:t("home.mode.maljakten.title"),desc:t("home.mode.maljakten.desc"),on:cfg.maljaktenEnabled!==false},
+    {ico:"🧠",title:t("home.mode.quiz.title"),desc:t("home.mode.quiz.desc",{league:currentLeague.name}),on:!!cfg.quizEnabled},
+    {ico:"🔥",title:t("home.mode.streak.title"),desc:t("home.mode.streak.desc"),on:!!cfg.streakEnabled},
+    {ico:"⚽",title:t("home.mode.matchfokus.title"),desc:t("home.mode.matchfokus.desc"),on:!!cfg.matchfokusEnabled},
+    {ico:"🥊",title:t("home.mode.duellen.title"),desc:t("home.mode.duellen.desc"),on:!!cfg.duellenEnabled},
+    {ico:"🌧️",title:t("home.mode.malregn.title"),desc:t("home.mode.malregn.desc"),on:!!cfg.malregnEnabled},
+    {ico:"🙌",title:t("home.mode.jubel.title"),desc:t("home.mode.jubel.desc"),on:!!cfg.jubelEnabled},
+    {ico:"💰",title:t("home.mode.investerare.title"),desc:t("home.mode.investerare.desc"),on:!!cfg.investerareEnabled},
+    {ico:"💀",title:t("home.mode.lts.title"),desc:t("home.mode.lts.desc"),on:!!cfg.ltsEnabled},
+    {ico:"🎯",title:t("home.mode.anytime.title"),desc:t("home.mode.anytime.desc"),on:!!cfg.anytimeEnabled},
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
@@ -2652,28 +2904,28 @@ function renderHome(){
     <!-- CTA -->
     <div style="padding:0 24px 16px;display:flex;flex-direction:column;gap:10px;max-width:340px;margin:0 auto;width:100%">
       <button class="fg-btn" data-act="show-login" style="padding:14px;font-size:15px;letter-spacing:.3px">
-        Logga in
+        ${esc(t("home.loginButton"))}
       </button>
       ${cfg.registrationOpen
         ? `<button data-act="go-reg" style="background:transparent;border:1px solid #e05555;color:#e05555;border-radius:8px;padding:13px;font-size:14px;font-weight:500;cursor:pointer;letter-spacing:.3px">
-            Ny spelare – Registrera dig
+            ${esc(t("home.registerButton"))}
           </button>`
-        : `<div style="background:#1f1515;border:0.5px solid #3a2020;border-radius:8px;padding:12px;text-align:center;font-size:12px;color:#c1272d">🔒 Registrering är stängd</div>`}
+        : `<div style="background:#1f1515;border:0.5px solid #3a2020;border-radius:8px;padding:12px;text-align:center;font-size:12px;color:#c1272d">${esc(t("home.registrationClosed"))}</div>`}
       <button data-act="go-rules-home" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline">
-        Läs om spelformerna →
+        ${esc(t("home.readRulesLink"))}
       </button>
       ${sponsors.some(s=>s.active)?`<button data-act="go-sponsors" style="background:none;border:none;color:#aaa;font-size:13px;cursor:pointer;padding:6px;text-decoration:underline;margin-top:4px">
-        Våra sponsorer →
+        ${esc(t("home.sponsorsLink"))}
       </button>`:""}
       ${cfg.stodEnabled&&cfg.stodSwishNumber?`<button data-act="go-stod" style="display:block;width:100%;text-align:center;background:#1a6b3c;color:#fff;border-radius:8px;padding:13px;font-size:14px;font-weight:600;border:none;cursor:pointer;margin-top:6px">
-        ❤️ ${swishButtonLabel(cfg.stodAmount)} – Stöd oss
+        ❤️ ${swishButtonLabel(cfg.stodAmount)} ${esc(t("home.supportSuffix"))}
       </button>`:""}
     </div>
 
     <!-- Footer -->
     <div style="margin-top:auto;padding:20px;text-align:center;border-top:0.5px solid #222">
       ${sponsors.filter(s=>s.active&&s.show_in_footer).length?`
-      <div style="font-size:10px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Stöttas av</div>
+      <div style="font-size:10px;color:#555;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">${esc(t("home.supportedBy"))}</div>
       <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:14px">
         ${sponsors.filter(s=>s.active&&s.show_in_footer).map(s=>`
           <a href="${esc(s.link_url)}" onclick="window._logSponsorClick(${s.id})" target="_blank" rel="noopener noreferrer" style="display:flex;align-items:center;gap:6px;text-decoration:none;color:#999;font-size:11px">
@@ -2681,7 +2933,7 @@ function renderHome(){
             <span>${esc(s.name)}</span>
           </a>`).join("")}
       </div>`:""}
-      <div style="font-size:11px;color:#666">${esc(currentLeague.name)} – Liverapportering · Säsong ${esc(String(currentLeague.season||cfg.omg||""))}</div>
+      <div style="font-size:11px;color:#666">${esc(currentLeague.name)} – ${esc(t("home.liverapportering"))} · ${esc(t("common.season",{season:String(currentLeague.season||cfg.omg||"")}))}</div>
     </div>
 
   </div>`;
@@ -2694,37 +2946,37 @@ function renderReg(){
         <input type="checkbox" data-act="toggle-multi-league" data-id="${l.id}" ${multiLeagueSelected.has(l.id)?"checked":""} style="width:18px;height:18px"/>
         <div>
           <div style="font-weight:500;font-size:14px">${esc(l.name)}</div>
-          ${l.season?`<div style="font-size:11px;color:var(--color-text-secondary)">Säsong ${esc(String(l.season))}</div>`:""}
+          ${l.season?`<div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("common.season",{season:String(l.season)}))}</div>`:""}
         </div>
       </label>`).join("");
     return `
     <div style="padding:24px">
-      <div style="font-size:18px;font-weight:500;margin-bottom:6px">🎉 Kontot är klart!</div>
-      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;line-height:1.5">Vill du gå med i fler av våra serier direkt, med samma namn och PIN-kod? Bocka i de du vill vara med i – helt valfritt.</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:6px">${esc(t("reg.accountReady"))}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;line-height:1.5">${esc(t("reg.multiLeaguePrompt"))}</div>
       ${rows}
-      <button class="fg-btn" data-act="submit-multi-league" style="margin-top:14px">Gå med i valda serier</button>
-      <button data-act="skip-multi-league" style="width:100%;margin-top:10px;background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;text-decoration:underline">Hoppa över, fortsätt till ${esc(currentLeague.name)}</button>
+      <button class="fg-btn" data-act="submit-multi-league" style="margin-top:14px">${esc(t("reg.joinSelected"))}</button>
+      <button data-act="skip-multi-league" style="width:100%;margin-top:10px;background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;text-decoration:underline">${esc(t("reg.skipMultiLeague",{league:currentLeague.name}))}</button>
     </div>`;
   }
   return `
   <div style="padding:24px">
-    <button class="fg-outbtn" data-act="go-home" style="margin-bottom:20px;padding:7px 14px">← Tillbaka</button>
-    <div style="font-size:18px;font-weight:500;margin-bottom:16px">Ny spelare</div>
-    <label class="fg-label">Ditt namn</label>
-    <input class="fg-input" id="reg-namn" placeholder="T.ex. Marcus N" autofocus style="margin-bottom:4px"/>
-    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px">Spelar du redan i en annan serie? Skriv exakt samma namn som där.</div>
-    <label class="fg-label">Välj en 5-siffrig PIN-kod</label>
-    <input class="fg-input" id="reg-pin" placeholder="T.ex. 48215" inputmode="numeric" maxlength="5" pattern="[0-9]*"/>
-    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">Du behöver PIN-koden varje gång du loggar in – kom ihåg den!</div>
+    <button class="fg-outbtn" data-act="go-home" style="margin-bottom:20px;padding:7px 14px">${esc(t("common.back"))}</button>
+    <div style="font-size:18px;font-weight:500;margin-bottom:16px">${esc(t("reg.title"))}</div>
+    <label class="fg-label">${esc(t("reg.nameLabel"))}</label>
+    <input class="fg-input" id="reg-namn" placeholder="${esc(t("reg.namePlaceholder"))}" autofocus style="margin-bottom:4px"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("reg.nameHint"))}</div>
+    <label class="fg-label">${esc(t("reg.pinLabel"))}</label>
+    <input class="fg-input" id="reg-pin" placeholder="${esc(t("reg.pinPlaceholder"))}" inputmode="numeric" maxlength="5" pattern="[0-9]*"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:4px">${esc(t("reg.pinHint"))}</div>
     <div style="background:#fce8e8;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:500;margin-top:10px;line-height:1.5">
-      🔑 Spelar du redan i en annan serie? Ange <b>samma namn och samma PIN</b> som där, så kopplas kontona ihop automatiskt – du slipper logga in på nytt nästa gång du byter serie.
+      ${t("reg.sameAccountInfo")}
     </div>
     ${cfg.trialEnabled?`<div style="background:#eef6ff;border:0.5px solid #2563eb;border-radius:8px;padding:10px 12px;font-size:12px;margin-top:10px;line-height:1.6">
-      ⏳ <b>Gratis i ${esc(String(cfg.trialDays||14))} dagar</b>${cfg.trialPrice?` – därefter ${esc(String(cfg.trialPrice))} kr för att fortsätta`:" – därefter en frivillig summa för att fortsätta"}. Gäller över alla våra serier, inte bara den här. Du kan när som helst se allt gratis, betalningen krävs bara för att göra nya val.
+      ${t("reg.trialInfoFree",{days:esc(String(cfg.trialDays||14))})}${cfg.trialPrice?t("reg.trialInfoPricePaid",{price:esc(String(cfg.trialPrice))}):t("reg.trialInfoPriceFree")}${t("reg.trialInfoRest")}
     </div>`:""}
-    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:12px;text-align:center">Genom att registrera dig godkänner du vår <button data-act="go-privacy" style="background:none;border:none;color:var(--color-text-secondary);font-size:11px;text-decoration:underline;cursor:pointer;padding:0">integritetspolicy & villkor</button></div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-top:12px;text-align:center">${esc(t("reg.termsPrefix"))}<button data-act="go-privacy" style="background:none;border:none;color:var(--color-text-secondary);font-size:11px;text-decoration:underline;cursor:pointer;padding:0">${esc(t("reg.termsLink"))}</button></div>
     ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:6px">${esc(errMsg)}</div>`:""}
-    <button class="fg-btn" data-act="submit-reg" style="margin-top:14px">Registrera →</button>
+    <button class="fg-btn" data-act="submit-reg" style="margin-top:14px">${esc(t("reg.submitButton"))}</button>
   </div>`;
 }
 
@@ -3356,55 +3608,55 @@ function renderInstallGuide(){
   </div>`;
 
   const iosContent=`
-    ${step(1,`Öppna <b>bonnboll.se</b> i <b>Safari</b> (måste vara Safari – fungerar inte i Chrome eller andra appar på iPhone).`)}
-    ${step(2,`Tryck på <b>Dela-ikonen</b> (en fyrkant med en pil uppåt) längst ned i menyraden.`)}
-    ${step(3,`Scrolla ner i listan och välj <b>"Lägg till på hemskärmen"</b>.`)}
-    ${step(4,`Tryck <b>"Lägg till"</b> uppe i högra hörnet.`)}
-    ${step(5,`Klart! ${esc(appName)} dyker nu upp som en egen ikon på hemskärmen, precis som en vanlig app.`)}
+    ${step(1,t("install.ios.step1"))}
+    ${step(2,t("install.ios.step2"))}
+    ${step(3,t("install.ios.step3"))}
+    ${step(4,t("install.ios.step4"))}
+    ${step(5,t("install.ios.step5",{app:esc(appName)}))}
   `;
   const androidContent=`
     <div style="background:#e8f5ee;border-radius:6px;padding:10px 12px;font-size:12px;margin-bottom:14px;line-height:1.5">
-      ✅ Push-notiser funkar redan i webbläsaren på Android – du behöver <b>inte</b> installera för att få notiser. Stegen nedan ger dig ändå en snabbare app-känsla med egen ikon.
+      ${t("install.android.banner")}
     </div>
-    ${step(1,`Öppna <b>bonnboll.se</b> i <b>Chrome</b>.`)}
-    ${step(2,`Tryck på de <b>tre punkterna</b> uppe i högra hörnet för att öppna menyn.`)}
-    ${step(3,`Välj <b>"Installera app"</b> eller <b>"Lägg till på startskärmen"</b> (texten kan skilja lite mellan telefoner).`)}
-    ${step(4,`Bekräfta genom att trycka <b>"Installera"</b>.`)}
-    ${step(5,`Klart! ${esc(appName)} dyker nu upp som en egen ikon på hemskärmen.`)}
+    ${step(1,t("install.android.step1"))}
+    ${step(2,t("install.android.step2"))}
+    ${step(3,t("install.android.step3"))}
+    ${step(4,t("install.android.step4"))}
+    ${step(5,t("install.android.step5",{app:esc(appName)}))}
   `;
   const desktopContent=`
-    ${step(1,`Öppna <b>bonnboll.se</b> i Chrome eller Edge.`)}
-    ${step(2,`Leta efter en <b>installationsikon</b> i adressfältet (ser oftast ut som en skärm med en nedåtpil, eller ett litet plustecken).`)}
-    ${step(3,`Om du inte ser ikonen: öppna webbläsarens meny (tre punkter/streck) och leta efter <b>"Installera ${esc(appName)}"</b>.`)}
-    ${step(4,`Klicka <b>"Installera"</b>.`)}
-    ${step(5,`Klart! Appen öppnas nu i ett eget fönster utan adressfält, och du hittar den bland dina vanliga program.`)}
+    ${step(1,t("install.desktop.step1"))}
+    ${step(2,t("install.desktop.step2"))}
+    ${step(3,t("install.desktop.step3",{app:esc(appName)}))}
+    ${step(4,t("install.desktop.step4"))}
+    ${step(5,t("install.desktop.step5"))}
   `;
 
   return `
   <div style="min-height:100vh;padding:24px;max-width:480px;margin:0 auto">
-    <button data-act="${backAct}" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">← Tillbaka</button>
-    <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;margin-bottom:4px">📲 Installera appen</div>
-    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:20px">Så funkar ${esc(appName)} som bäst – på under en minut</div>
+    <button data-act="${backAct}" style="background:none;border:none;color:var(--color-text-secondary);font-size:13px;cursor:pointer;padding:0;margin-bottom:20px">${esc(t("common.back"))}</button>
+    <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;margin-bottom:4px">${esc(t("install.title"))}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:20px">${esc(t("install.subtitle",{app:esc(appName)}))}</div>
 
     <div class="fg-card" style="background:var(--color-background-secondary);margin-bottom:20px">
       <div style="font-size:13px;line-height:1.6">
-        Genom att lägga till ${esc(appName)} på hemskärmen får du:
+        ${esc(t("install.introText",{app:esc(appName)}))}
       </div>
       <ul style="font-size:13px;color:var(--color-text-secondary);line-height:1.8;margin:8px 0 0;padding-left:20px">
-        <li>Snabbare laddning och offline-stöd för redan hämtad data.</li>
-        <li>En egen app-ikon, utan adressfält eller webbläsarmeny i vägen.</li>
-        <li>Push-notiser när nytt omgångsresultat publiceras eller ditt lag behöver uppdateras.</li>
+        <li>${t("install.benefit1")}</li>
+        <li>${t("install.benefit2")}</li>
+        <li>${t("install.benefit3")}</li>
       </ul>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);line-height:1.6">
-        <b>📱 iPhone:</b> installation är obligatoriskt – Apple tillåter inte notiser i Safari annars.<br>
-        <b>🤖 Android:</b> notiser funkar redan i webbläsaren, men installation ger snabbare/smidigare app-känsla ändå.
+        ${t("install.iphoneNote")}<br>
+        ${t("install.androidNote")}
       </div>
     </div>
 
     <div style="display:flex;border-bottom:0.5px solid var(--color-border-tertiary);margin-bottom:18px">
-      ${tabBtn("ios","📱 iPhone")}
-      ${tabBtn("android","🤖 Android")}
-      ${tabBtn("desktop","💻 Dator")}
+      ${tabBtn("ios",esc(t("install.tabIos")))}
+      ${tabBtn("android",esc(t("install.tabAndroid")))}
+      ${tabBtn("desktop",esc(t("install.tabDesktop")))}
     </div>
 
     <div class="fg-card">
@@ -3412,7 +3664,7 @@ function renderInstallGuide(){
     </div>
 
     <div style="background:#fce8e8;border-radius:6px;padding:10px 12px;font-size:12px;margin-top:16px;line-height:1.5">
-      💡 Redan installerad men notiserna funkar ändå inte? Gå till <b>Min profil</b> och kontrollera att notiser är aktiverade där.
+      ${t("install.tip")}
     </div>
   </div>`;
 }
