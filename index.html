@@ -2532,7 +2532,91 @@ const TRANSLATIONS={
     "streak.title":"🔥 Streak – Omgång {n}",
     "streak.description":"Välj <b>3 matcher</b> och tippa 1, X eller 2. Alla 3 rätt = streak fortsätter!",
     "streak.chooseMoreMatchesSingular":"Välj {n} match till","streak.chooseMoreMatchesPlural":"Välj {n} matcher till",
-    "streak.submitTip":"✅ Lämna in tips"
+    "streak.submitTip":"✅ Lämna in tips",
+    "rules.header":"Regler & spelformer",
+    "rules.intro":"{app} har flera spelformer. Du väljer själv vilka du vill delta i – varje spelform har sin egen ligatabell och poängräkning. Du kan också gå med i <b>privata ligor</b> och tävla mot kompisar.",
+    "rules.fantasy.intro":"Sätt ihop ett drömlag med 11 spelare från {league} i formationen 4-3-3. <b>Max en spelare per lag</b> – du måste sprida dina val. Du utser även en <b>kapten</b> vars poäng räknas dubbelt. Laget kan bytas fritt fram till att omgångens tippning stänger.",
+    "rules.fantasy.pointsPerRoundLabel":"Poäng per omgång:",
+    "rules.fantasy.rowWin":"Laget vinner","rules.fantasy.rowDraw":"Laget oavgjort","rules.fantasy.rowLoss":"Laget förlorar",
+    "rules.fantasy.bonusPerPositionLabel":"Bonuspoäng per position:",
+    "rules.fantasy.tip":"💡 Exempel: Din försvarare vinner 2–0 och gör ett mål → 5p (vinst) + 4p (nollmatch) + 6p (mål) = <b>15p</b>. Som kapten: <b>30p</b>.",
+    "rules.tipp.intro":"Gissa exakt resultat på varje match i omgången. Ju mer rätt du har, desto mer poäng. Tips stänger när omgångens tippning stängs av admin.",
+    "rules.tipp.rowExact":"Exakt rätt resultat","rules.tipp.rowPartial":"Rätt antal mål för ena laget","rules.tipp.rowPartialVal":"4 p/lag",
+    "rules.tipp.rowSign":"Rätt tecken (1/X/2) men fel mål",
+    "rules.tipp.tip":"💡 Exempel: Matchen slutar 2–1, du tippar 2–1 → <b>10p</b>. Du tippar 2–0 → bara hemmalaget stämmer → <b>4p</b>. Du tippar 1–0 → rätt tecken → <b>2p</b>.",
+    "rules.duellen.intro":"Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar {app}. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.",
+    "rules.duellen.rowWin":"Du får fler poäng än motståndaren","rules.duellen.rowWinVal":"Vinst – 3p",
+    "rules.duellen.rowDraw":"Ni får exakt lika många poäng","rules.duellen.rowDrawVal":"Oavgjort – 1p",
+    "rules.duellen.rowLoss":"Motståndaren får fler poäng","rules.duellen.rowLossVal":"Förlust – 0p",
+    "rules.duellen.rowBot":"Möter en bot","rules.duellen.rowBotVal":"Boten har alltid 0p – lätt vinst!",
+    "rules.duellen.extra":"<b>Anmälan:</b> Frivillig, egen anmälan i Duellen-fliken. Ingen extra tippning behövs – dina Tippa resultat-poäng används automatiskt.<br><b>Schema:</b> Säsongen slumpas fram när admin startar den – du möter varje motståndare <b>högst en gång</b> under säsongen. Är ni ett udda antal fyller en bot ut schemat.<br><b>Tabell:</b> 3 poäng för vinst, 1 för oavgjort, 0 för förlust – precis som i riktig fotboll.",
+    "rules.duellen.tip":"💡 Kommer inte du eller din motståndare in med tips en omgång räknas det som 0 poäng den matchen – glöm inte att tippa!",
+    "rules.malregn.intro":"Hur många mål tror du blir det totalt i omgångens 7 matcher? Gissa ett exakt tal – ju bättre koll på formkurvor, desto större chans!",
+    "rules.malregn.rowExact":"Exakt rätt antal mål","rules.malregn.rowWrong":"Fel gissning",
+    "rules.malregn.extra":"<b>Deadline:</b> Samma spelstopp som resten av omgången.<br><b>Facit:</b> Räknas fram automatiskt så fort alla resultat är inlagda – summan av målen i omgångens matcher.",
+    "rules.malregn.tip":"💡 Titta på tabellen – lag i toppen och botten brukar ge fler mål än jämna möten!",
+    "rules.jubel.intro":"Enkelt och snabbt: för varje match, gissa om <b>båda lagen gör minst ett mål</b>. Svara Ja eller Nej på alla 7 matcher.",
+    "rules.jubel.rowCorrect":"Rätt gissning","rules.jubel.rowCorrectVal":"1 p/match","rules.jubel.rowWrong":"Fel gissning",
+    "rules.jubel.rowMax":"Max per omgång","rules.jubel.rowMaxVal":"7 p",
+    "rules.jubel.extra":"<b>Deadline:</b> Samma spelstopp som resten av omgången.<br><b>Facit:</b> Räknas fram automatiskt så fort resultaten är inlagda – båda lagen gjorde minst ett mål = Ja, annars Nej.",
+    "rules.jubel.tip":"💡 Snabbaste spelet att tippa – bara 7 klick, ingen exakt gissning behövs!",
+    "rules.investerare.intro":"Du startar med <b>1000 kr</b>. Varje omgång placerar du valfri summa på valfria lag – du behöver inte investera allt, och du kan investera i båda lagen i samma match. Din portfölj fortsätter hela säsongen – vinster och förluster läggs på det du redan har.",
+    "rules.investerare.rowWin":"Laget vinner","rules.investerare.rowDraw":"Oavgjort","rules.investerare.rowLoss":"Laget förlorar",
+    "rules.investerare.rowCleanSheet":"Hållen nolla (0 insläppta mål)","rules.investerare.rowHighScore":"Laget gör över 3 mål (4+)",
+    "rules.investerare.rowBigMargin":"Vinst med minst 3 måls marginal",
+    "rules.investerare.extra":"<b>Staplas:</b> Flera bonusar kan gälla samtidigt – t.ex. vinst (+10%) + hållen nolla (+2%) + minst 3 måls marginal (+3%) = <b>+15%</b> på just den investeringen.<br><b>Deadline:</b> Samma spelstopp som resten av omgången.<br><b>Facit:</b> Räknas fram automatiskt utifrån matchresultaten så fort omgången är klar.",
+    "rules.investerare.tip":"💡 Sprid riskerna över flera lag, eller satsa stort på ett lag du är säker på – helt upp till dig!",
+    "rules.lts.intro":"Klassiskt utslagsspel: varje omgång väljer du <b>ett lag</b> som du tror inte förlorar. Vinst eller oavgjort och du går vidare – bara en <b>förlust</b> kostar dig ett liv.",
+    "rules.lts.rowWinDraw":"Laget vinner eller spelar oavgjort","rules.lts.rowWinDrawVal":"Du går vidare",
+    "rules.lts.rowLoss":"Laget förlorar","rules.lts.rowLossVal":"−1 liv",
+    "rules.lts.rowZeroLives":"0 liv kvar","rules.lts.rowZeroLivesVal":"Utslagen",
+    "rules.lts.rowMaxRounds":"Max antal omgångar","rules.lts.rowMaxRoundsVal":"Lika många som antal lag i serien",
+    "rules.lts.livesDecreaseNote":"<b>Liven minskar ju längre tävlingen pågår</b> – så det alltid finns något att spela för på slutet:",
+    "rules.lts.rowPhase1":"Omgång 1–{n}","rules.lts.rowPhase1Val":"Max 3 liv",
+    "rules.lts.rowPhase2":"Omgång {start}–{end}","rules.lts.rowPhase2Val":"Max 2 liv",
+    "rules.lts.rowPhase3":"Omgång {start} och framåt","rules.lts.rowPhase3Val":"Max 1 liv",
+    "rules.lts.extra":"Har du färre liv kvar än taket (för att du redan förlorat) gäller förstås det verkliga, lägre antalet – taket kan bara sänka, aldrig ge dig extra liv.<br><br><b>Viktig regel:</b> Varje lag får bara användas <b>en gång</b> under hela tävlingen – när du valt ett lag kan du inte välja det igen.<br><b>Utslagsfråga:</b> Du gissar totalt antal mål som görs under hela tävlingen innan ditt första val – används som utslag om flera klarar sig hela vägen (närmast rätt vinner).<br><b>Deadline:</b> Samma spelstopp som resten av omgången. Väljer du inget lag räknas det som en förlust.",
+    "rules.lts.tip":"💡 Spara dina bästa lag till senare omgångar – från omgång 11 räcker EN förlust för att slå ut dig, oavsett hur många liv du haft tidigare!",
+    "rules.anytime.intro":"Välj <b>1 försvarare, 2 mittfältare och 2 anfallare</b> som du tror gör mål i omgången. Samma poängvikt som i Fantasy – ovanligare mål (från försvarare) ger mer.",
+    "rules.anytime.rowDef":"Mål av din försvarare","rules.anytime.rowDefVal":"7 p/mål",
+    "rules.anytime.rowMid":"Mål av din mittfältare","rules.anytime.rowMidVal":"5 p/mål",
+    "rules.anytime.rowFw":"Mål av din anfallare","rules.anytime.rowFwVal":"5 p/mål",
+    "rules.anytime.extra":"<b>Val:</b> Fem olika spelare, en per position enligt kraven ovan – ingen får väljas dubbelt.<br><b>Deadline:</b> Samma spelstopp som resten av omgången.<br><b>Facit:</b> Räknas fram från samma målstatistik som redan används för Fantasy – ingen ny inmatning krävs.",
+    "rules.anytime.tip":"💡 Skyttekungen är säker men ger mindre – en chansning på en målsugen försvarare kan ge betydligt fler poäng!",
+    "rules.snabbast.intro":"Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången. Poängen kräver rätt lag på exakt rätt plats – 7p om du gissar snabbaste laget på plats 1, 6p för plats 2, ner till 1p för plats 7. Fel plats ger inga poäng för det laget.",
+    "rules.snabbast.extra":"<b>Oavgjord minut:</b> Det lag som har bäst tabellplacering går före.<br><b>Lag utan mål:</b> Placeras efter alla målgörande lag, rangordnade efter tabellplacering.",
+    "rules.snabbast.tip":"💡 Max möjlig poäng per omgång: 7+6+5+4+3+2+1 = <b>28p</b> (om alla 7 dina val finns i facit).",
+    "rules.maljakten.intro":"Välj <b>3 lag</b> inför varje omgång. Du får poäng för varje mål dina valda lag gör – med högre belöning för bortamål och bonus för riktigt målrika matcher.",
+    "rules.maljakten.rowHome":"Hemmamål","rules.maljakten.rowHomeVal":"2 p/mål",
+    "rules.maljakten.rowAway":"Bortamål","rules.maljakten.rowAwayVal":"3 p/mål",
+    "rules.maljakten.rowBonus":"Laget gör 3+ mål","rules.maljakten.rowBonusVal":"+ 5 p bonus",
+    "rules.maljakten.tip":"💡 Exempel: Ditt lag vinner borta 3–1 → 3×3p + 5p bonus = <b>14p</b>. Ditt lag vinner hemma 2–0 → 2×2p = <b>4p</b>.",
+    "rules.ligatipp.intro":"Rangordna <b>alla {n} lag</b> inför säsongsstart – vem vinner, vem slutar sist? Poäng delas ut vid <b>två tillfällen</b>: efter omgång {half} (halvtid) och efter omgång {total} (slutet). För varje lag du placerar på exakt rätt plats får du 3p.",
+    "rules.ligatipp.rowExact":"Exakt rätt placering",
+    "rules.ligatipp.rowMaxCheckpoint":"Max poäng per checkpoint","rules.ligatipp.rowMaxCheckpointVal":"{max} p ({n}×3p)",
+    "rules.ligatipp.rowMaxTotal":"Max totalt (båda checkpoints)",
+    "rules.ligatipp.tip":"💡 Tippningen stänger innan säsongen startar – du kan inte ändra efteråt. Välj klokt!",
+    "rules.privateLeagues.title":"Privata ligor",
+    "rules.privateLeagues.intro":"Tävla mot kompisar, kollegor eller supportrar från ditt lag i en privat liga! Dina tips och poäng är desamma som i huvudligan – du behöver inte tippa om.",
+    "rules.privateLeagues.extra":"<b>Gå med:</b> Klicka \"Gå med med kod\" i respektive spelform och ange koden du fått.<br><b>Skapa:</b> Klicka \"+ Skapa liga\" och skicka in en ansökan – admin godkänner och genererar en kod som du delar med dina vänner.<br><b>Placeringspilar:</b> ▲ grön pil = du klättrat, ▼ röd pil = du tappat, – = oförändrat.",
+    "rules.privateLeagues.tip":"💡 En inbjudningskod gäller per spelform. Vill du tävla mot samma grupp i alla spel behöver du en kod per spelform.",
+    "rules.quiz.intro":"Testa dina kunskaper om {league}! Varje omgång finns det <b>5 frågor</b> om seriens historia, lag och händelser. Du har <b>5 minuter</b> på dig att svara.",
+    "rules.quiz.rowCorrect":"Rätt svar","rules.quiz.rowWrong":"Fel svar / ej besvarad",
+    "rules.quiz.rowMax":"Max per omgång","rules.quiz.rowMaxTotal":"Max totalt ({n} omgångar)",
+    "rules.quiz.extra":"<b>Format:</b> Tre alternativ – <b>1</b>, <b>X</b> eller <b>2</b> – med valfri text bakom.<br><b>Låsta svar:</b> Klickar du ett alternativ låses svaret permanent.<br><b>Timer:</b> Börjar när du öppnar quizen. Fortsätter även om du lämnar sidan.",
+    "rules.quiz.tip":"💡 Det finns en gemensam topplista – ingen privat liga behövs. Alla tävlar mot alla!",
+    "rules.streak.intro":"Håll din vinstsvit levande! Varje omgång väljer du <b>3 matcher</b> av de 7 som spelas och tippar <b>1, X eller 2</b> på varje. Får du alla 3 rätt fortsätter din streak – missar du en nollställs allt.",
+    "rules.streak.rowAllCorrect":"Alla 3 rätt","rules.streak.rowAllCorrectVal":"Streak +1 🔥",
+    "rules.streak.rowSomeWrong":"En eller fler fel","rules.streak.rowSomeWrongVal":"Streak nollställs",
+    "rules.streak.rowNotTipped":"Ej tippat en omgång","rules.streak.rowNotTippedVal":"Streak nollställs",
+    "rules.streak.rowLongest":"Längst streak vid säsongsslut","rules.streak.rowLongestVal":"Vinner!",
+    "rules.streak.extra":"<b>Val:</b> Du väljer fritt vilka 3 av de 7 matcherna du vill tippa.<br><b>Deadline:</b> Tips måste lämnas innan omgången stängs.<br><b>Strategi:</b> Välj de matcher du är mest säker på – alla 3 måste vara rätt!",
+    "rules.streak.tip":"💡 Längsta aktiva streak visas i ligatabellen. Bästa streak under säsongen avgör vinnaren!",
+    "rules.matchfokus.intro":"Varje omgång lyfter vi fram <b>en match</b> och du svarar på <b>13 frågor</b> om den – som ett litet stryktips. Frågor om målantal, halvtidsledning, första målskytt, vinnare, röda kort med mera.",
+    "rules.matchfokus.rowCorrect":"Varje rätt svar","rules.matchfokus.rowCorrectVal":"+1 poäng",
+    "rules.matchfokus.rowMax":"Max poäng per omgång",
+    "rules.matchfokus.extra":"<b>Val:</b> Svara på alla 13 frågor för omgångens utvalda match.<br><b>Deadline:</b> Samma spelstopp som resten av omgången.<br><b>Rättning:</b> Kräver exakt rätt svar per fråga – inga halva poäng.",
+    "rules.matchfokus.tip":"💡 Facit och poäng visas per fråga så fort admin publicerat matchfakta efter matchen."
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -2890,7 +2974,91 @@ const TRANSLATIONS={
     "streak.title":"🔥 Streak – Round {n}",
     "streak.description":"Choose <b>3 matches</b> and predict 1, X or 2. All 3 correct = streak continues!",
     "streak.chooseMoreMatchesSingular":"Choose {n} more match","streak.chooseMoreMatchesPlural":"Choose {n} more matches",
-    "streak.submitTip":"✅ Submit prediction"
+    "streak.submitTip":"✅ Submit prediction",
+    "rules.header":"Rules & game modes",
+    "rules.intro":"{app} has several game modes. You choose which ones to take part in – each game mode has its own league table and scoring. You can also join <b>private leagues</b> and compete against friends.",
+    "rules.fantasy.intro":"Put together a dream team of 11 players from {league} in a 4-3-3 formation. <b>Max one player per team</b> – you have to spread your picks. You also appoint a <b>captain</b> whose points count double. The team can be changed freely until the round's predictions close.",
+    "rules.fantasy.pointsPerRoundLabel":"Points per round:",
+    "rules.fantasy.rowWin":"Team wins","rules.fantasy.rowDraw":"Team draws","rules.fantasy.rowLoss":"Team loses",
+    "rules.fantasy.bonusPerPositionLabel":"Bonus points per position:",
+    "rules.fantasy.tip":"💡 Example: Your defender wins 2–0 and scores a goal → 5p (win) + 4p (clean sheet) + 6p (goal) = <b>15p</b>. As captain: <b>30p</b>.",
+    "rules.tipp.intro":"Guess the exact result of every match in the round. The more correct you are, the more points. Predictions close when the round's predictions are closed by the admin.",
+    "rules.tipp.rowExact":"Exact correct result","rules.tipp.rowPartial":"Correct goal count for one team","rules.tipp.rowPartialVal":"4 p/team",
+    "rules.tipp.rowSign":"Correct outcome (1/X/2) but wrong score",
+    "rules.tipp.tip":"💡 Example: The match ends 2–1, you predict 2–1 → <b>10p</b>. You predict 2–0 → only the home team matches → <b>4p</b>. You predict 1–0 → correct outcome → <b>2p</b>.",
+    "rules.duellen.intro":"Face another player <b>home and away</b> over the season – like a real league, but between those of you playing {app}. Who wins the duel is decided automatically by who gets more points in <b>Predict the Result</b> that round.",
+    "rules.duellen.rowWin":"You get more points than your opponent","rules.duellen.rowWinVal":"Win – 3p",
+    "rules.duellen.rowDraw":"You get exactly the same points","rules.duellen.rowDrawVal":"Draw – 1p",
+    "rules.duellen.rowLoss":"Your opponent gets more points","rules.duellen.rowLossVal":"Loss – 0p",
+    "rules.duellen.rowBot":"Facing a bot","rules.duellen.rowBotVal":"The bot always has 0p – an easy win!",
+    "rules.duellen.extra":"<b>Sign-up:</b> Optional, sign up yourself in the Duel tab. No extra predictions needed – your Predict the Result points are used automatically.<br><b>Schedule:</b> The season is randomised when the admin starts it – you face each opponent <b>at most once</b> during the season. If there's an odd number of players, a bot fills out the schedule.<br><b>Table:</b> 3 points for a win, 1 for a draw, 0 for a loss – just like real football.",
+    "rules.duellen.tip":"💡 If you or your opponent don't submit predictions for a round, it counts as 0 points for that match – don't forget to predict!",
+    "rules.malregn.intro":"How many goals do you think there will be in total across the round's 7 matches? Guess an exact number – the better your read on form, the bigger your chance!",
+    "rules.malregn.rowExact":"Exact correct number of goals","rules.malregn.rowWrong":"Wrong guess",
+    "rules.malregn.extra":"<b>Deadline:</b> Same cutoff as the rest of the round.<br><b>Result:</b> Calculated automatically as soon as all results are entered – the sum of goals in the round's matches.",
+    "rules.malregn.tip":"💡 Check the table – teams at the top and bottom tend to produce more goals than evenly matched games!",
+    "rules.jubel.intro":"Simple and quick: for each match, guess whether <b>both teams score at least one goal</b>. Answer Yes or No for all 7 matches.",
+    "rules.jubel.rowCorrect":"Correct guess","rules.jubel.rowCorrectVal":"1 p/match","rules.jubel.rowWrong":"Wrong guess",
+    "rules.jubel.rowMax":"Max per round","rules.jubel.rowMaxVal":"7 p",
+    "rules.jubel.extra":"<b>Deadline:</b> Same cutoff as the rest of the round.<br><b>Result:</b> Calculated automatically as soon as results are entered – both teams scored at least one goal = Yes, otherwise No.",
+    "rules.jubel.tip":"💡 The fastest game to predict – just 7 clicks, no exact guess needed!",
+    "rules.investerare.intro":"You start with <b>1000 kr</b>. Each round you place any amount on any teams – you don't have to invest everything, and you can invest in both teams in the same match. Your portfolio continues all season – gains and losses are added to what you already have.",
+    "rules.investerare.rowWin":"Team wins","rules.investerare.rowDraw":"Draw","rules.investerare.rowLoss":"Team loses",
+    "rules.investerare.rowCleanSheet":"Clean sheet (0 goals conceded)","rules.investerare.rowHighScore":"Team scores over 3 goals (4+)",
+    "rules.investerare.rowBigMargin":"Win by at least 3 goals",
+    "rules.investerare.extra":"<b>Stackable:</b> Several bonuses can apply at once – e.g. win (+10%) + clean sheet (+2%) + margin of at least 3 goals (+3%) = <b>+15%</b> on that particular investment.<br><b>Deadline:</b> Same cutoff as the rest of the round.<br><b>Result:</b> Calculated automatically from the match results as soon as the round is done.",
+    "rules.investerare.tip":"💡 Spread the risk across several teams, or bet big on a team you're confident about – entirely up to you!",
+    "rules.lts.intro":"A classic knockout game: each round you pick <b>one team</b> you think won't lose. A win or draw and you advance – only a <b>loss</b> costs you a life.",
+    "rules.lts.rowWinDraw":"Team wins or draws","rules.lts.rowWinDrawVal":"You advance",
+    "rules.lts.rowLoss":"Team loses","rules.lts.rowLossVal":"−1 life",
+    "rules.lts.rowZeroLives":"0 lives left","rules.lts.rowZeroLivesVal":"Eliminated",
+    "rules.lts.rowMaxRounds":"Max number of rounds","rules.lts.rowMaxRoundsVal":"Same as the number of teams in the league",
+    "rules.lts.livesDecreaseNote":"<b>Lives decrease the longer the competition runs</b> – so there's always something to play for at the end:",
+    "rules.lts.rowPhase1":"Round 1–{n}","rules.lts.rowPhase1Val":"Max 3 lives",
+    "rules.lts.rowPhase2":"Round {start}–{end}","rules.lts.rowPhase2Val":"Max 2 lives",
+    "rules.lts.rowPhase3":"Round {start} onwards","rules.lts.rowPhase3Val":"Max 1 life",
+    "rules.lts.extra":"If you have fewer lives left than the cap (because you've already lost), the real, lower number applies of course – the cap can only lower, never give you extra lives.<br><br><b>Important rule:</b> Each team can only be used <b>once</b> during the whole competition – once you've picked a team you can't pick it again.<br><b>Tiebreaker question:</b> You guess the total number of goals scored during the whole competition before your first pick – used as a tiebreaker if several players survive all the way (closest guess wins).<br><b>Deadline:</b> Same cutoff as the rest of the round. If you don't pick a team it counts as a loss.",
+    "rules.lts.tip":"💡 Save your best teams for later rounds – from round 11 onwards, ONE loss is enough to eliminate you, no matter how many lives you had before!",
+    "rules.anytime.intro":"Choose <b>1 defender, 2 midfielders and 2 forwards</b> you think will score in the round. Same point weighting as in Fantasy – rarer goals (from defenders) give more.",
+    "rules.anytime.rowDef":"Goal by your defender","rules.anytime.rowDefVal":"7 p/goal",
+    "rules.anytime.rowMid":"Goal by your midfielder","rules.anytime.rowMidVal":"5 p/goal",
+    "rules.anytime.rowFw":"Goal by your forward","rules.anytime.rowFwVal":"5 p/goal",
+    "rules.anytime.extra":"<b>Picks:</b> Five different players, one per position as required above – no one can be picked twice.<br><b>Deadline:</b> Same cutoff as the rest of the round.<br><b>Result:</b> Calculated from the same goal stats already used for Fantasy – no new input needed.",
+    "rules.anytime.tip":"💡 The safe picks give less – a gamble on a goal-hungry defender can give significantly more points!",
+    "rules.snabbast.intro":"Choose <b>7 teams</b> you think will score the fastest goals during the round. Points require the right team in exactly the right spot – 7p if you guess the fastest team in position 1, 6p for position 2, down to 1p for position 7. Wrong position gives no points for that team.",
+    "rules.snabbast.extra":"<b>Tied minute:</b> The team with the better league position takes priority.<br><b>Teams without a goal:</b> Placed after all scoring teams, ranked by league position.",
+    "rules.snabbast.tip":"💡 Max possible points per round: 7+6+5+4+3+2+1 = <b>28p</b> (if all 7 of your picks are in the result).",
+    "rules.maljakten.intro":"Choose <b>3 teams</b> before each round. You get points for every goal your chosen teams score – with a higher reward for away goals and a bonus for really high-scoring matches.",
+    "rules.maljakten.rowHome":"Home goal","rules.maljakten.rowHomeVal":"2 p/goal",
+    "rules.maljakten.rowAway":"Away goal","rules.maljakten.rowAwayVal":"3 p/goal",
+    "rules.maljakten.rowBonus":"Team scores 3+ goals","rules.maljakten.rowBonusVal":"+ 5 p bonus",
+    "rules.maljakten.tip":"💡 Example: Your team wins away 3–1 → 3×3p + 5p bonus = <b>14p</b>. Your team wins at home 2–0 → 2×2p = <b>4p</b>.",
+    "rules.ligatipp.intro":"Rank <b>all {n} teams</b> ahead of the season start – who wins, who finishes last? Points are awarded on <b>two occasions</b>: after round {half} (halfway) and after round {total} (the end). For each team you place in exactly the right spot, you get 3p.",
+    "rules.ligatipp.rowExact":"Exact correct position",
+    "rules.ligatipp.rowMaxCheckpoint":"Max points per checkpoint","rules.ligatipp.rowMaxCheckpointVal":"{max} p ({n}×3p)",
+    "rules.ligatipp.rowMaxTotal":"Max total (both checkpoints)",
+    "rules.ligatipp.tip":"💡 Predictions close before the season starts – you can't change afterwards. Choose wisely!",
+    "rules.privateLeagues.title":"Private leagues",
+    "rules.privateLeagues.intro":"Compete against friends, colleagues, or supporters of your team in a private league! Your predictions and points are the same as in the main league – you don't need to predict again.",
+    "rules.privateLeagues.extra":"<b>Join:</b> Click \"Join with code\" in the respective game mode and enter the code you received.<br><b>Create:</b> Click \"+ Create league\" and submit a request – the admin approves and generates a code you share with your friends.<br><b>Position arrows:</b> ▲ green arrow = you've climbed, ▼ red arrow = you've dropped, – = unchanged.",
+    "rules.privateLeagues.tip":"💡 An invite code applies per game mode. Want to compete against the same group in all games? You'll need a code per game mode.",
+    "rules.quiz.intro":"Test your knowledge of {league}! Each round there are <b>5 questions</b> about the league's history, teams and events. You have <b>5 minutes</b> to answer.",
+    "rules.quiz.rowCorrect":"Correct answer","rules.quiz.rowWrong":"Wrong answer / not answered",
+    "rules.quiz.rowMax":"Max per round","rules.quiz.rowMaxTotal":"Max total ({n} rounds)",
+    "rules.quiz.extra":"<b>Format:</b> Three options – <b>1</b>, <b>X</b> or <b>2</b> – with custom text behind them.<br><b>Locked answers:</b> Clicking an option locks the answer permanently.<br><b>Timer:</b> Starts when you open the quiz. Continues even if you leave the page.",
+    "rules.quiz.tip":"💡 There's a shared leaderboard – no private league needed. Everyone competes against everyone!",
+    "rules.streak.intro":"Keep your winning streak alive! Each round you choose <b>3 matches</b> out of the 7 played and predict <b>1, X or 2</b> for each. Get all 3 right and your streak continues – miss one and it resets.",
+    "rules.streak.rowAllCorrect":"All 3 correct","rules.streak.rowAllCorrectVal":"Streak +1 🔥",
+    "rules.streak.rowSomeWrong":"One or more wrong","rules.streak.rowSomeWrongVal":"Streak resets",
+    "rules.streak.rowNotTipped":"Didn't predict a round","rules.streak.rowNotTippedVal":"Streak resets",
+    "rules.streak.rowLongest":"Longest streak at season end","rules.streak.rowLongestVal":"Wins!",
+    "rules.streak.extra":"<b>Choice:</b> You freely choose which 3 of the 7 matches to predict.<br><b>Deadline:</b> Predictions must be submitted before the round closes.<br><b>Strategy:</b> Choose the matches you're most confident about – all 3 must be correct!",
+    "rules.streak.tip":"💡 The longest active streak is shown in the league table. The best streak of the season decides the winner!",
+    "rules.matchfokus.intro":"Each round we highlight <b>one match</b> and you answer <b>13 questions</b> about it – like a mini pools coupon. Questions about goal count, half-time lead, first scorer, winner, red cards and more.",
+    "rules.matchfokus.rowCorrect":"Each correct answer","rules.matchfokus.rowCorrectVal":"+1 point",
+    "rules.matchfokus.rowMax":"Max points per round",
+    "rules.matchfokus.extra":"<b>Choice:</b> Answer all 13 questions about the round's selected match.<br><b>Deadline:</b> Same cutoff as the rest of the round.<br><b>Scoring:</b> Requires an exact correct answer per question – no half points.",
+    "rules.matchfokus.tip":"💡 Results and points are shown per question as soon as the admin publishes the match facts after the match."
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3248,7 +3416,91 @@ const TRANSLATIONS={
     "streak.title":"🔥 Στριk – Γύρος {n}",
     "streak.description":"Διάλεξε <b>3 αγώνες</b> και πρόβλεψε 1, X ή 2. Και οι 3 σωστές = το σερί συνεχίζεται!",
     "streak.chooseMoreMatchesSingular":"Διάλεξε {n} ακόμα αγώνα","streak.chooseMoreMatchesPlural":"Διάλεξε {n} ακόμα αγώνες",
-    "streak.submitTip":"✅ Υποβολή πρόβλεψης"
+    "streak.submitTip":"✅ Υποβολή πρόβλεψης",
+    "rules.header":"Κανόνες & τρόποι παιχνιδιού",
+    "rules.intro":"Το {app} έχει πολλούς τρόπους παιχνιδιού. Εσύ επιλέγεις σε ποιους θα συμμετάσχεις – κάθε τρόπος έχει τη δική του κατάταξη και βαθμολόγηση. Μπορείς επίσης να συμμετάσχεις σε <b>ιδιωτικές σειρές</b> και να διαγωνιστείς με φίλους.",
+    "rules.fantasy.intro":"Φτιάξε μια ονειρική ομάδα με 11 παίκτες από το {league} στη διάταξη 4-3-3. <b>Μέγιστο ένας παίκτης ανά ομάδα</b> – πρέπει να μοιράσεις τις επιλογές σου. Ορίζεις επίσης έναν <b>αρχηγό</b> του οποίου οι πόντοι διπλασιάζονται. Η ομάδα μπορεί να αλλάξει ελεύθερα μέχρι να κλείσουν οι προβλέψεις του γύρου.",
+    "rules.fantasy.pointsPerRoundLabel":"Πόντοι ανά γύρο:",
+    "rules.fantasy.rowWin":"Η ομάδα κερδίζει","rules.fantasy.rowDraw":"Η ομάδα ισοπαλεί","rules.fantasy.rowLoss":"Η ομάδα χάνει",
+    "rules.fantasy.bonusPerPositionLabel":"Μπόνους πόντοι ανά θέση:",
+    "rules.fantasy.tip":"💡 Παράδειγμα: Ο αμυντικός σου κερδίζει 2–0 και σκοράρει ένα γκολ → 5β (νίκη) + 4β (καθαρό μηδέν) + 6β (γκολ) = <b>15β</b>. Ως αρχηγός: <b>30β</b>.",
+    "rules.tipp.intro":"Μάντεψε το ακριβές αποτέλεσμα κάθε αγώνα του γύρου. Όσο πιο σωστός είσαι, τόσο περισσότερους πόντους παίρνεις. Οι προβλέψεις κλείνουν όταν κλείσουν οι προβλέψεις του γύρου από τον διαχειριστή.",
+    "rules.tipp.rowExact":"Ακριβώς σωστό αποτέλεσμα","rules.tipp.rowPartial":"Σωστός αριθμός γκολ για τη μία ομάδα","rules.tipp.rowPartialVal":"4 β./ομάδα",
+    "rules.tipp.rowSign":"Σωστή έκβαση (1/X/2) αλλά λάθος σκορ",
+    "rules.tipp.tip":"💡 Παράδειγμα: Ο αγώνας λήγει 2–1, προβλέπεις 2–1 → <b>10β</b>. Προβλέπεις 2–0 → μόνο η γηπεδούχος ταιριάζει → <b>4β</b>. Προβλέπεις 1–0 → σωστή έκβαση → <b>2β</b>.",
+    "rules.duellen.intro":"Αναμετρήσου με έναν άλλο παίκτη <b>εντός και εκτός</b> σε όλη τη σεζόν – σαν πραγματικό πρωτάθλημα, αλλά ανάμεσα σε όσους παίζουν {app}. Ο νικητής της μονομαχίας καθορίζεται αυτόματα από το ποιος παίρνει περισσότερους πόντους στο <b>Πρόβλεψε το Αποτέλεσμα</b> εκείνον τον γύρο.",
+    "rules.duellen.rowWin":"Παίρνεις περισσότερους πόντους από τον αντίπαλο","rules.duellen.rowWinVal":"Νίκη – 3β",
+    "rules.duellen.rowDraw":"Παίρνετε ακριβώς τους ίδιους πόντους","rules.duellen.rowDrawVal":"Ισοπαλία – 1β",
+    "rules.duellen.rowLoss":"Ο αντίπαλος παίρνει περισσότερους πόντους","rules.duellen.rowLossVal":"Ήττα – 0β",
+    "rules.duellen.rowBot":"Αντιμετωπίζεις bot","rules.duellen.rowBotVal":"Το bot έχει πάντα 0β – εύκολη νίκη!",
+    "rules.duellen.extra":"<b>Εγγραφή:</b> Προαιρετική, εγγράφεσαι μόνος σου στην καρτέλα Μονομαχία. Δεν χρειάζονται επιπλέον προβλέψεις – οι πόντοι σου από το Πρόβλεψε το Αποτέλεσμα χρησιμοποιούνται αυτόματα.<br><b>Πρόγραμμα:</b> Η σεζόν κληρώνεται τυχαία όταν ο διαχειριστής την ξεκινήσει – αντιμετωπίζεις κάθε αντίπαλο <b>το πολύ μία φορά</b> στη σεζόν. Αν είστε μονός αριθμός, ένα bot συμπληρώνει το πρόγραμμα.<br><b>Πίνακας:</b> 3 πόντοι για νίκη, 1 για ισοπαλία, 0 για ήττα – ακριβώς όπως στο πραγματικό ποδόσφαιρο.",
+    "rules.duellen.tip":"💡 Αν εσύ ή ο αντίπαλός σου δεν υποβάλετε προβλέψεις σε έναν γύρο, μετράει ως 0 πόντοι για εκείνον τον αγώνα – μην ξεχνάς να προβλέπεις!",
+    "rules.malregn.intro":"Πόσα γκολ πιστεύεις ότι θα γίνουν συνολικά στους 7 αγώνες του γύρου; Μάντεψε έναν ακριβή αριθμό – όσο καλύτερα ξέρεις τη φόρμα, τόσο μεγαλύτερη η πιθανότητα!",
+    "rules.malregn.rowExact":"Ακριβώς σωστός αριθμός γκολ","rules.malregn.rowWrong":"Λάθος πρόβλεψη",
+    "rules.malregn.extra":"<b>Προθεσμία:</b> Ίδια προθεσμία με τον υπόλοιπο γύρο.<br><b>Αποτέλεσμα:</b> Υπολογίζεται αυτόματα μόλις εισαχθούν όλα τα αποτελέσματα – το άθροισμα των γκολ στους αγώνες του γύρου.",
+    "rules.malregn.tip":"💡 Κοίτα την κατάταξη – οι ομάδες στην κορυφή και στον πάτο συνήθως δίνουν περισσότερα γκολ από ισόπαλες αναμετρήσεις!",
+    "rules.jubel.intro":"Απλό και γρήγορο: για κάθε αγώνα, μάντεψε αν <b>και οι δύο ομάδες θα σκοράρουν τουλάχιστον ένα γκολ</b>. Απάντησε Ναι ή Όχι για όλους τους 7 αγώνες.",
+    "rules.jubel.rowCorrect":"Σωστή πρόβλεψη","rules.jubel.rowCorrectVal":"1 β./αγώνα","rules.jubel.rowWrong":"Λάθος πρόβλεψη",
+    "rules.jubel.rowMax":"Μέγιστο ανά γύρο","rules.jubel.rowMaxVal":"7 β.",
+    "rules.jubel.extra":"<b>Προθεσμία:</b> Ίδια προθεσμία με τον υπόλοιπο γύρο.<br><b>Αποτέλεσμα:</b> Υπολογίζεται αυτόματα μόλις εισαχθούν τα αποτελέσματα – και οι δύο ομάδες σκόραραν τουλάχιστον ένα γκολ = Ναι, αλλιώς Όχι.",
+    "rules.jubel.tip":"💡 Το πιο γρήγορο παιχνίδι για πρόβλεψη – μόνο 7 κλικ, δεν χρειάζεται ακριβής πρόβλεψη!",
+    "rules.investerare.intro":"Ξεκινάς με <b>1000 kr</b>. Κάθε γύρο επενδύεις όποιο ποσό θέλεις σε όποιες ομάδες θέλεις – δεν χρειάζεται να επενδύσεις τα πάντα, και μπορείς να επενδύσεις και στις δύο ομάδες στον ίδιο αγώνα. Το χαρτοφυλάκιό σου συνεχίζεται όλη τη σεζόν – τα κέρδη και οι ζημιές προστίθενται σε αυτό που ήδη έχεις.",
+    "rules.investerare.rowWin":"Η ομάδα κερδίζει","rules.investerare.rowDraw":"Ισοπαλία","rules.investerare.rowLoss":"Η ομάδα χάνει",
+    "rules.investerare.rowCleanSheet":"Καθαρό μηδέν (0 γκολ δέχτηκε)","rules.investerare.rowHighScore":"Η ομάδα σκοράρει πάνω από 3 γκολ (4+)",
+    "rules.investerare.rowBigMargin":"Νίκη με διαφορά τουλάχιστον 3 γκολ",
+    "rules.investerare.extra":"<b>Σωρεύονται:</b> Πολλά μπόνους μπορούν να ισχύουν ταυτόχρονα – π.χ. νίκη (+10%) + καθαρό μηδέν (+2%) + διαφορά τουλάχιστον 3 γκολ (+3%) = <b>+15%</b> σε αυτή τη συγκεκριμένη επένδυση.<br><b>Προθεσμία:</b> Ίδια προθεσμία με τον υπόλοιπο γύρο.<br><b>Αποτέλεσμα:</b> Υπολογίζεται αυτόματα από τα αποτελέσματα των αγώνων μόλις ολοκληρωθεί ο γύρος.",
+    "rules.investerare.tip":"💡 Διασκόρπισε τον κίνδυνο σε πολλές ομάδες, ή ποντάρισε δυνατά σε μία ομάδα που είσαι σίγουρος – εξαρτάται εντελώς από εσένα!",
+    "rules.lts.intro":"Ένα κλασικό παιχνίδι αποκλεισμού: κάθε γύρο διαλέγεις <b>μία ομάδα</b> που πιστεύεις ότι δεν θα χάσει. Νίκη ή ισοπαλία και προχωράς – μόνο μια <b>ήττα</b> σου κοστίζει μια ζωή.",
+    "rules.lts.rowWinDraw":"Η ομάδα κερδίζει ή ισοπαλεί","rules.lts.rowWinDrawVal":"Προχωράς",
+    "rules.lts.rowLoss":"Η ομάδα χάνει","rules.lts.rowLossVal":"−1 ζωή",
+    "rules.lts.rowZeroLives":"0 ζωές απομένουν","rules.lts.rowZeroLivesVal":"Αποκλεισμός",
+    "rules.lts.rowMaxRounds":"Μέγιστος αριθμός γύρων","rules.lts.rowMaxRoundsVal":"Όσες και οι ομάδες στη σειρά",
+    "rules.lts.livesDecreaseNote":"<b>Οι ζωές μειώνονται όσο προχωράει ο διαγωνισμός</b> – ώστε να υπάρχει πάντα κάτι να παίξεις στο τέλος:",
+    "rules.lts.rowPhase1":"Γύρος 1–{n}","rules.lts.rowPhase1Val":"Μέγιστο 3 ζωές",
+    "rules.lts.rowPhase2":"Γύρος {start}–{end}","rules.lts.rowPhase2Val":"Μέγιστο 2 ζωές",
+    "rules.lts.rowPhase3":"Γύρος {start} και μετά","rules.lts.rowPhase3Val":"Μέγιστο 1 ζωή",
+    "rules.lts.extra":"Αν έχεις λιγότερες ζωές από το όριο (επειδή έχεις ήδη χάσει), φυσικά ισχύει ο πραγματικός, μικρότερος αριθμός – το όριο μπορεί μόνο να μειώσει, ποτέ να σου δώσει επιπλέον ζωές.<br><br><b>Σημαντικός κανόνας:</b> Κάθε ομάδα μπορεί να χρησιμοποιηθεί μόνο <b>μία φορά</b> σε όλο τον διαγωνισμό – μόλις διαλέξεις μια ομάδα δεν μπορείς να την ξαναδιαλέξεις.<br><b>Ερώτηση ισοπαλίας:</b> Μαντεύεις τον συνολικό αριθμό γκολ που θα γίνουν σε όλο τον διαγωνισμό πριν την πρώτη σου επιλογή – χρησιμοποιείται ως κριτήριο αν επιβιώσουν πολλοί μέχρι το τέλος (η πιο κοντινή πρόβλεψη κερδίζει).<br><b>Προθεσμία:</b> Ίδια προθεσμία με τον υπόλοιπο γύρο. Αν δεν διαλέξεις ομάδα μετράει ως ήττα.",
+    "rules.lts.tip":"💡 Φύλαξε τις καλύτερες ομάδες σου για αργότερα – από τον γύρο 11 και μετά, ΜΙΑ ήττα αρκεί για να αποκλειστείς, ανεξάρτητα από πόσες ζωές είχες πριν!",
+    "rules.anytime.intro":"Διάλεξε <b>1 αμυντικό, 2 μέσους και 2 επιθετικούς</b> που πιστεύεις ότι θα σκοράρουν στον γύρο. Ίδια βαρύτητα πόντων όπως στο Fantasy – πιο σπάνια γκολ (από αμυντικούς) δίνουν περισσότερα.",
+    "rules.anytime.rowDef":"Γκολ από τον αμυντικό σου","rules.anytime.rowDefVal":"7 β./γκολ",
+    "rules.anytime.rowMid":"Γκολ από τον μέσο σου","rules.anytime.rowMidVal":"5 β./γκολ",
+    "rules.anytime.rowFw":"Γκολ από τον επιθετικό σου","rules.anytime.rowFwVal":"5 β./γκολ",
+    "rules.anytime.extra":"<b>Επιλογές:</b> Πέντε διαφορετικοί παίκτες, ένας ανά θέση σύμφωνα με τις παραπάνω απαιτήσεις – κανείς δεν μπορεί να επιλεγεί δύο φορές.<br><b>Προθεσμία:</b> Ίδια προθεσμία με τον υπόλοιπο γύρο.<br><b>Αποτέλεσμα:</b> Υπολογίζεται από τα ίδια στατιστικά γκολ που ήδη χρησιμοποιούνται για το Fantasy – δεν χρειάζεται νέα καταχώρηση.",
+    "rules.anytime.tip":"💡 Ο Πρώτος Σκόρερ είναι ασφαλής επιλογή αλλά δίνει λιγότερα – ένα ρίσκο σε έναν αμυντικό που σκοράρει συχνά μπορεί να δώσει σημαντικά περισσότερους πόντους!",
+    "rules.snabbast.intro":"Διάλεξε <b>7 ομάδες</b> που πιστεύεις ότι θα σκοράρουν τα πιο γρήγορα γκολ στον γύρο. Οι πόντοι απαιτούν τη σωστή ομάδα στην ακριβώς σωστή θέση – 7β αν μαντέψεις τη πιο γρήγορη ομάδα στη θέση 1, 6β για τη θέση 2, μέχρι 1β για τη θέση 7. Λάθος θέση δεν δίνει πόντους για εκείνη την ομάδα.",
+    "rules.snabbast.extra":"<b>Ισόπαλο λεπτό:</b> Προηγείται η ομάδα με την καλύτερη θέση στη βαθμολογία.<br><b>Ομάδες χωρίς γκολ:</b> Τοποθετούνται μετά από όλες τις ομάδες που σκόραραν, ταξινομημένες με βάση τη θέση στη βαθμολογία.",
+    "rules.snabbast.tip":"💡 Μέγιστοι δυνατοί πόντοι ανά γύρο: 7+6+5+4+3+2+1 = <b>28β</b> (αν όλες οι 7 επιλογές σου βρίσκονται στο αποτέλεσμα).",
+    "rules.maljakten.intro":"Διάλεξε <b>3 ομάδες</b> πριν από κάθε γύρο. Παίρνεις πόντους για κάθε γκολ που σκοράρουν οι επιλεγμένες ομάδες σου – με μεγαλύτερη ανταμοιβή για γκολ εκτός έδρας και μπόνους για αγώνες με πολλά γκολ.",
+    "rules.maljakten.rowHome":"Γκολ εντός έδρας","rules.maljakten.rowHomeVal":"2 β./γκολ",
+    "rules.maljakten.rowAway":"Γκολ εκτός έδρας","rules.maljakten.rowAwayVal":"3 β./γκολ",
+    "rules.maljakten.rowBonus":"Η ομάδα σκοράρει 3+ γκολ","rules.maljakten.rowBonusVal":"+ 5 β. μπόνους",
+    "rules.maljakten.tip":"💡 Παράδειγμα: Η ομάδα σου κερδίζει εκτός έδρας 3–1 → 3×3β + 5β μπόνους = <b>14β</b>. Η ομάδα σου κερδίζει εντός έδρας 2–0 → 2×2β = <b>4β</b>.",
+    "rules.ligatipp.intro":"Κατάταξε <b>όλες τις {n} ομάδες</b> πριν την έναρξη της σεζόν – ποιος κερδίζει, ποιος τελειώνει τελευταίος; Οι πόντοι μοιράζονται σε <b>δύο περιπτώσεις</b>: μετά τον γύρο {half} (στα μισά) και μετά τον γύρο {total} (στο τέλος). Για κάθε ομάδα που τοποθετείς στην ακριβώς σωστή θέση παίρνεις 3β.",
+    "rules.ligatipp.rowExact":"Ακριβώς σωστή θέση",
+    "rules.ligatipp.rowMaxCheckpoint":"Μέγιστοι πόντοι ανά έλεγχο","rules.ligatipp.rowMaxCheckpointVal":"{max} β. ({n}×3β)",
+    "rules.ligatipp.rowMaxTotal":"Μέγιστο σύνολο (και οι δύο έλεγχοι)",
+    "rules.ligatipp.tip":"💡 Οι προβλέψεις κλείνουν πριν ξεκινήσει η σεζόν – δεν μπορείς να αλλάξεις μετά. Διάλεξε σοφά!",
+    "rules.privateLeagues.title":"Ιδιωτικές σειρές",
+    "rules.privateLeagues.intro":"Διαγωνίσου με φίλους, συναδέλφους ή οπαδούς της ομάδας σου σε μια ιδιωτική σειρά! Οι προβλέψεις και οι πόντοι σου είναι ίδιοι με το κύριο πρωτάθλημα – δεν χρειάζεται να ξαναπροβλέψεις.",
+    "rules.privateLeagues.extra":"<b>Συμμετοχή:</b> Πάτησε \"Συμμετοχή με κωδικό\" στον εκάστοτε τρόπο παιχνιδιού και βάλε τον κωδικό που έλαβες.<br><b>Δημιουργία:</b> Πάτησε \"+ Δημιουργία σειράς\" και υπόβαλε αίτημα – ο διαχειριστής εγκρίνει και δημιουργεί έναν κωδικό που μοιράζεσαι με τους φίλους σου.<br><b>Βέλη θέσης:</b> ▲ πράσινο βέλος = ανέβηκες, ▼ κόκκινο βέλος = έπεσες, – = χωρίς αλλαγή.",
+    "rules.privateLeagues.tip":"💡 Ένας κωδικός πρόσκλησης ισχύει ανά τρόπο παιχνιδιού. Θέλεις να διαγωνιστείς με την ίδια ομάδα σε όλα τα παιχνίδια; Χρειάζεσαι έναν κωδικό ανά τρόπο παιχνιδιού.",
+    "rules.quiz.intro":"Δοκίμασε τις γνώσεις σου για το {league}! Κάθε γύρο υπάρχουν <b>5 ερωτήσεις</b> για την ιστορία, τις ομάδες και τα γεγονότα της σειράς. Έχεις <b>5 λεπτά</b> για να απαντήσεις.",
+    "rules.quiz.rowCorrect":"Σωστή απάντηση","rules.quiz.rowWrong":"Λάθος απάντηση / δεν απαντήθηκε",
+    "rules.quiz.rowMax":"Μέγιστο ανά γύρο","rules.quiz.rowMaxTotal":"Μέγιστο σύνολο ({n} γύροι)",
+    "rules.quiz.extra":"<b>Μορφή:</b> Τρεις επιλογές – <b>1</b>, <b>X</b> ή <b>2</b> – με ελεύθερο κείμενο από πίσω.<br><b>Κλειδωμένες απαντήσεις:</b> Πατώντας μια επιλογή κλειδώνει μόνιμα η απάντηση.<br><b>Χρονόμετρο:</b> Ξεκινά όταν ανοίγεις το κουίζ. Συνεχίζει ακόμα κι αν φύγεις από τη σελίδα.",
+    "rules.quiz.tip":"💡 Υπάρχει κοινή κατάταξη – δεν χρειάζεται ιδιωτική σειρά. Όλοι διαγωνίζονται με όλους!",
+    "rules.streak.intro":"Κράτησε ζωντανό το σερί νικών σου! Κάθε γύρο διαλέγεις <b>3 αγώνες</b> από τους 7 που παίζονται και προβλέπεις <b>1, X ή 2</b> για καθέναν. Αν βρεις και τους 3 σωστά το σερί σου συνεχίζεται – αν χάσεις έναν μηδενίζεται.",
+    "rules.streak.rowAllCorrect":"Και οι 3 σωστές","rules.streak.rowAllCorrectVal":"Σερί +1 🔥",
+    "rules.streak.rowSomeWrong":"Μία ή περισσότερες λάθος","rules.streak.rowSomeWrongVal":"Το σερί μηδενίζεται",
+    "rules.streak.rowNotTipped":"Δεν προβλέφθηκε ένας γύρος","rules.streak.rowNotTippedVal":"Το σερί μηδενίζεται",
+    "rules.streak.rowLongest":"Μεγαλύτερο σερί στο τέλος της σεζόν","rules.streak.rowLongestVal":"Κερδίζει!",
+    "rules.streak.extra":"<b>Επιλογή:</b> Διαλέγεις ελεύθερα ποιους 3 από τους 7 αγώνες θέλεις να προβλέψεις.<br><b>Προθεσμία:</b> Οι προβλέψεις πρέπει να υποβληθούν πριν κλείσει ο γύρος.<br><b>Στρατηγική:</b> Διάλεξε τους αγώνες που είσαι πιο σίγουρος – και οι 3 πρέπει να είναι σωστές!",
+    "rules.streak.tip":"💡 Το μεγαλύτερο ενεργό σερί εμφανίζεται στην κατάταξη. Το καλύτερο σερί της σεζόν καθορίζει τον νικητή!",
+    "rules.matchfokus.intro":"Κάθε γύρο αναδεικνύουμε <b>έναν αγώνα</b> και απαντάς σε <b>13 ερωτήσεις</b> για αυτόν – σαν ένα μικρό προπό. Ερωτήσεις για αριθμό γκολ, προβάδισμα στο ημίχρονο, πρώτο σκόρερ, νικητή, κόκκινες κάρτες και άλλα.",
+    "rules.matchfokus.rowCorrect":"Κάθε σωστή απάντηση","rules.matchfokus.rowCorrectVal":"+1 πόντος",
+    "rules.matchfokus.rowMax":"Μέγιστοι πόντοι ανά γύρο",
+    "rules.matchfokus.extra":"<b>Επιλογή:</b> Απάντησε σε όλες τις 13 ερωτήσεις για τον επιλεγμένο αγώνα του γύρου.<br><b>Προθεσμία:</b> Ίδια προθεσμία με τον υπόλοιπο γύρο.<br><b>Βαθμολόγηση:</b> Απαιτεί ακριβώς σωστή απάντηση ανά ερώτηση – χωρίς μισούς πόντους.",
+    "rules.matchfokus.tip":"💡 Τα αποτελέσματα και οι πόντοι εμφανίζονται ανά ερώτηση μόλις ο διαχειριστής δημοσιεύσει τα στοιχεία του αγώνα μετά τον αγώνα."
   }
 };
 function t(key,vars){
@@ -4110,7 +4362,7 @@ function renderInboxScreen(){
 function renderRulesScreen(){
   const rulesRows = POSITIONS.map(pos=>`
     <tr style="border-top:0.5px solid var(--color-border-tertiary)">
-      <td style="padding:6px 0">${POS_LABEL[pos]} (${POS_COUNT[pos]} st)</td>
+      <td style="padding:6px 0">${esc(posLabel(pos))} (${POS_COUNT[pos]} st)</td>
       <td style="text-align:center;font-weight:500">+${POS_PTS[pos].clean}</td>
       <td style="text-align:center;font-weight:500">+${POS_PTS[pos].goal}</td>
     </tr>`).join("");
@@ -4133,276 +4385,248 @@ function renderRulesScreen(){
   </table>`;
 
   const tip=(text)=>`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:8px;line-height:1.5">${text}</div>`;
+  const appName=esc(getAppName()), leagueName=esc(currentLeague.name);
 
   return `
   <div style="min-height:100vh;padding-bottom:24px">
     <div class="fg-top">
       <button data-act="${backAct}" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0">←</button>
-      <span style="font-weight:500;font-size:16px">Regler & spelformer</span>
+      <span style="font-weight:500;font-size:16px">${esc(t("rules.header"))}</span>
     </div>
     <div style="padding:14px">
 
       <div class="fg-card" style="background:var(--color-background-secondary)">
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          ${esc(getAppName())} har flera spelformer. Du väljer själv vilka du vill delta i – varje spelform har sin egen ligatabell och poängräkning. Du kan också gå med i <b>privata ligor</b> och tävla mot kompisar.
+          ${t("rules.intro",{app:appName})}
         </div>
       </div>
 
-      ${cfg.fantasyEnabled!==false?section("⚽","Fantasy",`
+      ${cfg.fantasyEnabled!==false?section("⚽",esc(t("home.mode.fantasy.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Sätt ihop ett drömlag med 11 spelare från ${esc(currentLeague.name)} i formationen 4-3-3.
-          <b>Max en spelare per lag</b> – du måste sprida dina val.
-          Du utser även en <b>kapten</b> vars poäng räknas dubbelt.
-          Laget kan bytas fritt fram till att omgångens tippning stänger.
+          ${t("rules.fantasy.intro",{league:leagueName})}
         </div>
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px">Poäng per omgång:</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px">${esc(t("rules.fantasy.pointsPerRoundLabel"))}</div>
         ${table([
-          ["Laget vinner","5 p"],["Laget oavgjort","2 p"],["Laget förlorar","0 p"]
+          [esc(t("rules.fantasy.rowWin")),"5 p"],[esc(t("rules.fantasy.rowDraw")),"2 p"],[esc(t("rules.fantasy.rowLoss")),"0 p"]
         ])}
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px">Bonuspoäng per position:</div>
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px">${esc(t("rules.fantasy.bonusPerPositionLabel"))}</div>
         <table style="width:100%;font-size:13px;border-collapse:collapse;margin-top:6px">
           <thead><tr style="font-size:11px;color:var(--color-text-secondary)">
-            <td>Position</td><td style="text-align:center">Hålla nollan</td><td style="text-align:center">Målskytt</td>
+            <td>${esc(t("hemtab.tableHeaderPosition"))}</td><td style="text-align:center">${esc(t("hemtab.tableHeaderCleanSheet"))}</td><td style="text-align:center">${esc(t("hemtab.tableHeaderGoal"))}</td>
           </tr></thead>
           <tbody>${rulesRows}</tbody>
         </table>
-        ${tip("💡 Exempel: Din försvarare vinner 2–0 och gör ett mål → 5p (vinst) + 4p (nollmatch) + 6p (mål) = <b>15p</b>. Som kapten: <b>30p</b>.")}
+        ${tip(t("rules.fantasy.tip"))}
       `):""}
 
-      ${cfg.tippEnabled!==false?section("🎯","Tippa resultat",`
+      ${cfg.tippEnabled!==false?section("🎯",esc(t("home.mode.tipp.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Gissa exakt resultat på varje match i omgången. Ju mer rätt du har, desto mer poäng.
-          Tips stänger när omgångens tippning stängs av admin.
+          ${t("rules.tipp.intro")}
         </div>
         ${table([
-          ["Exakt rätt resultat","10 p"],
-          ["Rätt antal mål för ena laget","4 p/lag"],
-          ["Rätt tecken (1/X/2) men fel mål","2 p"]
+          [esc(t("rules.tipp.rowExact")),"10 p"],
+          [esc(t("rules.tipp.rowPartial")),esc(t("rules.tipp.rowPartialVal"))],
+          [esc(t("rules.tipp.rowSign")),"2 p"]
         ])}
-        ${tip("💡 Exempel: Matchen slutar 2–1, du tippar 2–1 → <b>10p</b>. Du tippar 2–0 → bara hemmalaget stämmer → <b>4p</b>. Du tippar 1–0 → rätt tecken → <b>2p</b>.")}
+        ${tip(t("rules.tipp.tip"))}
       `):""}
 
-      ${cfg.duellenEnabled?section("🥊","Duellen",`
+      ${cfg.duellenEnabled?section("🥊",esc(t("home.mode.duellen.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Möt en annan spelare <b>hemma och borta</b> över säsongen – som ett riktigt seriespel, fast mellan er som spelar ${esc(getAppName())}. Vem som vinner duellen avgörs automatiskt av vem som får flest poäng i <b>Tippa resultat</b> den omgången.
+          ${t("rules.duellen.intro",{app:appName})}
         </div>
         ${table([
-          ["Du får fler poäng än motståndaren","Vinst – 3p"],
-          ["Ni får exakt lika många poäng","Oavgjort – 1p"],
-          ["Motståndaren får fler poäng","Förlust – 0p"],
-          ["Möter en bot","Boten har alltid 0p – lätt vinst!"]
-        ])}
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Anmälan:</b> Frivillig, egen anmälan i Duellen-fliken. Ingen extra tippning behövs – dina Tippa resultat-poäng används automatiskt.<br>
-          <b>Schema:</b> Säsongen slumpas fram när admin startar den – du möter varje motståndare <b>högst en gång</b> under säsongen. Är ni ett udda antal fyller en bot ut schemat.<br>
-          <b>Tabell:</b> 3 poäng för vinst, 1 för oavgjort, 0 för förlust – precis som i riktig fotboll.
-        </div>
-        ${tip("💡 Kommer inte du eller din motståndare in med tips en omgång räknas det som 0 poäng den matchen – glöm inte att tippa!")}
-      `):""}
-
-      ${cfg.malregnEnabled?section("🌧️","Målregn",`
-        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Hur många mål tror du blir det totalt i omgångens 7 matcher? Gissa ett exakt tal – ju bättre koll på formkurvor, desto större chans!
-        </div>
-        ${table([
-          ["Exakt rätt antal mål","3 p"],
-          ["Fel gissning","0 p"]
+          [esc(t("rules.duellen.rowWin")),esc(t("rules.duellen.rowWinVal"))],
+          [esc(t("rules.duellen.rowDraw")),esc(t("rules.duellen.rowDrawVal"))],
+          [esc(t("rules.duellen.rowLoss")),esc(t("rules.duellen.rowLossVal"))],
+          [esc(t("rules.duellen.rowBot")),esc(t("rules.duellen.rowBotVal"))]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
-          <b>Facit:</b> Räknas fram automatiskt så fort alla resultat är inlagda – summan av målen i omgångens matcher.
+          ${t("rules.duellen.extra")}
         </div>
-        ${tip("💡 Titta på tabellen – lag i toppen och botten brukar ge fler mål än jämna möten!")}
+        ${tip(t("rules.duellen.tip"))}
       `):""}
 
-      ${cfg.jubelEnabled?section("🙌","Båda får Jubla",`
+      ${cfg.malregnEnabled?section("🌧️",esc(t("home.mode.malregn.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Enkelt och snabbt: för varje match, gissa om <b>båda lagen gör minst ett mål</b>. Svara Ja eller Nej på alla 7 matcher.
+          ${t("rules.malregn.intro")}
         </div>
         ${table([
-          ["Rätt gissning","1 p/match"],
-          ["Fel gissning","0 p"],
-          ["Max per omgång","7 p"]
+          [esc(t("rules.malregn.rowExact")),"3 p"],
+          [esc(t("rules.malregn.rowWrong")),"0 p"]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
-          <b>Facit:</b> Räknas fram automatiskt så fort resultaten är inlagda – båda lagen gjorde minst ett mål = Ja, annars Nej.
+          ${t("rules.malregn.extra")}
         </div>
-        ${tip("💡 Snabbaste spelet att tippa – bara 7 klick, ingen exakt gissning behövs!")}
+        ${tip(t("rules.malregn.tip"))}
       `):""}
 
-      ${cfg.investerareEnabled?section("💰","Investeraren",`
+      ${cfg.jubelEnabled?section("🙌",esc(t("home.mode.jubel.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Du startar med <b>1000 kr</b>. Varje omgång placerar du valfri summa på valfria lag – du behöver inte investera allt, och du kan investera i båda lagen i samma match. Din portfölj fortsätter hela säsongen – vinster och förluster läggs på det du redan har.
+          ${t("rules.jubel.intro")}
         </div>
         ${table([
-          ["Laget vinner","+10%"],
-          ["Oavgjort","+2%"],
-          ["Laget förlorar","−8%"],
-          ["Hållen nolla (0 insläppta mål)","+2%"],
-          ["Laget gör över 3 mål (4+)","+3%"],
-          ["Vinst med minst 3 måls marginal","+3%"]
+          [esc(t("rules.jubel.rowCorrect")),esc(t("rules.jubel.rowCorrectVal"))],
+          [esc(t("rules.jubel.rowWrong")),"0 p"],
+          [esc(t("rules.jubel.rowMax")),esc(t("rules.jubel.rowMaxVal"))]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Staplas:</b> Flera bonusar kan gälla samtidigt – t.ex. vinst (+10%) + hållen nolla (+2%) + minst 3 måls marginal (+3%) = <b>+15%</b> på just den investeringen.<br>
-          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
-          <b>Facit:</b> Räknas fram automatiskt utifrån matchresultaten så fort omgången är klar.
+          ${t("rules.jubel.extra")}
         </div>
-        ${tip("💡 Sprid riskerna över flera lag, eller satsa stort på ett lag du är säker på – helt upp till dig!")}
+        ${tip(t("rules.jubel.tip"))}
       `):""}
 
-      ${cfg.ltsEnabled?section("💀","Last Team Standing",`
+      ${cfg.investerareEnabled?section("💰",esc(t("home.mode.investerare.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Klassiskt utslagsspel: varje omgång väljer du <b>ett lag</b> som du tror inte förlorar. Vinst eller oavgjort och du går vidare – bara en <b>förlust</b> kostar dig ett liv.
+          ${t("rules.investerare.intro")}
         </div>
         ${table([
-          ["Laget vinner eller spelar oavgjort","Du går vidare"],
-          ["Laget förlorar","−1 liv"],
-          ["0 liv kvar","Utslagen"],
-          ["Max antal omgångar","Lika många som antal lag i serien"]
+          [esc(t("rules.investerare.rowWin")),"+10%"],
+          [esc(t("rules.investerare.rowDraw")),"+2%"],
+          [esc(t("rules.investerare.rowLoss")),"−8%"],
+          [esc(t("rules.investerare.rowCleanSheet")),"+2%"],
+          [esc(t("rules.investerare.rowHighScore")),"+3%"],
+          [esc(t("rules.investerare.rowBigMargin")),"+3%"]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Liven minskar ju längre tävlingen pågår</b> – så det alltid finns något att spela för på slutet:
+          ${t("rules.investerare.extra")}
         </div>
-        ${table([
-          [`Omgång 1–${Math.round(TEAMS.length*(5/14))}`,"Max 3 liv"],
-          [`Omgång ${Math.round(TEAMS.length*(5/14))+1}–${Math.round(TEAMS.length*(10/14))}`,"Max 2 liv"],
-          [`Omgång ${Math.round(TEAMS.length*(10/14))+1} och framåt`,"Max 1 liv"]
-        ])}
-        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          Har du färre liv kvar än taket (för att du redan förlorat) gäller förstås det verkliga, lägre antalet – taket kan bara sänka, aldrig ge dig extra liv.<br><br>
-          <b>Viktig regel:</b> Varje lag får bara användas <b>en gång</b> under hela tävlingen – när du valt ett lag kan du inte välja det igen.<br>
-          <b>Utslagsfråga:</b> Du gissar totalt antal mål som görs under hela tävlingen innan ditt första val – används som utslag om flera klarar sig hela vägen (närmast rätt vinner).<br>
-          <b>Deadline:</b> Samma spelstopp som resten av omgången. Väljer du inget lag räknas det som en förlust.
-        </div>
-        ${tip("💡 Spara dina bästa lag till senare omgångar – från omgång 11 räcker EN förlust för att slå ut dig, oavsett hur många liv du haft tidigare!")}
+        ${tip(t("rules.investerare.tip"))}
       `):""}
 
-      ${cfg.anytimeEnabled?section("🎯","Skyttekung",`
+      ${cfg.ltsEnabled?section("💀",esc(t("home.mode.lts.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Välj <b>1 försvarare, 2 mittfältare och 2 anfallare</b> som du tror gör mål i omgången. Samma poängvikt som i Fantasy – ovanligare mål (från försvarare) ger mer.
+          ${t("rules.lts.intro")}
         </div>
         ${table([
-          ["Mål av din försvarare","7 p/mål"],
-          ["Mål av din mittfältare","5 p/mål"],
-          ["Mål av din anfallare","5 p/mål"]
+          [esc(t("rules.lts.rowWinDraw")),esc(t("rules.lts.rowWinDrawVal"))],
+          [esc(t("rules.lts.rowLoss")),esc(t("rules.lts.rowLossVal"))],
+          [esc(t("rules.lts.rowZeroLives")),esc(t("rules.lts.rowZeroLivesVal"))],
+          [esc(t("rules.lts.rowMaxRounds")),esc(t("rules.lts.rowMaxRoundsVal"))]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Val:</b> Fem olika spelare, en per position enligt kraven ovan – ingen får väljas dubbelt.<br>
-          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
-          <b>Facit:</b> Räknas fram från samma målstatistik som redan används för Fantasy – ingen ny inmatning krävs.
-        </div>
-        ${tip("💡 Skyttekungen är säker men ger mindre – en chansning på en målsugen försvarare kan ge betydligt fler poäng!")}
-      `):""}
-
-      ${cfg.snabbastEnabled!==false?section("⚡","Snabbast vinner",`
-        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Välj <b>7 lag</b> som du tror gör de snabbaste målen under omgången.
-          Poängen kräver rätt lag på exakt rätt plats – 7p om du gissar snabbaste laget på plats 1, 6p för plats 2, ner till 1p för plats 7. Fel plats ger inga poäng för det laget.
+          ${t("rules.lts.livesDecreaseNote")}
         </div>
         ${table([
-          ["Snabbaste målet (plats 1)","7 p"],
-          ["Plats 2","6 p"],
-          ["Plats 3","5 p"],
-          ["Plats 4–7","4–1 p"]
+          [esc(t("rules.lts.rowPhase1",{n:Math.round(TEAMS.length*(5/14))})),esc(t("rules.lts.rowPhase1Val"))],
+          [esc(t("rules.lts.rowPhase2",{start:Math.round(TEAMS.length*(5/14))+1,end:Math.round(TEAMS.length*(10/14))})),esc(t("rules.lts.rowPhase2Val"))],
+          [esc(t("rules.lts.rowPhase3",{start:Math.round(TEAMS.length*(10/14))+1})),esc(t("rules.lts.rowPhase3Val"))]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          ${t("rules.lts.extra")}
+        </div>
+        ${tip(t("rules.lts.tip"))}
+      `):""}
+
+      ${cfg.anytimeEnabled?section("🎯",esc(t("home.mode.anytime.title")),`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          ${t("rules.anytime.intro")}
+        </div>
+        ${table([
+          [esc(t("rules.anytime.rowDef")),esc(t("rules.anytime.rowDefVal"))],
+          [esc(t("rules.anytime.rowMid")),esc(t("rules.anytime.rowMidVal"))],
+          [esc(t("rules.anytime.rowFw")),esc(t("rules.anytime.rowFwVal"))]
+        ])}
+        <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
+          ${t("rules.anytime.extra")}
+        </div>
+        ${tip(t("rules.anytime.tip"))}
+      `):""}
+
+      ${cfg.snabbastEnabled!==false?section("⚡",esc(t("home.mode.snabbast.title")),`
+        <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
+          ${t("rules.snabbast.intro")}
+        </div>
+        ${table([
+          [esc(t("snabbast.place1")),esc(t("snabbast.place1Pts"))],
+          [esc(t("snabbast.place2")),esc(t("snabbast.place2Pts"))],
+          [esc(t("snabbast.place3")),esc(t("snabbast.place3Pts"))],
+          [esc(t("snabbast.place4to7")),esc(t("snabbast.place4to7Pts"))]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px;line-height:1.5">
-          <b>Oavgjord minut:</b> Det lag som har bäst tabellplacering går före.<br>
-          <b>Lag utan mål:</b> Placeras efter alla målgörande lag, rangordnade efter tabellplacering.
+          ${t("rules.snabbast.extra")}
         </div>
-        ${tip("💡 Max möjlig poäng per omgång: 7+6+5+4+3+2+1 = <b>28p</b> (om alla 7 dina val finns i facit).")}
+        ${tip(t("rules.snabbast.tip"))}
       `):""}
 
-      ${cfg.maljaktenEnabled!==false?section("🎯","Måljakten",`
+      ${cfg.maljaktenEnabled!==false?section("🎯",esc(t("home.mode.maljakten.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Välj <b>3 lag</b> inför varje omgång. Du får poäng för varje mål dina valda lag gör –
-          med högre belöning för bortamål och bonus för riktigt målrika matcher.
+          ${t("rules.maljakten.intro")}
         </div>
         ${table([
-          ["Hemmamål","2 p/mål"],
-          ["Bortamål","3 p/mål"],
-          ["Laget gör 3+ mål","+ 5 p bonus"]
+          [esc(t("rules.maljakten.rowHome")),esc(t("rules.maljakten.rowHomeVal"))],
+          [esc(t("rules.maljakten.rowAway")),esc(t("rules.maljakten.rowAwayVal"))],
+          [esc(t("rules.maljakten.rowBonus")),esc(t("rules.maljakten.rowBonusVal"))]
         ])}
-        ${tip("💡 Exempel: Ditt lag vinner borta 3–1 → 3×3p + 5p bonus = <b>14p</b>. Ditt lag vinner hemma 2–0 → 2×2p = <b>4p</b>.")}
+        ${tip(t("rules.maljakten.tip"))}
       `):""}
 
-      ${cfg.ligatippEnabled!==false?section("📊","Tippa serien",`
+      ${cfg.ligatippEnabled!==false?section("📊",esc(t("home.mode.ligatipp.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Rangordna <b>alla ${TEAMS.length} lag</b> inför säsongsstart – vem vinner, vem slutar sist?
-          Poäng delas ut vid <b>två tillfällen</b>: efter omgång ${Math.ceil((cfg.totalRounds||26)/2)} (halvtid) och efter omgång ${cfg.totalRounds||26} (slutet).
-          För varje lag du placerar på exakt rätt plats får du 3p.
+          ${t("rules.ligatipp.intro",{n:TEAMS.length,half:Math.ceil((cfg.totalRounds||26)/2),total:cfg.totalRounds||26})}
         </div>
         ${table([
-          ["Exakt rätt placering","3 p"],
-          ["Max poäng per checkpoint",`${TEAMS.length*3} p (${TEAMS.length}×3p)`],
-          ["Max totalt (båda checkpoints)",`${TEAMS.length*3*2} p`]
+          [esc(t("rules.ligatipp.rowExact")),"3 p"],
+          [esc(t("rules.ligatipp.rowMaxCheckpoint")),esc(t("rules.ligatipp.rowMaxCheckpointVal",{max:TEAMS.length*3,n:TEAMS.length}))],
+          [esc(t("rules.ligatipp.rowMaxTotal")),`${TEAMS.length*3*2} p`]
         ])}
-        ${tip("💡 Tippningen stänger innan säsongen startar – du kan inte ändra efteråt. Välj klokt!")}
+        ${tip(t("rules.ligatipp.tip"))}
       `):""}
 
-      ${section("👥","Privata ligor",`
+      ${section("👥",esc(t("rules.privateLeagues.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Tävla mot kompisar, kollegor eller supportrar från ditt lag i en privat liga!
-          Dina tips och poäng är desamma som i huvudligan – du behöver inte tippa om.
+          ${t("rules.privateLeagues.intro")}
         </div>
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:8px;line-height:1.5">
-          <b>Gå med:</b> Klicka "Gå med med kod" i respektive spelform och ange koden du fått.<br>
-          <b>Skapa:</b> Klicka "+ Skapa liga" och skicka in en ansökan – admin godkänner och genererar en kod som du delar med dina vänner.<br>
-          <b>Placeringspilar:</b> ▲ grön pil = du klättrat, ▼ röd pil = du tappat, – = oförändrat.
+          ${t("rules.privateLeagues.extra")}
         </div>
-        ${tip("💡 En inbjudningskod gäller per spelform. Vill du tävla mot samma grupp i alla spel behöver du en kod per spelform.")}
+        ${tip(t("rules.privateLeagues.tip"))}
       `)}
 
-      ${cfg.quizEnabled?section("🧠",`${esc(currentLeague.name)} Quiz`,`
+      ${cfg.quizEnabled?section("🧠",`${leagueName} ${esc(t("modeselect.mode.quiz.titleSuffix"))}`,`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Testa dina kunskaper om ${esc(currentLeague.name)}! Varje omgång finns det <b>5 frågor</b> om seriens historia, lag och händelser. Du har <b>5 minuter</b> på dig att svara.
+          ${t("rules.quiz.intro",{league:leagueName})}
         </div>
         ${table([
-          ["Rätt svar","1 p"],
-          ["Fel svar / ej besvarad","0 p"],
-          ["Max per omgång","5 p"],
-          [`Max totalt (${cfg.totalRounds||26} omgångar)`,`${(cfg.totalRounds||26)*5} p`]
+          [esc(t("rules.quiz.rowCorrect")),"1 p"],
+          [esc(t("rules.quiz.rowWrong")),"0 p"],
+          [esc(t("rules.quiz.rowMax")),"5 p"],
+          [esc(t("rules.quiz.rowMaxTotal",{n:cfg.totalRounds||26})),`${(cfg.totalRounds||26)*5} p`]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Format:</b> Tre alternativ – <b>1</b>, <b>X</b> eller <b>2</b> – med valfri text bakom.<br>
-          <b>Låsta svar:</b> Klickar du ett alternativ låses svaret permanent.<br>
-          <b>Timer:</b> Börjar när du öppnar quizen. Fortsätter även om du lämnar sidan.
+          ${t("rules.quiz.extra")}
         </div>
-        ${tip("💡 Det finns en gemensam topplista – ingen privat liga behövs. Alla tävlar mot alla!")}
+        ${tip(t("rules.quiz.tip"))}
       `):""}
 
-      ${cfg.streakEnabled?section("🔥","Streak",`
+      ${cfg.streakEnabled?section("🔥",esc(t("home.mode.streak.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Håll din vinstsvit levande! Varje omgång väljer du <b>3 matcher</b> av de 7 som spelas och tippar <b>1, X eller 2</b> på varje. Får du alla 3 rätt fortsätter din streak – missar du en nollställs allt.
+          ${t("rules.streak.intro")}
         </div>
         ${table([
-          ["Alla 3 rätt","Streak +1 🔥"],
-          ["En eller fler fel","Streak nollställs"],
-          ["Ej tippat en omgång","Streak nollställs"],
-          ["Längst streak vid säsongsslut","Vinner!"]
+          [esc(t("rules.streak.rowAllCorrect")),esc(t("rules.streak.rowAllCorrectVal"))],
+          [esc(t("rules.streak.rowSomeWrong")),esc(t("rules.streak.rowSomeWrongVal"))],
+          [esc(t("rules.streak.rowNotTipped")),esc(t("rules.streak.rowNotTippedVal"))],
+          [esc(t("rules.streak.rowLongest")),esc(t("rules.streak.rowLongestVal"))]
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Val:</b> Du väljer fritt vilka 3 av de 7 matcherna du vill tippa.<br>
-          <b>Deadline:</b> Tips måste lämnas innan omgången stängs.<br>
-          <b>Strategi:</b> Välj de matcher du är mest säker på – alla 3 måste vara rätt!
+          ${t("rules.streak.extra")}
         </div>
-        ${tip("💡 Längsta aktiva streak visas i ligatabellen. Bästa streak under säsongen avgör vinnaren!")}
+        ${tip(t("rules.streak.tip"))}
       `):""}
 
-      ${cfg.matchfokusEnabled?section("⚽","Matchexperten",`
+      ${cfg.matchfokusEnabled?section("⚽",esc(t("home.mode.matchfokus.title")),`
         <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6">
-          Varje omgång lyfter vi fram <b>en match</b> och du svarar på <b>13 frågor</b> om den – som ett litet stryktips. Frågor om målantal, halvtidsledning, första målskytt, vinnare, röda kort med mera.
+          ${t("rules.matchfokus.intro")}
         </div>
         ${table([
-          ["Varje rätt svar","+1 poäng"],
-          ["Max poäng per omgång","13 p"],
+          [esc(t("rules.matchfokus.rowCorrect")),esc(t("rules.matchfokus.rowCorrectVal"))],
+          [esc(t("rules.matchfokus.rowMax")),"13 p"],
         ])}
         <div style="font-size:13px;color:var(--color-text-secondary);margin-top:10px;line-height:1.5">
-          <b>Val:</b> Svara på alla 13 frågor för omgångens utvalda match.<br>
-          <b>Deadline:</b> Samma spelstopp som resten av omgången.<br>
-          <b>Rättning:</b> Kräver exakt rätt svar per fråga – inga halva poäng.
+          ${t("rules.matchfokus.extra")}
         </div>
-        ${tip("💡 Facit och poäng visas per fråga så fort admin publicerat matchfakta efter matchen.")}
+        ${tip(t("rules.matchfokus.tip"))}
       `):""}
 
     </div>
