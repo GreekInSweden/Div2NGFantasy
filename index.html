@@ -364,7 +364,8 @@ async function createNewSeason(newSeasonLabel){
     name:currentLeague.name,
     slug:currentLeague.slug+"-"+slugPart,
     season:newSeasonLabel,
-    is_current:true
+    is_current:true,
+    admin_active:currentLeague.admin_active||false
   }).select().single();
   if(error)return{error};
   // Kopiera lag till ny säsong
@@ -7208,7 +7209,7 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["leagues","🌍 Serier"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
   const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["players","👤 Spelare"],["import","📥 Importera"]];
 
@@ -7893,13 +7894,15 @@ Liverpool
       <input class="fg-input" id="new-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
       <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
     </div>`;
-  } else if(adminSection==="leagues"){
+  } else if(adminSection==="leagues"||adminSection==="activeleagues"){
     const allLeaguesData=window._allLeaguesCache||[];
     // Ladda async i bakgrunden om inte caché finns
     if(!window._allLeaguesCache){
       fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});
     }
-    const seasonRows=allLeaguesData.map(l=>`
+    const isActiveView=adminSection==="activeleagues";
+    const listData=isActiveView?allLeaguesData.filter(l=>l.admin_active):allLeaguesData;
+    const leagueRow=l=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap">
         <div style="flex:1;min-width:150px">
           <div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
@@ -7909,15 +7912,26 @@ Liverpool
             <button data-act="save-league-season" data-id="${l.id}" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer;color:var(--color-text-secondary)">Spara säsong</button>
           </div>
         </div>
+        ${l.admin_active?`<span style="background:#fff3d6;color:#8a6412;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">⭐ Aktiv</span>`:`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔧 Under uppbyggnad</span>`}
         ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
+        <button data-act="toggle-league-active" data-id="${l.id}" data-active="${l.admin_active?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.admin_active?"Markera som under uppbyggnad":"Markera som aktiv"}</button>
         <button data-act="toggle-league-hidden" data-id="${l.id}" data-hidden="${l.hidden?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.hidden?"Gör synlig":"Dölj"}</button>
         <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
-      </div>`).join("");
-    body=`<div class="fg-card">
-      <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier (${allLeaguesData.length})</div>
-      ${seasonRows}
-    </div>`;
+      </div>`;
+    const seasonRows=listData.map(leagueRow).join("");
+    body=isActiveView
+      ? `<div class="fg-card" style="background:var(--color-background-secondary)">
+          <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här ser du bara de serier du markerat som ⭐ Aktiva – dvs. de som faktiskt är igång, till skillnad från de du fortfarande bygger upp bakom kulisserna. Markera serier under "🌍 Alla serier".</div>
+        </div>
+        <div class="fg-card">
+          <div style="font-weight:500;margin-bottom:8px">⭐ Aktiva serier (${listData.length})</div>
+          ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier markerade som aktiva ännu. Gå till "🌍 Alla serier" och klicka "Markera som aktiv" på de serier som är igång.</div>`}
+        </div>`
+      : `<div class="fg-card">
+          <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier (${allLeaguesData.length})</div>
+          ${seasonRows}
+        </div>`;
   } else if(adminSection==="stod"){
     const swishPreviewUrl=cfg.stodSwishNumber
       ? buildSwishUrl(cfg.stodSwishNumber,cfg.stodAmount,cfg.stodMessage)
@@ -10021,7 +10035,7 @@ function attachHandlers(){
       const teamNames = teamsRaw ? parseTeamNamesText(teamsRaw) : [];
       const seasonSlugPart=season.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
       const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+seasonSlugPart;
-      const {data,error}=await sb.from("leagues").insert({name,slug,season,is_current:true,hidden:true}).select().single();
+      const {data,error}=await sb.from("leagues").insert({name,slug,season,is_current:true,hidden:true,admin_active:false}).select().single();
       if(error){flash("Fel: "+error.message);return;}
       const finalTeams = teamNames.length
         ? teamNames.map(n=>({name:n,league_id:data.id}))
@@ -10053,6 +10067,15 @@ function attachHandlers(){
       window._allLeaguesCache=(window._allLeaguesCache||[]).map(l=>l.id===id?{...l,hidden:newHidden}:l);
       render();
       flash(newHidden?"Serien är nu dold för användare.":"✓ Serien är nu synlig för alla!");
+    }
+    else if(act==="toggle-league-active"){
+      const id=Number(el.dataset.id);
+      const newActive=el.dataset.active==="1";
+      const {error}=await sb.from("leagues").update({admin_active:newActive}).eq("id",id);
+      if(error){flash("Fel: "+error.message+" (har du kört SQL:en som lägger till kolumnen admin_active på leagues?)");return;}
+      window._allLeaguesCache=(window._allLeaguesCache||[]).map(l=>l.id===id?{...l,admin_active:newActive}:l);
+      render();
+      flash(newActive?"⭐ Serien är nu markerad som aktiv!":"Serien flyttad till \"under uppbyggnad\".");
     }
     else if(act==="delete-league"){
       const id=Number(el.dataset.id);
@@ -10668,7 +10691,7 @@ function attachHandlers(){
       adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
-      if(adminSection==="leagues"){ window._allLeaguesCache=null; }
+      if(adminSection==="leagues"||adminSection==="activeleagues"){ window._allLeaguesCache=null; }
       if(adminSection==="duellen"){
         try{
           [duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);
