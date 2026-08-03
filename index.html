@@ -354,6 +354,15 @@ async function fetchAllLeagues(){
   if(error){console.error(error);return [];}
   return data;
 }
+// Hämtar antal spelare per serie i en enda lätt fråga (bara league_id-kolumnen)
+// istället för en fråga per serie – används i adminpanelens serie-listor.
+async function fetchLeagueUserCounts(){
+  const {data,error}=await sb.from("fantasy_users").select("league_id");
+  if(error){console.error(error);return {};}
+  const counts={};
+  data.forEach(row=>{ counts[row.league_id]=(counts[row.league_id]||0)+1; });
+  return counts;
+}
 async function createNewSeason(newSeasonLabel){
   // Stäng av nuvarande säsong
   await sb.from("leagues").update({is_current:false}).eq("id",currentLeague.id);
@@ -7950,16 +7959,20 @@ Liverpool
     </div>`;
   } else if(adminSection==="leagues"||adminSection==="activeleagues"){
     const allLeaguesData=window._allLeaguesCache||[];
+    const userCounts=window._leagueUserCountsCache||{};
     // Ladda async i bakgrunden om inte caché finns
     if(!window._allLeaguesCache){
       fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});
+    }
+    if(!window._leagueUserCountsCache){
+      fetchLeagueUserCounts().then(d=>{window._leagueUserCountsCache=d;render();});
     }
     const isActiveView=adminSection==="activeleagues";
     const listData=isActiveView?allLeaguesData.filter(l=>l.admin_active):allLeaguesData.filter(l=>!l.admin_active);
     const leagueRow=l=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap">
         <div style="flex:1;min-width:150px">
-          <div style="font-weight:500;font-size:13px">${esc(l.name)}</div>
+          <div style="font-weight:500;font-size:13px">${esc(l.name)} <span style="font-weight:400;color:var(--color-text-secondary)">(${userCounts[l.id]||0} spelare)</span></div>
           <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">${l.id===currentLeague.id?"👉 Du jobbar med den här nu":""}</div>
           <div style="display:flex;gap:4px;align-items:center">
             <input data-act="league-season-input" data-id="${l.id}" value="${esc(String(l.season||""))}" style="font-size:11px;padding:4px 6px;border:0.5px solid var(--color-border-secondary);border-radius:4px;width:90px;background:var(--color-background-primary);color:var(--color-text-primary)"/>
@@ -10773,7 +10786,7 @@ function attachHandlers(){
       adminSection=el.dataset.sec;errMsg="";confirmRemoveId=null;confirmDeleteRound=false;
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
-      if(adminSection==="leagues"||adminSection==="activeleagues"){ window._allLeaguesCache=null; }
+      if(adminSection==="leagues"||adminSection==="activeleagues"){ window._allLeaguesCache=null; window._leagueUserCountsCache=null; }
       if(adminSection==="duellen"){
         try{
           [duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);
