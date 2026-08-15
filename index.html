@@ -2036,7 +2036,7 @@ function missingModesList(){
   if(!currentUser) return [];
   const rnd=cfg.omg;
   const rd=rounds[String(rnd)];
-  if(!rd || rd.locked) return [];
+  if(!rd || isRoundLocked(rd)) return [];
   const missing=[];
   if(cfg.fantasyEnabled && !(pickCount(currentUser)===TOTAL_PICKS && currentUser.kapten)) missing.push({ico:"⚽",label:t("missing.fantasy")});
   if(cfg.tippEnabled && !(currentUser.tips&&(currentUser.tips[String(rnd)]||[]).length>0)) missing.push({ico:"🎯",label:t("missing.tipp")});
@@ -2677,7 +2677,10 @@ const TRANSLATIONS={
     "stod.orPaypalManually":"Eller besök PayPal.me manuellt:",
     "paywall.paypalNoteInstruction":"<b>Viktigt:</b> Skriv ditt namn \"<b>{name}</b>\" i anteckningsfältet när du betalar via PayPal – då hittar admin dig snabbt och markerar dig som betald.",
     "paywall.orPaypalManuallyWithMessage":"Eller besök PayPal.me manuellt:","paywall.writeAsNotePaypal":"Skriv \"<b>{name}</b>\" i anteckningsfältet",
-    "profile.languageTitle":"🌐 Språk","profile.languageDesc":"Välj vilket språk appen ska visas på."
+    "profile.languageTitle":"🌐 Språk","profile.languageDesc":"Välj vilket språk appen ska visas på.",
+    "countdown.passed":"Spelstopp har passerat","countdown.days":"⏰ Spelstopp om {d}d {h}h {m}m",
+    "countdown.hours":"⏰ Spelstopp om {h}h {m}m","countdown.minutes":"⏰ Spelstopp om {m} min",
+    "common.roundLockedAutoNotice":"🔒 Spelstoppet har passerat – tippning stängd"
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3168,7 +3171,10 @@ const TRANSLATIONS={
     "stod.orPaypalManually":"Or visit PayPal.me manually:",
     "paywall.paypalNoteInstruction":"<b>Important:</b> Write your name \"<b>{name}</b>\" in the note field when paying via PayPal – that way the admin finds you quickly and marks you as paid.",
     "paywall.orPaypalManuallyWithMessage":"Or visit PayPal.me manually:","paywall.writeAsNotePaypal":"Write \"<b>{name}</b>\" in the note field",
-    "profile.languageTitle":"🌐 Language","profile.languageDesc":"Choose which language the app should display."
+    "profile.languageTitle":"🌐 Language","profile.languageDesc":"Choose which language the app should display.",
+    "countdown.passed":"Deadline has passed","countdown.days":"⏰ Deadline in {d}d {h}h {m}m",
+    "countdown.hours":"⏰ Deadline in {h}h {m}m","countdown.minutes":"⏰ Deadline in {m} min",
+    "common.roundLockedAutoNotice":"🔒 The deadline has passed – predictions closed"
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3659,7 +3665,10 @@ const TRANSLATIONS={
     "stod.orPaypalManually":"Ή επισκέψου το PayPal.me χειροκίνητα:",
     "paywall.paypalNoteInstruction":"<b>Σημαντικό:</b> Γράψε το όνομά σου \"<b>{name}</b>\" στο πεδίο σημείωσης όταν πληρώνεις μέσω PayPal – έτσι ο διαχειριστής σε βρίσκει γρήγορα και σε σημειώνει ως πληρωμένο.",
     "paywall.orPaypalManuallyWithMessage":"Ή επισκέψου το PayPal.me χειροκίνητα:","paywall.writeAsNotePaypal":"Γράψε \"<b>{name}</b>\" στο πεδίο σημείωσης",
-    "profile.languageTitle":"🌐 Γλώσσα","profile.languageDesc":"Διάλεξε σε ποια γλώσσα θα εμφανίζεται η εφαρμογή."
+    "profile.languageTitle":"🌐 Γλώσσα","profile.languageDesc":"Διάλεξε σε ποια γλώσσα θα εμφανίζεται η εφαρμογή.",
+    "countdown.passed":"Η προθεσμία έχει περάσει","countdown.days":"⏰ Προθεσμία σε {d}μ {h}ω {m}λ",
+    "countdown.hours":"⏰ Προθεσμία σε {h}ω {m}λ","countdown.minutes":"⏰ Προθεσμία σε {m} λεπτά",
+    "common.roundLockedAutoNotice":"🔒 Η προθεσμία έχει περάσει – οι προβλέψεις έκλεισαν"
   }
 };
 function t(key,vars){
@@ -3710,13 +3719,24 @@ function toDatetimeLocal(iso){
   const pad=n=>String(n).padStart(2,"0");
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+// En omgång räknas som låst antingen om admin manuellt låst den (rd.locked)
+// ELLER om spelstopp-deadlinen (rd.lock_deadline) har passerat – oavsett om
+// admin hunnit klicka "lås" eller inte. Detta är den enda källan till sanning
+// för "är omgången låst?" och används genomgående istället för att bara
+// kolla rd.locked direkt.
+function isRoundLocked(rd){
+  if(!rd) return false;
+  if(rd.locked) return true;
+  if(rd.lock_deadline && new Date(rd.lock_deadline)<=new Date()) return true;
+  return false;
+}
 function formatCountdown(deadlineIso){
   const diff=new Date(deadlineIso)-new Date();
-  if(diff<=0)return"Spelstopp har passerat";
+  if(diff<=0)return t("countdown.passed");
   const d=Math.floor(diff/86400000), h=Math.floor(diff%86400000/3600000), m=Math.floor(diff%3600000/60000);
-  if(d>0)return `⏰ Spelstopp om ${d}d ${h}h ${m}m`;
-  if(h>0)return `⏰ Spelstopp om ${h}h ${m}m`;
-  return `⏰ Spelstopp om ${m} min`;
+  if(d>0)return t("countdown.days",{d,h,m});
+  if(h>0)return t("countdown.hours",{h,m});
+  return t("countdown.minutes",{m});
 }
 function updateCountdownEls(){
   document.querySelectorAll("[data-countdown-deadline]").forEach(el=>{
@@ -3809,7 +3829,7 @@ function renderModeSelect(){
     ${(()=>{
       const rd = rounds[String(cfg.omg)];
       const missing = (myRoundStatus.round===cfg.omg) ? missingModesList() : [];
-      const showCountdown = rd && rd.lock_deadline && !rd.locked && new Date(rd.lock_deadline)>new Date();
+      const showCountdown = rd && rd.lock_deadline && !isRoundLocked(rd) && new Date(rd.lock_deadline)>new Date();
       if(!missing.length && !showCountdown) return "";
       return `<div class="fg-card" style="width:100%;max-width:380px;background:#FCEBEB;border:0.5px solid #A32D2D;margin-bottom:16px">
         ${showCountdown?`<div style="font-size:20px;font-weight:800;color:#A32D2D;margin-bottom:${missing.length?'10px':'0'};letter-spacing:.2px" data-countdown-deadline="${rd.lock_deadline}">${formatCountdown(rd.lock_deadline)}</div>`:""}
@@ -4911,8 +4931,8 @@ function renderMain(){
         const rd=rounds[String(r)];
         const isActive=r===cfg.omg;
         if(!rd) return `<div style="height:26px;border-radius:5px;background:#333;opacity:0.3"></div>`;
-        const bg=isActive?"#fff":rd.results_published?"#2d5a2d":rd.locked?"#5a1a1a":"#333";
-        const col=isActive?"#1a1a1a":rd.results_published?"#a8e6a8":rd.locked?"#ffaaaa":"#aaa";
+        const bg=isActive?"#fff":rd.results_published?"#2d5a2d":isRoundLocked(rd)?"#5a1a1a":"#333";
+        const col=isActive?"#1a1a1a":rd.results_published?"#a8e6a8":isRoundLocked(rd)?"#ffaaaa":"#aaa";
         return `<button data-act="user-jump-round" data-r="${r}" style="height:26px;border-radius:5px;border:none;background:${bg};color:${col};font-size:11px;font-weight:${isActive?700:500};cursor:pointer;width:100%">${r}</button>`;
       }).join("")}
       </div>
@@ -5096,7 +5116,7 @@ function renderTippTab(){
   const user=currentUser;
   const activeRound=userSelectedRound||cfg.omg;
   const rd=rounds[String(activeRound)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const sortedTip=[...users].filter(u=>Object.keys(u.tips||{}).some(r=>(u.tips[r]||[]).length>0)).sort((a,b)=>userTipTotalPts(b)-userTipTotalPts(a));
 
   const roundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
@@ -5105,7 +5125,7 @@ function renderTippTab(){
   let inputSection="";
   if(!rd || !rd.matches.length){
     inputSection = `<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("tipp.noMatchesForRound",{n:cfg.omg}))}</div></div>`;
-  } else if(rd.locked){
+  } else if(isRoundLocked(rd)){
     const savedTips = (user.tips && user.tips[String(activeRound)]) || [];
     const rows = rd.matches.map(m=>{
       const hTeam=TEAMS.find(t=>t.id===m.hId), aTeam=TEAMS.find(t=>t.id===m.aId);
@@ -5190,7 +5210,7 @@ function renderRoundMatches(rd){
   if(!rd||!rd.matches||!rd.matches.length) return "";
   const rows=rd.matches.map(m=>{
     const h=TEAMS.find(t=>t.id===m.hId),a=TEAMS.find(t=>t.id===m.aId);
-    const hasRes=rd.results_published&&(m.hMål>0||m.aMål>0||rd.locked);
+    const hasRes=rd.results_published&&(m.hMål>0||m.aMål>0||isRoundLocked(rd));
     return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px">
       <span style="flex:1;text-align:right;color:var(--color-text-secondary)">${esc(h?h.name:"")}</span>
       <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 7px;font-weight:500;font-size:11px;min-width:38px;text-align:center">${rd.results_published?m.hMål+"–"+m.aMål:"–"}</span>
@@ -5205,7 +5225,7 @@ function renderRoundMatches(rd){
 
 function renderMåljaktenTab(){
   const rd=rounds[String(cfg.omg)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const placed=måljaktenDraft.map(Number);
   const unplaced=TEAMS.filter(t=>!placed.includes(t.id));
 
@@ -5214,7 +5234,7 @@ function renderMåljaktenTab(){
     const teamId=placed[i];
     const team=teamId!==undefined?TEAMS.find(t=>t.id===teamId):null;
     const calc=team&&rd?calcMåljaktenTeamPts(team.id,rd):{pts:0,goals:0,isHome:null};
-    const hasResult=rd&&rd.locked&&calc.isHome!==null;
+    const hasResult=rd&&isRoundLocked(rd)&&calc.isHome!==null;
     return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
       <div style="width:28px;height:28px;border-radius:50%;background:${team?G_GREENL:'var(--color-background-secondary)'};color:${team?G_GREEN:'var(--color-text-secondary)'};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0">${i+1}</div>
       ${team
@@ -5288,7 +5308,7 @@ function renderMåljaktenTab(){
 function renderSnabbastTab(){
 
   const rd=rounds[String(cfg.omg)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const result=rd&&rd.snabbast_result||[];
   const hasResult=result.length>0;
   const myPicks=snabbastMyTips[cfg.omg]||[];
@@ -5525,7 +5545,7 @@ function renderPrivateLeagueSection(gameMode){
 function renderMatchfokusTab(){
   const rd=rounds[String(cfg.omg)];
   const m=matchfokusFocusMatch(rd);
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const hTeam=m?TEAMS.find(t=>t.id===m.hId):null;
   const aTeam=m?TEAMS.find(t=>t.id===m.aId):null;
   const hName=hTeam?hTeam.name:t("matchfokus.homeTeamFallback"), aName=aTeam?aTeam.name:t("matchfokus.awayTeamFallback");
@@ -5936,7 +5956,7 @@ function renderDuellenMarathonRows(divisionName){
 }
 function renderMalregnTab(){
   const rd=rounds[String(cfg.omg)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const facit=computeMalregnFacit(rd);
   const myGuess=malregnMyTips[cfg.omg];
   const sortedMr=[...users].filter(u=>malregnAllTipsGlobal.some(t=>t.user_id===u.id)).sort((a,b)=>userMalregnTotalPts(b.id)-userMalregnTotalPts(a.id));
@@ -5998,7 +6018,7 @@ function renderMalregnTab(){
 }
 function renderJubelTab(){
   const rd=rounds[String(cfg.omg)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const resultsShown=rd&&rd.results_published;
   const savedPicks=jubelMyTips[cfg.omg]||{};
   const sortedJb=[...users].filter(u=>jubelAllTipsGlobal.some(t=>t.user_id===u.id)).sort((a,b)=>userJubelTotalPts(b.id)-userJubelTotalPts(a.id));
@@ -6081,7 +6101,7 @@ function renderJubelTab(){
 }
 function renderInvesterareTab(){
   const rd=rounds[String(cfg.omg)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const state=investerareComputeState(currentUser.id,cfg.omg);
   const lastEntry=state.history[state.history.length-1];
   const sortedInv=[...users].filter(u=>investerareAllTipsGlobal.some(t=>t.user_id===u.id)).sort((a,b)=>investerareCurrentBalance(b.id)-investerareCurrentBalance(a.id));
@@ -6248,7 +6268,7 @@ function renderLtsTab(){
   const inRange=cfg.omg>=startRound&&cfg.omg<=maxRound;
   const rd=rounds[String(cfg.omg)];
   const alreadyPicked=ltsAllPicksGlobal.find(p=>p.user_id===currentUser.id&&Number(p.round_num)===cfg.omg);
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
 
   let card;
   const mySignup=ltsSignups.find(s=>s.user_id===currentUser.id);
@@ -6386,7 +6406,7 @@ window.saveLts=async function(){
 };
 function renderAnytimeTab(){
   const rd=rounds[String(cfg.omg)];
-  const locked=rd&&rd.locked;
+  const locked=isRoundLocked(rd);
   const resultsShown=rd&&rd.results_published;
   const savedPicks=anytimeMyTips[cfg.omg]||{DEF:[],MID:[],FW:[]};
   const sortedAt=[...users].filter(u=>anytimeAllTipsGlobal.some(t=>t.user_id===u.id)).sort((a,b)=>userAnytimeTotalPts(b.id)-userAnytimeTotalPts(a.id));
@@ -7173,7 +7193,7 @@ function renderOmgTab(){
       bg="var(--color-background-secondary)"; col="var(--color-text-secondary)"; border="transparent";
     } else if(rd.results_published){
       bg=S_AMBERL; col=S_AMBER; border=S_AMBER;
-    } else if(rd.locked){
+    } else if(isRoundLocked(rd)){
       bg="#fce8e8"; col="#c1272d"; border="#c1272d";
     } else {
       bg=hasAnyTip?"#fff3e0":"var(--color-background-primary)";
@@ -7218,7 +7238,7 @@ function renderOmgTab(){
     return `<div class="fg-card" style="margin-top:10px">
       <div style="font-weight:500;margin-bottom:8px;display:flex;justify-content:space-between">
         <span>${esc(t("common.round",{n:r}))}</span>
-        ${rd.results_published?`<span style="font-size:12px;color:${S_AMBER}">${esc(t("omg.resultsReady"))}</span>`:rd.locked?`<span style="font-size:12px;color:#c1272d">${esc(t("omg.closed"))}</span>`:`<span style="font-size:12px;color:${S_GREEN}">${esc(t("omg.open"))}</span>`}
+        ${rd.results_published?`<span style="font-size:12px;color:${S_AMBER}">${esc(t("omg.resultsReady"))}</span>`:isRoundLocked(rd)?`<span style="font-size:12px;color:#c1272d">${esc(t("omg.closed"))}</span>`:`<span style="font-size:12px;color:${S_GREEN}">${esc(t("omg.open"))}</span>`}
       </div>
       ${matchRows||`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("omg.matchesNotEntered"))}</div>`}
       ${rd.results_published?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
@@ -7317,8 +7337,8 @@ function renderAdminTab(){
       <div style="display:flex;flex-wrap:wrap;gap:4px">
         ${Array.from({length:cfg.totalRounds||26},(_,i)=>i+1).map(n=>{
           const rd=rounds[String(n)];
-          const bg=!rd?'var(--color-background-secondary)':rd.results_published?S_AMBERL:rd.locked?'#fce8e8':S_GREENL;
-          const col=!rd?'var(--color-text-secondary)':rd.results_published?S_AMBER:rd.locked?'#c1272d':S_GREEN;
+          const bg=!rd?'var(--color-background-secondary)':rd.results_published?S_AMBERL:isRoundLocked(rd)?'#fce8e8':S_GREENL;
+          const col=!rd?'var(--color-text-secondary)':rd.results_published?S_AMBER:isRoundLocked(rd)?'#c1272d':S_GREEN;
           const isCurrent=n===cfg.omg;
           return `<button data-act="admin-jump-round" data-n="${n}" style="width:36px;height:36px;border-radius:6px;border:${isCurrent?'2px solid '+S_GREEN:'1.5px solid transparent'};background:${bg};color:${col};font-size:12px;font-weight:${isCurrent?700:500};cursor:pointer">${n}</button>`;
         }).join("")}
