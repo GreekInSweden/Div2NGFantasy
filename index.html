@@ -2745,7 +2745,9 @@ const TRANSLATIONS={
     "unassignedHome.browseLeaguesButton":"Bläddra bland serier →",
     "unassignedHome.logoutButton":"Logga ut",
     "entrySearch.waitingForLeague":"⏳ Väntar på serie",
-    "entrySearch.searching":"Söker…","entrySearch.noMatch":"Ingen match hittades.","entrySearch.error":"Något gick fel, försök igen."
+    "entrySearch.searching":"Söker…","entrySearch.noMatch":"Ingen match hittades.","entrySearch.error":"Något gick fel, försök igen.",
+    "landing.searchLeaguesPlaceholder":"🔍 Sök serie (t.ex. Div4 Göteborg)…",
+    "landing.otherSeriesGroup":"Övriga serier","landing.noLeaguesMatch":"Ingen serie matchade sökningen."
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3259,7 +3261,9 @@ const TRANSLATIONS={
     "unassignedHome.browseLeaguesButton":"Browse series →",
     "unassignedHome.logoutButton":"Log out",
     "entrySearch.waitingForLeague":"⏳ Waiting for series",
-    "entrySearch.searching":"Searching…","entrySearch.noMatch":"No match found.","entrySearch.error":"Something went wrong, please try again."
+    "entrySearch.searching":"Searching…","entrySearch.noMatch":"No match found.","entrySearch.error":"Something went wrong, please try again.",
+    "landing.searchLeaguesPlaceholder":"🔍 Search series (e.g. Div4 Gothenburg)…",
+    "landing.otherSeriesGroup":"Other series","landing.noLeaguesMatch":"No series matched your search."
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3773,7 +3777,9 @@ const TRANSLATIONS={
     "unassignedHome.browseLeaguesButton":"Περιήγηση σειρών →",
     "unassignedHome.logoutButton":"Αποσύνδεση",
     "entrySearch.waitingForLeague":"⏳ Αναμονή σειράς",
-    "entrySearch.searching":"Αναζήτηση…","entrySearch.noMatch":"Δεν βρέθηκε αντιστοιχία.","entrySearch.error":"Κάτι πήγε στραβά, δοκίμασε ξανά."
+    "entrySearch.searching":"Αναζήτηση…","entrySearch.noMatch":"Δεν βρέθηκε αντιστοιχία.","entrySearch.error":"Κάτι πήγε στραβά, δοκίμασε ξανά.",
+    "landing.searchLeaguesPlaceholder":"🔍 Αναζήτηση σειράς (π.χ. Div4 Gothenburg)…",
+    "landing.otherSeriesGroup":"Άλλες σειρές","landing.noLeaguesMatch":"Καμία σειρά δεν ταιριάζει με την αναζήτηση."
   }
 };
 function t(key,vars){
@@ -4137,12 +4143,49 @@ function renderLeagues(){
       </div>
     </div>`;
   }
-  const list = leagues.map(l=>`
-    <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
-      <div style="width:40px;height:40px;border-radius:10px;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:18px">🏆</div>
-      <div style="flex:1"><div style="font-weight:500;font-size:15px">${esc(l.name)}</div></div>
-      <span style="color:var(--color-text-secondary)">›</span>
-    </button>`).join("");
+// Grupperar serier efter divisionsnivå (Div2, Div3, Div4...) utplockat ur
+// namnet, med en "Övriga serier"-grupp för sådant som inte matchar mönstret
+// (Premier League, La Liga osv). Används både vid första renderingen och
+// live när man skriver i sökrutan – därför en egen funktion.
+function renderLeagueGroups(list){
+  if(!list.length) return `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("landing.noLeaguesMatch"))}</div>`;
+  const groups={};
+  const order=[];
+  list.forEach(l=>{
+    const m=l.name.match(/^Div\s*(\d+)/i);
+    const key=m?`Div${m[1]}`:t("landing.otherSeriesGroup");
+    if(!groups[key]){groups[key]=[];order.push(key);}
+    groups[key].push(l);
+  });
+  order.sort((a,b)=>{
+    const na=a.match(/^Div(\d+)$/), nb=b.match(/^Div(\d+)$/);
+    if(na&&nb) return Number(na[1])-Number(nb[1]);
+    if(na) return -1;
+    if(nb) return 1;
+    return a.localeCompare(b);
+  });
+  return order.map(key=>{
+    const items=groups[key];
+    const rows=items.map(l=>`
+      <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
+        <div style="width:40px;height:40px;border-radius:10px;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:18px">🏆</div>
+        <div style="flex:1"><div style="font-weight:500;font-size:15px">${esc(l.name)}</div></div>
+        <span style="color:var(--color-text-secondary)">›</span>
+      </button>`).join("");
+    return `<details open style="margin-bottom:10px;text-align:left">
+      <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${items.length})</span></summary>
+      <div style="margin-top:6px">${rows}</div>
+    </details>`;
+  }).join("");
+}
+window._doLeagueSearch=function(){
+  const q=(document.getElementById("league-search")?.value||"").trim().toLowerCase();
+  const resultsEl=document.getElementById("league-list-results");
+  if(!resultsEl) return;
+  const filtered=q?leagues.filter(l=>l.name.toLowerCase().includes(q)):leagues;
+  resultsEl.innerHTML=renderLeagueGroups(filtered);
+  attachHandlers();
+};
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
     <div style="display:flex;gap:6px;margin-bottom:20px">
@@ -4172,7 +4215,8 @@ function renderLeagues(){
     </div>
     <div style="width:100%;max-width:340px;border-top:0.5px solid var(--color-border-tertiary);padding-top:16px;margin-top:8px">
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">${esc(t("onboarding.newPlayerPrompt"))}</div>
-      ${list || `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("onboarding.noLeaguesAvailable"))}</div>`}
+      <input class="fg-input" id="league-search" placeholder="${esc(t("landing.searchLeaguesPlaceholder"))}" oninput="window._doLeagueSearch&&window._doLeagueSearch()" autocomplete="off" autocorrect="off" style="margin-bottom:12px"/>
+      <div id="league-list-results">${renderLeagueGroups(leagues)}</div>
     </div>
     <div style="width:100%;max-width:340px;border-top:0.5px solid var(--color-border-tertiary);padding-top:16px;margin-top:16px;text-align:center">
       <div style="font-weight:500;font-size:14px;margin-bottom:4px">${esc(t("landing.leagueNotListedTitle"))}</div>
