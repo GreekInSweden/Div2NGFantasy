@@ -188,6 +188,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
+    pendingUnassignedUser=null,
     allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
     quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
     hofData=[],
@@ -565,6 +566,48 @@ async function insertUser(u){
     tips:{},
     join_round:cfg.omg||1
   });
+  return error;
+}
+// Registrerar ett konto UTAN serie – används när besökarens serie ännu inte
+// finns upplagd. Kontot ligger och väntar (league_id null) tills en
+// superadmin kopplar det till en riktig serie via adminpanelens
+// "Väntande spelare".
+async function insertUnassignedUser(u,requestedLeagueName){
+  const {error}=await sb.from("fantasy_users").insert({
+    id:u.id,
+    namn:u.namn,
+    picks:{GK:[],DEF:[],MID:[],FW:[]},
+    kapten:null,
+    pin:u.pin,
+    league_id:null,
+    requested_league_name:requestedLeagueName||null,
+    tips:{},
+    created_at:new Date().toISOString()
+  });
+  return error;
+}
+// Kollar om namnet redan är taget NÅGONSTANS (alla serier + väntelistan),
+// eftersom vi inte har en currentLeague att avgränsa sökningen till här.
+async function checkNameExistsGlobally(namn){
+  const {data,error}=await sb.from("fantasy_users").select("id").ilike("namn",namn).limit(1);
+  if(error){console.error(error);return false;}
+  return !!(data&&data.length);
+}
+// Superadmin-vy: alla konton som väntar på att kopplas till en serie.
+async function fetchPendingUnassignedUsers(){
+  const {data,error}=await sb.from("fantasy_users").select("id,namn,requested_league_name,created_at").is("league_id",null).order("created_at",{ascending:true});
+  if(error){console.error(error);return [];}
+  return data;
+}
+// Kopplar ett väntande konto till en riktig serie. Sätter join_round till
+// seriens aktuella omgång, precis som en vanlig ny registrering gör.
+async function assignPendingUserToLeague(userId,leagueId){
+  let joinRound=1;
+  try{
+    const {data}=await sb.from("app_config").select("active_round").eq("league_id",leagueId).maybeSingle();
+    if(data&&data.active_round) joinRound=data.active_round;
+  }catch(e){console.error(e);}
+  const {error}=await sb.from("fantasy_users").update({league_id:leagueId,join_round:joinRound}).eq("id",userId);
   return error;
 }
 async function saveUserTips(userId,roundNum,tipsArr){
@@ -2684,7 +2727,25 @@ const TRANSLATIONS={
     "countdown.hours":"⏰ Spelstopp om {h}h {m}m","countdown.minutes":"⏰ Spelstopp om {m} min",
     "common.roundLockedAutoNotice":"🔒 Spelstoppet har passerat – tippning stängd",
     "landing.tagline":"Fantasy-fotboll, tips och fler spelformer för fotbollsserier – oavsett nivå.",
-    "landing.description":"Bygg drömlaget, tippa resultat, tävla mot vänner i privata ligor och mycket mer. Sök ditt namn nedan om du redan är med, eller välj en serie för att gå med som ny spelare."
+    "landing.description":"Bygg drömlaget, tippa resultat, tävla mot vänner i privata ligor och mycket mer. Sök ditt namn nedan om du redan är med, eller välj en serie för att gå med som ny spelare.",
+    "landing.leagueNotListedTitle":"Hittar du inte din serie?",
+    "landing.leagueNotListedDesc":"Skapa ett konto ändå så kopplar vi dig till rätt serie så fort den finns tillgänglig.",
+    "landing.leagueNotListedButton":"Skapa konto ändå →",
+    "unassignedReg.title":"Skapa konto",
+    "unassignedReg.leagueLabel":"Vilken serie vill du gå med i?",
+    "unassignedReg.leaguePlaceholder":"T.ex. Premier League, Allsvenskan, ditt lags namn…",
+    "unassignedReg.leagueHint":"Skriv namnet på serien eller ligan du vill spela i – vi hör av oss så fort den finns tillgänglig.",
+    "unassignedReg.submitButton":"Skapa konto",
+    "unassignedReg.nameTaken":"Namnet finns redan – testa ett annat, eller sök upp ditt namn på startsidan och logga in istället.",
+    "unassignedHome.title":"Tack, {name}!",
+    "unassignedHome.subtitle":"Ditt konto är skapat. Vi kopplar dig till \"<b>{league}</b>\" så snart den är redo att spelas.",
+    "unassignedHome.subtitleNoLeague":"Ditt konto är skapat. Vi hör av oss så snart en passande serie finns tillgänglig.",
+    "unassignedHome.checkBackNote":"Logga in igen senare för att se om du kopplats till en serie.",
+    "unassignedHome.joinExistingInstead":"Vill du hellre gå med i en av våra befintliga serier under tiden?",
+    "unassignedHome.browseLeaguesButton":"Bläddra bland serier →",
+    "unassignedHome.logoutButton":"Logga ut",
+    "entrySearch.waitingForLeague":"⏳ Väntar på serie",
+    "entrySearch.searching":"Söker…","entrySearch.noMatch":"Ingen match hittades.","entrySearch.error":"Något gick fel, försök igen."
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3180,7 +3241,25 @@ const TRANSLATIONS={
     "countdown.hours":"⏰ Deadline in {h}h {m}m","countdown.minutes":"⏰ Deadline in {m} min",
     "common.roundLockedAutoNotice":"🔒 The deadline has passed – predictions closed",
     "landing.tagline":"Fantasy football, predictions and more game modes for football leagues – any level.",
-    "landing.description":"Build your dream team, predict results, compete against friends in private leagues and much more. Search your name below if you're already a member, or choose a series to join as a new player."
+    "landing.description":"Build your dream team, predict results, compete against friends in private leagues and much more. Search your name below if you're already a member, or choose a series to join as a new player.",
+    "landing.leagueNotListedTitle":"Can't find your series?",
+    "landing.leagueNotListedDesc":"Create an account anyway and we'll connect you to the right series as soon as it's available.",
+    "landing.leagueNotListedButton":"Create account anyway →",
+    "unassignedReg.title":"Create account",
+    "unassignedReg.leagueLabel":"Which series do you want to join?",
+    "unassignedReg.leaguePlaceholder":"E.g. Premier League, your team's name…",
+    "unassignedReg.leagueHint":"Write the name of the series or league you want to play in – we'll be in touch as soon as it's available.",
+    "unassignedReg.submitButton":"Create account",
+    "unassignedReg.nameTaken":"That name is already taken – try another one, or search for your name on the start page and log in instead.",
+    "unassignedHome.title":"Thanks, {name}!",
+    "unassignedHome.subtitle":"Your account is created. We'll connect you to \"<b>{league}</b>\" as soon as it's ready to play.",
+    "unassignedHome.subtitleNoLeague":"Your account is created. We'll be in touch as soon as a suitable series is available.",
+    "unassignedHome.checkBackNote":"Log in again later to see if you've been connected to a series.",
+    "unassignedHome.joinExistingInstead":"Want to join one of our existing series in the meantime?",
+    "unassignedHome.browseLeaguesButton":"Browse series →",
+    "unassignedHome.logoutButton":"Log out",
+    "entrySearch.waitingForLeague":"⏳ Waiting for series",
+    "entrySearch.searching":"Searching…","entrySearch.noMatch":"No match found.","entrySearch.error":"Something went wrong, please try again."
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3676,7 +3755,25 @@ const TRANSLATIONS={
     "countdown.hours":"⏰ Προθεσμία σε {h}ω {m}λ","countdown.minutes":"⏰ Προθεσμία σε {m} λεπτά",
     "common.roundLockedAutoNotice":"🔒 Η προθεσμία έχει περάσει – οι προβλέψεις έκλεισαν",
     "landing.tagline":"Fantasy ποδόσφαιρο, προβλέψεις και περισσότεροι τρόποι παιχνιδιού για πρωταθλήματα – σε κάθε επίπεδο.",
-    "landing.description":"Φτιάξε την ονειρική σου ομάδα, πρόβλεψε αποτελέσματα, διαγωνίσου με φίλους σε ιδιωτικές σειρές και πολλά άλλα. Αναζήτησε το όνομά σου παρακάτω αν είσαι ήδη μέλος, ή διάλεξε μια σειρά για να συμμετάσχεις ως νέος παίκτης."
+    "landing.description":"Φτιάξε την ονειρική σου ομάδα, πρόβλεψε αποτελέσματα, διαγωνίσου με φίλους σε ιδιωτικές σειρές και πολλά άλλα. Αναζήτησε το όνομά σου παρακάτω αν είσαι ήδη μέλος, ή διάλεξε μια σειρά για να συμμετάσχεις ως νέος παίκτης.",
+    "landing.leagueNotListedTitle":"Δεν βρίσκεις τη σειρά σου;",
+    "landing.leagueNotListedDesc":"Δημιούργησε λογαριασμό ούτως ή άλλως και θα σε συνδέσουμε με τη σωστή σειρά μόλις γίνει διαθέσιμη.",
+    "landing.leagueNotListedButton":"Δημιουργία λογαριασμού ούτως ή άλλως →",
+    "unassignedReg.title":"Δημιουργία λογαριασμού",
+    "unassignedReg.leagueLabel":"Σε ποια σειρά θέλεις να συμμετάσχεις;",
+    "unassignedReg.leaguePlaceholder":"π.χ. Premier League, το όνομα της ομάδας σου…",
+    "unassignedReg.leagueHint":"Γράψε το όνομα της σειράς ή του πρωταθλήματος που θέλεις να παίξεις – θα επικοινωνήσουμε μόλις γίνει διαθέσιμη.",
+    "unassignedReg.submitButton":"Δημιουργία λογαριασμού",
+    "unassignedReg.nameTaken":"Αυτό το όνομα υπάρχει ήδη – δοκίμασε ένα άλλο, ή αναζήτησε το όνομά σου στην αρχική σελίδα και συνδέσου.",
+    "unassignedHome.title":"Ευχαριστούμε, {name}!",
+    "unassignedHome.subtitle":"Ο λογαριασμός σου δημιουργήθηκε. Θα σε συνδέσουμε με το \"<b>{league}</b>\" μόλις είναι έτοιμο να παιχτεί.",
+    "unassignedHome.subtitleNoLeague":"Ο λογαριασμός σου δημιουργήθηκε. Θα επικοινωνήσουμε μόλις υπάρξει κατάλληλη σειρά.",
+    "unassignedHome.checkBackNote":"Συνδέσου ξανά αργότερα για να δεις αν έχεις συνδεθεί με κάποια σειρά.",
+    "unassignedHome.joinExistingInstead":"Θέλεις μήπως να συμμετάσχεις σε μια από τις υπάρχουσες σειρές μας στο μεταξύ;",
+    "unassignedHome.browseLeaguesButton":"Περιήγηση σειρών →",
+    "unassignedHome.logoutButton":"Αποσύνδεση",
+    "entrySearch.waitingForLeague":"⏳ Αναμονή σειράς",
+    "entrySearch.searching":"Αναζήτηση…","entrySearch.noMatch":"Δεν βρέθηκε αντιστοιχία.","entrySearch.error":"Κάτι πήγε στραβά, δοκίμασε ξανά."
   }
 };
 function t(key,vars){
@@ -3774,6 +3871,8 @@ function render(){
   if(screen==="leagues")root.innerHTML=renderLeagues();
   else if(screen==="home")root.innerHTML=renderHome();
   else if(screen==="reg")root.innerHTML=renderReg();
+  else if(screen==="unassigned-reg")root.innerHTML=renderUnassignedReg();
+  else if(screen==="unassigned")root.innerHTML=renderUnassignedHome();
   else if(screen==="mode")root.innerHTML=renderModeSelect();
   else if(screen==="pick"){root.innerHTML=renderPick();
     // Sök-hook: re-renderar bara spellistan utan att hoppa till toppen
@@ -4007,6 +4106,21 @@ function renderModeSelect(){
 }
 
 function renderLeagues(){
+  if(pendingUnassignedUser){
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+      <div style="width:64px;height:64px;background:#999;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingUnassignedUser.namn[0])}</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingUnassignedUser.namn}))}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.enterPin"))}</div>
+      <div style="width:100%;max-width:300px">
+        <label class="fg-label">${esc(t("common.pinCode"))}</label>
+        <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
+        ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
+        <button class="fg-btn" data-act="submit-unassigned-pin" style="margin-bottom:8px">${esc(t("common.loginButtonArrow"))}</button>
+        <button class="fg-outbtn" data-act="entry-cancel-unassigned-pin" style="width:100%">${esc(t("common.back"))}</button>
+      </div>
+    </div>`;
+  }
   if(pendingCrossLeagueUser){
     const lg=leagues.find(l=>l.id===pendingCrossLeagueUser.league_id);
     return `
@@ -4060,6 +4174,11 @@ function renderLeagues(){
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">${esc(t("onboarding.newPlayerPrompt"))}</div>
       ${list || `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("onboarding.noLeaguesAvailable"))}</div>`}
     </div>
+    <div style="width:100%;max-width:340px;border-top:0.5px solid var(--color-border-tertiary);padding-top:16px;margin-top:16px;text-align:center">
+      <div style="font-weight:500;font-size:14px;margin-bottom:4px">${esc(t("landing.leagueNotListedTitle"))}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.5">${esc(t("landing.leagueNotListedDesc"))}</div>
+      <button data-act="go-unassigned-reg" class="fg-outbtn" style="width:100%">${esc(t("landing.leagueNotListedButton"))}</button>
+    </div>
     <button data-act="go-install-leagues" style="margin-top:20px;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">${esc(t("onboarding.installLink"))}</button>
   </div>`;
 }
@@ -4071,14 +4190,19 @@ window._doEntrySearch=function(){
     const resultsEl=document.getElementById("entry-search-results");
     if(!resultsEl)return;
     if(!q||q.length<2){resultsEl.innerHTML="";return;}
-    resultsEl.innerHTML='<div style="font-size:12px;color:var(--color-text-secondary);text-align:center;padding:8px">Söker…</div>';
+    resultsEl.innerHTML=`<div style="font-size:12px;color:var(--color-text-secondary);text-align:center;padding:8px">${esc(t("entrySearch.searching"))}</div>`;
     try{
-      const {data,error}=await sb.from("fantasy_users").select("id,namn,league_id").ilike("namn","%"+q+"%").in("league_id",leagues.map(l=>l.id)).limit(20);
-      if(error||!data||!data.length){
-        resultsEl.innerHTML='<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:8px">Ingen match hittades.</div>';
+      const [assignedRes,unassignedRes]=await Promise.all([
+        sb.from("fantasy_users").select("id,namn,league_id").ilike("namn","%"+q+"%").in("league_id",leagues.map(l=>l.id)).limit(20),
+        sb.from("fantasy_users").select("id,namn,requested_league_name").ilike("namn","%"+q+"%").is("league_id",null).limit(10)
+      ]);
+      const assigned=assignedRes.data||[];
+      const unassigned=unassignedRes.data||[];
+      if(!assigned.length && !unassigned.length){
+        resultsEl.innerHTML=`<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:8px">${esc(t("entrySearch.noMatch"))}</div>`;
         return;
       }
-      resultsEl.innerHTML=data.map(u=>{
+      const assignedHtml=assigned.map(u=>{
         const lg=leagues.find(l=>l.id===u.league_id);
         return `<button data-act="entry-pick-user" data-id="${u.id}" data-league-id="${u.league_id}" data-namn="${esc(u.namn)}" class="fg-card" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
           <div style="width:36px;height:36px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc(u.namn[0])}</div>
@@ -4086,10 +4210,17 @@ window._doEntrySearch=function(){
           <span style="color:var(--color-text-secondary)">›</span>
         </button>`;
       }).join("");
+      const unassignedHtml=unassigned.map(u=>`
+        <button data-act="entry-pick-unassigned" data-id="${u.id}" data-namn="${esc(u.namn)}" class="fg-card" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
+          <div style="width:36px;height:36px;border-radius:50%;background:#999;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc(u.namn[0])}</div>
+          <div style="flex:1"><div style="font-weight:500;font-size:14px">${esc(u.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("entrySearch.waitingForLeague"))}</div></div>
+          <span style="color:var(--color-text-secondary)">›</span>
+        </button>`).join("");
+      resultsEl.innerHTML=assignedHtml+unassignedHtml;
       attachHandlers();
     }catch(e){
       console.error(e);
-      resultsEl.innerHTML='<div style="font-size:12px;color:#A32D2D;text-align:center;padding:8px">Något gick fel, försök igen.</div>';
+      resultsEl.innerHTML=`<div style="font-size:12px;color:#A32D2D;text-align:center;padding:8px">${esc(t("entrySearch.error"))}</div>`;
     }
   },300);
 };
@@ -4288,6 +4419,43 @@ function renderReg(){
   </div>`;
 }
 
+function renderUnassignedReg(){
+  return `
+  <div style="padding:24px">
+    <button class="fg-outbtn" data-act="unassigned-back-to-leagues" style="margin-bottom:20px;padding:7px 14px">${esc(t("common.back"))}</button>
+    <div style="font-size:18px;font-weight:500;margin-bottom:16px">${esc(t("unassignedReg.title"))}</div>
+    <label class="fg-label">${esc(t("reg.nameLabel"))}</label>
+    <input class="fg-input" id="unassigned-namn" placeholder="${esc(t("reg.namePlaceholder"))}" autofocus style="margin-bottom:4px"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("reg.nameHint"))}</div>
+    <label class="fg-label">${esc(t("reg.pinLabel"))}</label>
+    <input class="fg-input" id="unassigned-pin" placeholder="${esc(t("reg.pinPlaceholder"))}" inputmode="numeric" maxlength="5" pattern="[0-9]*" style="margin-bottom:4px"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("reg.pinHint"))}</div>
+    <label class="fg-label">${esc(t("unassignedReg.leagueLabel"))}</label>
+    <input class="fg-input" id="unassigned-league" placeholder="${esc(t("unassignedReg.leaguePlaceholder"))}" style="margin-bottom:4px"/>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("unassignedReg.leagueHint"))}</div>
+    ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:6px;margin-bottom:10px">${esc(errMsg)}</div>`:""}
+    <button class="fg-btn" data-act="submit-unassigned-reg" style="margin-top:4px">${esc(t("unassignedReg.submitButton"))}</button>
+  </div>`;
+}
+function renderUnassignedHome(){
+  const u=currentUser;
+  if(!u) return renderLeagues();
+  return `
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center">
+    <div style="width:60px;height:60px;border-radius:50%;background:${G_GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;margin-bottom:16px">${esc(u.namn[0])}</div>
+    <div style="font-size:20px;font-weight:600;margin-bottom:8px">${esc(t("unassignedHome.title",{name:u.namn}))}</div>
+    <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:6px;max-width:340px;line-height:1.6">
+      ${u.requested_league_name?t("unassignedHome.subtitle",{league:esc(u.requested_league_name)}):esc(t("unassignedHome.subtitleNoLeague"))}
+    </div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:28px;max-width:320px">${esc(t("unassignedHome.checkBackNote"))}</div>
+
+    <div style="width:100%;max-width:320px;border-top:0.5px solid var(--color-border-tertiary);padding-top:20px">
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:12px">${esc(t("unassignedHome.joinExistingInstead"))}</div>
+      <button class="fg-btn" data-act="unassigned-back-to-leagues" style="margin-bottom:10px">${esc(t("unassignedHome.browseLeaguesButton"))}</button>
+      <button data-act="unassigned-logout" style="width:100%;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">${esc(t("unassignedHome.logoutButton"))}</button>
+    </div>
+  </div>`;
+}
 function pickMissingText(){
   const missing = POSITIONS.filter(pos=>(pickState.picks[pos]||[]).length < POS_COUNT[pos]);
   if(missing.length) return t("pick.missingPrefix")+missing.map(p=>{
@@ -7329,7 +7497,7 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["pending","⏳ Väntande spelare"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
   const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["players","👤 Spelare"],["import","📥 Importera"]];
 
@@ -8082,6 +8250,40 @@ Liverpool
           <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier – under uppbyggnad (${listData.length})</div>
           ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier under uppbyggnad just nu – allt du har är markerat som aktivt. Se "⭐ Aktiva serier".</div>`}
         </div>`;
+  } else if(adminSection==="pending"){
+    const pendingUsers=window._pendingUnassignedCache||[];
+    const allLeaguesForAssign=window._allLeaguesCache||[];
+    if(!window._pendingUnassignedCache){
+      fetchPendingUnassignedUsers().then(d=>{window._pendingUnassignedCache=d;render();});
+    }
+    if(!window._allLeaguesCache){
+      fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();});
+    }
+    const leagueOpts=allLeaguesForAssign.map(l=>`<option value="${l.id}">${esc(l.name)}${l.season?` (${esc(String(l.season))})`:""}</option>`).join("");
+    const rows=pendingUsers.map(u=>`
+      <div style="padding:12px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="width:34px;height:34px;border-radius:50%;background:#999;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc(u.namn[0])}</div>
+          <div style="flex:1">
+            <div style="font-weight:500;font-size:14px">${esc(u.namn)}</div>
+            <div style="font-size:11px;color:var(--color-text-secondary)">Vill gå med i: <b>${esc(u.requested_league_name||"(inget angivet)")}</b> · ${u.created_at?new Date(u.created_at).toLocaleDateString("sv-SE"):""}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="pending-league-select-${u.id}" style="flex:1;padding:8px;border-radius:6px;border:0.5px solid var(--color-border-secondary);font-size:12px;background:var(--color-background-primary);color:var(--color-text-primary)">
+            <option value="">Välj serie att koppla till…</option>
+            ${leagueOpts}
+          </select>
+          <button data-act="assign-pending-user" data-id="${u.id}" data-namn="${esc(u.namn)}" class="fg-btn" style="padding:8px 14px;font-size:12px;white-space:nowrap">Koppla</button>
+        </div>
+      </div>`).join("");
+    body=`<div class="fg-card" style="background:var(--color-background-secondary)">
+        <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här hamnar konton som skapats via "Hittar du inte din serie?" på startsidan – utan att vara kopplade till någon serie ännu. Koppla dem till rätt serie så fort den finns.</div>
+      </div>
+      <div class="fg-card">
+        <div style="font-weight:500;margin-bottom:4px">⏳ Väntande spelare (${pendingUsers.length})</div>
+        ${rows||`<div style="font-size:13px;color:var(--color-text-secondary);padding:8px 0">Inga väntande konton just nu.</div>`}
+      </div>`;
   } else if(adminSection==="stod"){
     const swishPreviewUrl=cfg.stodSwishNumber
       ? buildSwishUrl(cfg.stodSwishNumber,cfg.stodAmount,cfg.stodMessage)
@@ -9867,6 +10069,72 @@ function attachHandlers(){
         render();
       }
     }
+    else if(act==="go-unassigned-reg"){
+      errMsg=""; screen="unassigned-reg"; render();
+    }
+    else if(act==="submit-unassigned-reg"){
+      const namn=document.getElementById("unassigned-namn").value.trim();
+      const pin=document.getElementById("unassigned-pin").value.trim();
+      const requestedLeague=document.getElementById("unassigned-league").value.trim();
+      if(!namn){errMsg="Ange ett namn.";render();return;}
+      if(!/^[0-9]{5}$/.test(pin)){errMsg="PIN-koden måste vara exakt 5 siffror.";render();return;}
+      errMsg="Registrerar…";render();
+      try{
+        const exists=await checkNameExistsGlobally(namn);
+        if(exists){errMsg=t("unassignedReg.nameTaken");render();return;}
+        const ny={id:Math.random().toString(36).slice(2,10),namn};
+        const pinHash=await hashPin(pin,ny.id);
+        ny.pin=pinHash;
+        const insertError=await insertUnassignedUser(ny,requestedLeague);
+        if(insertError){errMsg="Kunde inte spara: "+insertError.message;render();return;}
+        currentUser={...ny,requested_league_name:requestedLeague||null};
+        errMsg="";
+        screen="unassigned";
+        render();
+      }catch(e){
+        console.error(e);
+        errMsg="Något gick fel, försök igen.";
+        render();
+      }
+    }
+    else if(act==="entry-pick-unassigned"){
+      pendingUnassignedUser={id:el.dataset.id,namn:el.dataset.namn};
+      loginErr="";
+      render();
+    }
+    else if(act==="entry-cancel-unassigned-pin"){
+      pendingUnassignedUser=null; loginErr="";
+      render();
+    }
+    else if(act==="submit-unassigned-pin"){
+      const pin=document.getElementById("entry-pin").value.trim();
+      if(!pin){loginErr="Ange din PIN-kod.";render();return;}
+      loginErr="Loggar in…";render();
+      try{
+        const inputHash=await hashPin(pin,pendingUnassignedUser.id);
+        const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingUnassignedUser.id,p_pin_hash:inputHash});
+        if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
+        const {data:full}=await sb.from("fantasy_users").select("id,namn,requested_league_name").eq("id",pendingUnassignedUser.id).maybeSingle();
+        currentUser=full||{id:pendingUnassignedUser.id,namn:pendingUnassignedUser.namn};
+        pendingUnassignedUser=null; loginErr="";
+        screen="unassigned";
+        render();
+      }catch(e){
+        console.error(e);
+        loginErr="Något gick fel, försök igen.";
+        render();
+      }
+    }
+    else if(act==="unassigned-back-to-leagues"){
+      currentUser=null; pendingUnassignedUser=null; errMsg=""; loginErr="";
+      screen="leagues";
+      render();
+    }
+    else if(act==="unassigned-logout"){
+      currentUser=null; pendingUnassignedUser=null;
+      screen="leagues";
+      render();
+    }
     else if(act==="switch-league"){
       currentUser=null; currentLeague=null; appMode=null; screen="leagues"; homeMode="start";
       render();
@@ -10249,6 +10517,19 @@ function attachHandlers(){
       window._allLeaguesCache=(window._allLeaguesCache||[]).map(l=>l.id===id?{...l,admin_active:newActive}:l);
       render();
       flash(newActive?"⭐ Serien är nu markerad som aktiv!":"Serien flyttad till \"under uppbyggnad\".");
+    }
+    else if(act==="assign-pending-user"){
+      const id=el.dataset.id;
+      const namn=el.dataset.namn;
+      const sel=document.getElementById("pending-league-select-"+id);
+      const leagueId=sel?Number(sel.value):0;
+      if(!leagueId){flash("Välj en serie att koppla till först.");return;}
+      const target=(window._allLeaguesCache||[]).find(l=>l.id===leagueId);
+      const error=await assignPendingUserToLeague(id,leagueId);
+      if(error){flash("Fel: "+error.message+" (har du kört SQL:en som gör league_id nullbar och lägger till requested_league_name på fantasy_users?)");return;}
+      window._pendingUnassignedCache=(window._pendingUnassignedCache||[]).filter(u=>u.id!==id);
+      render();
+      flash(`✓ ${namn} kopplad till "${target?target.name:"vald serie"}"!`);
     }
     else if(act==="delete-league"){
       const id=Number(el.dataset.id);
@@ -10868,6 +11149,7 @@ function attachHandlers(){
       if(adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       if(adminSection==="quiz"){ try{quizQuestions=await fetchAllQuizAdmin();}catch(e){quizQuestions=[];} }
       if(adminSection==="leagues"||adminSection==="activeleagues"){ window._allLeaguesCache=null; window._leagueUserCountsCache=null; }
+      if(adminSection==="pending"){ window._pendingUnassignedCache=null; window._allLeaguesCache=null; }
       if(adminSection==="duellen"){
         try{
           [duellenSignups,duellenConfig,duellenFixtures]=await Promise.all([fetchDuellenSignups(),fetchDuellenConfig(),fetchDuellenFixtures()]);
