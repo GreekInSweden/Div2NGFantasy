@@ -2680,7 +2680,9 @@ const TRANSLATIONS={
     "profile.languageTitle":"🌐 Språk","profile.languageDesc":"Välj vilket språk appen ska visas på.",
     "countdown.passed":"Spelstopp har passerat","countdown.days":"⏰ Spelstopp om {d}d {h}h {m}m",
     "countdown.hours":"⏰ Spelstopp om {h}h {m}m","countdown.minutes":"⏰ Spelstopp om {m} min",
-    "common.roundLockedAutoNotice":"🔒 Spelstoppet har passerat – tippning stängd"
+    "common.roundLockedAutoNotice":"🔒 Spelstoppet har passerat – tippning stängd",
+    "landing.tagline":"Fantasy-fotboll, tips och fler spelformer för fotbollsserier – oavsett nivå.",
+    "landing.description":"Bygg drömlaget, tippa resultat, tävla mot vänner i privata ligor och mycket mer. Sök ditt namn nedan om du redan är med, eller välj en serie för att gå med som ny spelare."
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3174,7 +3176,9 @@ const TRANSLATIONS={
     "profile.languageTitle":"🌐 Language","profile.languageDesc":"Choose which language the app should display.",
     "countdown.passed":"Deadline has passed","countdown.days":"⏰ Deadline in {d}d {h}h {m}m",
     "countdown.hours":"⏰ Deadline in {h}h {m}m","countdown.minutes":"⏰ Deadline in {m} min",
-    "common.roundLockedAutoNotice":"🔒 The deadline has passed – predictions closed"
+    "common.roundLockedAutoNotice":"🔒 The deadline has passed – predictions closed",
+    "landing.tagline":"Fantasy football, predictions and more game modes for football leagues – any level.",
+    "landing.description":"Build your dream team, predict results, compete against friends in private leagues and much more. Search your name below if you're already a member, or choose a series to join as a new player."
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3668,7 +3672,9 @@ const TRANSLATIONS={
     "profile.languageTitle":"🌐 Γλώσσα","profile.languageDesc":"Διάλεξε σε ποια γλώσσα θα εμφανίζεται η εφαρμογή.",
     "countdown.passed":"Η προθεσμία έχει περάσει","countdown.days":"⏰ Προθεσμία σε {d}μ {h}ω {m}λ",
     "countdown.hours":"⏰ Προθεσμία σε {h}ω {m}λ","countdown.minutes":"⏰ Προθεσμία σε {m} λεπτά",
-    "common.roundLockedAutoNotice":"🔒 Η προθεσμία έχει περάσει – οι προβλέψεις έκλεισαν"
+    "common.roundLockedAutoNotice":"🔒 Η προθεσμία έχει περάσει – οι προβλέψεις έκλεισαν",
+    "landing.tagline":"Fantasy ποδόσφαιρο, προβλέψεις και περισσότεροι τρόποι παιχνιδιού για πρωταθλήματα – σε κάθε επίπεδο.",
+    "landing.description":"Φτιάξε την ονειρική σου ομάδα, πρόβλεψε αποτελέσματα, διαγωνίσου με φίλους σε ιδιωτικές σειρές και πολλά άλλα. Αναζήτησε το όνομά σου παρακάτω αν είσαι ήδη μέλος, ή διάλεξε μια σειρά για να συμμετάσχεις ως νέος παίκτης."
   }
 };
 function t(key,vars){
@@ -4007,11 +4013,24 @@ function renderLeagues(){
     </button>`).join("");
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-    <div style="display:flex;gap:6px;margin-bottom:16px">
+    <div style="display:flex;gap:6px;margin-bottom:20px">
       ${["sv","en","gr"].map(code=>`
         <button data-act="set-lang" data-lang="${code}" style="padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:0.5px solid ${lang===code?G_GREEN:'var(--color-border-tertiary)'};background:${lang===code?G_GREENL:'none'};color:${lang===code?G_GREEN:'var(--color-text-secondary)'};font-weight:${lang===code?600:400}">${esc(t("lang.name."+code))}</button>
       `).join("")}
     </div>
+
+    <div style="text-align:center;margin-bottom:8px">
+      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:30px;color:var(--color-text-primary);margin-bottom:6px">${esc(getAppName())}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+        <div style="height:1.5px;width:110px;background:#c1272d"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+      </div>
+      <div style="font-size:10px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
+    </div>
+    <div style="font-size:14px;font-weight:500;color:var(--color-text-primary);margin-bottom:6px;text-align:center;max-width:360px">${esc(t("landing.tagline"))}</div>
+    <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:28px;text-align:center;max-width:360px;line-height:1.6">${esc(t("landing.description"))}</div>
+
     <div style="width:64px;height:64px;background:${G_GREEN};border-radius:16px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:30px">⚽</div>
     <div style="font-size:22px;font-weight:500;margin-bottom:6px;text-align:center">${esc(t("onboarding.title"))}</div>
     <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:16px;text-align:center;max-width:320px">${esc(t("onboarding.subtitle"))}</div>
