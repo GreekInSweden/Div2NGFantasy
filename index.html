@@ -646,7 +646,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,total_rounds,stod_enabled,stod_swish_number,stod_amount,stod_message,stod_qr_image_url,trial_enabled,trial_days,trial_price").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,total_rounds,stod_enabled,stod_swish_number,stod_amount,stod_message,stod_qr_image_url,stod_paypal_handle,stod_paypal_amount,trial_enabled,trial_days,trial_price,lang_en_enabled,lang_gr_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true,totalRounds:26};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -671,6 +671,8 @@ async function fetchConfig(){
     investerareEnabled:!!data.investerare_enabled,
     ltsEnabled:!!data.lts_enabled,
     anytimeEnabled:!!data.anytime_enabled,
+    langEnEnabled:!!data.lang_en_enabled,
+    langGrEnabled:!!data.lang_gr_enabled,
     stodEnabled:!!data.stod_enabled,
     stodSwishNumber:data.stod_swish_number||"",
     stodAmount:data.stod_amount||null,
@@ -3688,6 +3690,15 @@ function setLang(newLang){
   try{localStorage.setItem("div2ng_lang",newLang);}catch(e){}
   render();
 }
+// Vilka språk admin har gjort tillgängliga för den här serien. Svenska kan
+// inte döljas (måste alltid finnas minst ett språk kvar) – engelska och
+// grekiska är valfria att slå av/på i admin, precis som spelformerna.
+function availableLangCodes(){
+  const codes=["sv"];
+  if(cfg.langEnEnabled) codes.push("en");
+  if(cfg.langGrEnabled) codes.push("gr");
+  return codes;
+}
 // Appens produktnamn beror på vilken domän man besöker – samma logik som sätter
 // sidtiteln i huvud-scriptet, men den variabeln når inte hit (annan <script>-tagg).
 function getAppName(){
@@ -3752,6 +3763,13 @@ function updateCountdownEls(){
 
 // ── Render ──────────────────────────────────────────────────────────────────
 function render(){
+  // Säkerhetsspärr: om användarens sparade språkval har dolts av admin
+  // (t.ex. engelska stängdes av) faller vi tillbaka till svenska istället
+  // för att visa en trasig blandning av dolda översättningar.
+  if(currentLeague && !availableLangCodes().includes(lang)){
+    lang="sv";
+    try{localStorage.setItem("div2ng_lang","sv");}catch(e){}
+  }
   const root=document.getElementById("fg-root");
   if(screen==="leagues")root.innerHTML=renderLeagues();
   else if(screen==="home")root.innerHTML=renderHome();
@@ -4014,7 +4032,7 @@ function renderLeagues(){
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
     <div style="display:flex;gap:6px;margin-bottom:20px">
-      ${["sv","en","gr"].map(code=>`
+      ${availableLangCodes().map(code=>`
         <button data-act="set-lang" data-lang="${code}" style="padding:5px 10px;border-radius:6px;font-size:12px;cursor:pointer;border:0.5px solid ${lang===code?G_GREEN:'var(--color-border-tertiary)'};background:${lang===code?G_GREENL:'none'};color:${lang===code?G_GREEN:'var(--color-text-secondary)'};font-weight:${lang===code?600:400}">${esc(t("lang.name."+code))}</button>
       `).join("")}
     </div>
@@ -6703,7 +6721,7 @@ function renderProfilTab(){
     <div style="font-weight:500;margin-bottom:6px">${esc(t("profile.languageTitle"))}</div>
     <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;line-height:1.5">${esc(t("profile.languageDesc"))}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
-      ${["sv","en","gr"].map(code=>`
+      ${availableLangCodes().map(code=>`
         <button data-act="set-lang" data-lang="${code}" style="padding:8px 14px;border-radius:6px;font-size:13px;cursor:pointer;border:0.5px solid ${lang===code?G_GREEN:'var(--color-border-tertiary)'};background:${lang===code?G_GREENL:'none'};color:${lang===code?G_GREEN:'var(--color-text-secondary)'};font-weight:${lang===code?600:400}">${esc(t("lang.name."+code))}</button>
       `).join("")}
     </div>
@@ -7923,6 +7941,30 @@ function renderAdminTab(){
       <div style="font-weight:500;margin-bottom:4px">Spelformer – synlighet</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Dölj eller aktivera spelformer för användarna.</div>
       ${rows}
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">🌐 Språk – tillgänglighet</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">Svenska är alltid tillgängligt. Slå av/på engelska och grekiska som val för användarna i den här serien.</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <span style="font-size:20px">🇬🇧</span>
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:13px">English</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${cfg.langEnEnabled?"Synligt för användare":"Dolt för användare"}</div>
+        </div>
+        <button data-act="toggle-mode" data-key="lang_en_enabled" data-cfg="langEnEnabled" style="background:${cfg.langEnEnabled?"#1a1a1a":"var(--color-background-secondary)"};color:${cfg.langEnEnabled?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg.langEnEnabled?"#1a1a1a":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
+          ${cfg.langEnEnabled?"Dölj":"Aktivera"}
+        </button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0">
+        <span style="font-size:20px">🇬🇷</span>
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:13px">Ελληνικά</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${cfg.langGrEnabled?"Synligt för användare":"Dolt för användare"}</div>
+        </div>
+        <button data-act="toggle-mode" data-key="lang_gr_enabled" data-cfg="langGrEnabled" style="background:${cfg.langGrEnabled?"#1a1a1a":"var(--color-background-secondary)"};color:${cfg.langGrEnabled?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg.langGrEnabled?"#1a1a1a":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
+          ${cfg.langGrEnabled?"Dölj":"Aktivera"}
+        </button>
+      </div>
     </div>`;
   } else if(adminSection==="hof"){
     const hofData=window._hofCache||[];
