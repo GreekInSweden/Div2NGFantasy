@@ -11277,9 +11277,10 @@ function attachHandlers(){
       flash("✓ Lösenord uppdaterat!");
     }
     else if(act==="toggle-ligatipp-lock"){
+      const newLocked=!cfg.ligatippLocked;
       await toggleLigatippLock(newLocked);
       cfg={...cfg,ligatippLocked:newLocked};
-      flash(newLocked?"✓ Tippa serienning stängd!":"✓ Tippa serienning öppnad!");
+      flash(newLocked?"✓ Tippning för Tippa serien stängd!":"✓ Tippning för Tippa serien öppnad!");
     }
     else if(act==="save-standings"){
       const cp=Number(el.dataset.cp);
