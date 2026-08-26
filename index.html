@@ -7825,13 +7825,15 @@ function renderAdminTab(){
         const teamList = POSITIONS.map(pos=>(u.picks&&u.picks[pos]||[]).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.namn:null;}).filter(Boolean)).flat().join(", ");
         const confirming = confirmRemoveId===u.id;
         const regDate = u.created_at ? new Date(u.created_at).toLocaleDateString("sv-SE",{year:"numeric",month:"short",day:"numeric"}) : "okänt datum";
-        return `<div class="fg-card" style="margin-bottom:8px">
+        const daysSinceReg = u.created_at ? (Date.now()-new Date(u.created_at).getTime())/86400000 : Infinity;
+        const isNew = daysSinceReg<=7;
+        return `<div class="fg-card" style="margin-bottom:8px;${isNew?`border:1.5px solid ${G_GOLD};background:${G_GOLDL}`:""}">
           <div style="display:flex;align-items:center;gap:10px">
-            <div style="width:36px;height:36px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
+            <div style="width:36px;height:36px;border-radius:50%;background:${isNew?G_GOLD:G_GREENL};color:${isNew?"#fff":G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
             <div style="flex:1">
-              <div style="font-weight:500">${esc(u.namn)}</div>
+              <div style="font-weight:500">${esc(u.namn)} ${isNew?`<span style="background:${G_GOLD};color:#fff;border-radius:10px;padding:1px 8px;font-size:10px;font-weight:600;vertical-align:middle">🆕 NY</span>`:""}</div>
               <div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare ${complete?'· lag klart':(cnt>0?'· ofullständigt lag':'· inget Fantasy-lag valt')} · ${pts} p totalt</div>
-              <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">📅 Registrerad ${regDate}</div>
+              <div style="font-size:11px;color:${isNew?"#8a6412":"var(--color-text-secondary)"};margin-top:2px;font-weight:${isNew?600:400}">📅 Registrerad ${regDate}${isNew?" · senaste 7 dagarna":""}</div>
             </div>
             ${confirming
               ? `<button data-act="cancel-remove" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Avbryt</button>
@@ -7842,6 +7844,7 @@ function renderAdminTab(){
         </div>`;
       }).join("");
     }
+    const newCount = users.filter(u=>u.created_at && (Date.now()-new Date(u.created_at).getTime())/86400000<=7).length;
     body = `<div class="fg-card">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:500">Registrerade användare (${users.length}${userSearch?`, visar ${filteredUsers.length}`:""})</div>
@@ -7849,6 +7852,7 @@ function renderAdminTab(){
           ${cfg.registrationOpen?'🔒 Stäng registrering':'🔓 Öppna registrering'}
         </button>
       </div>
+      ${newCount>0?`<div style="font-size:12px;color:#8a6412;background:${G_GOLDL};border-radius:6px;padding:6px 10px;margin-bottom:10px;font-weight:500">🆕 ${newCount} ${newCount===1?"ny spelare har":"nya spelare har"} registrerat sig senaste 7 dagarna</div>`:""}
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Här kan du utesluta någon som t.ex. fuskat – det tar bort dem och deras lag permanent.</div>
       <input class="fg-input" id="users-search" placeholder="🔍 Sök spelare…" value="${esc(userSearch)}" oninput="document.getElementById('users-search-trigger').click()"/>
       <button id="users-search-trigger" data-act="users-search-update" style="display:none"></button>
