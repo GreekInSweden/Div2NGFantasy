@@ -7824,12 +7824,14 @@ function renderAdminTab(){
         const complete = cnt===TOTAL_PICKS && u.kapten;
         const teamList = POSITIONS.map(pos=>(u.picks&&u.picks[pos]||[]).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.namn:null;}).filter(Boolean)).flat().join(", ");
         const confirming = confirmRemoveId===u.id;
+        const regDate = u.created_at ? new Date(u.created_at).toLocaleDateString("sv-SE",{year:"numeric",month:"short",day:"numeric"}) : "okänt datum";
         return `<div class="fg-card" style="margin-bottom:8px">
           <div style="display:flex;align-items:center;gap:10px">
             <div style="width:36px;height:36px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:500">${esc(u.namn[0])}</div>
             <div style="flex:1">
               <div style="font-weight:500">${esc(u.namn)}</div>
               <div style="font-size:12px;color:var(--color-text-secondary)">${cnt}/${TOTAL_PICKS} spelare ${complete?'· lag klart':(cnt>0?'· ofullständigt lag':'· inget Fantasy-lag valt')} · ${pts} p totalt</div>
+              <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">📅 Registrerad ${regDate}</div>
             </div>
             ${confirming
               ? `<button data-act="cancel-remove" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">Avbryt</button>
