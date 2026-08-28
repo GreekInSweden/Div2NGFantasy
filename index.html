@@ -4578,6 +4578,7 @@ function renderPick(){
           ${TEAMS.sort((a,b)=>a.name.localeCompare(b.name)).map(tm=>`<option value="${tm.id}" ${String(tm.id)===String(pickTeamFilter)?"selected":""}>${esc(tm.name)}</option>`).join("")}
         </select>
       </div>
+      ${renderRoundMatches(rounds[String(cfg.omg)])}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
         <div style="background:var(--color-background-secondary);border-radius:6px;padding:10px 8px;text-align:center">
           <div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("pick.playersSelected"))}</div>
