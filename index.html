@@ -203,7 +203,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
-    rankFantasyFormationDraft="4-3-3", rankFantasyRankingDraft=[], rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyTeamFilter="",
+    rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyTeamFilter="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     pendingUnassignedUser=null,
@@ -2256,18 +2256,20 @@ window.saveSnabbast=async function(){
 window.saveRankFantasyTip=async function(){
   if(blockIfTrialExpired())return;
   const statusEl=document.getElementById("rf-tip-status");
+  const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
+  const formation = rankFantasyFormationDraft || (savedTip ? savedTip.formation : "4-3-3");
   const ranking=rankFantasyRankingDraft;
-  const need=RANKFANTASY_FORMATIONS[rankFantasyFormationDraft];
+  const need=RANKFANTASY_FORMATIONS[formation];
   const totalNeeded=1+need.DEF+need.MID+need.FW;
   if(ranking.length!==totalNeeded){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("rankfantasy.selectAllPositionsFirst"))+'</span>'; return; }
   if(statusEl) statusEl.textContent=t("investerare.saving");
   try{
-    const error=await saveRankFantasyTip(cfg.omg,rankFantasyFormationDraft,ranking);
+    const error=await saveRankFantasyTip(cfg.omg,formation,ranking);
     if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("investerare.errorPrefix"))+esc(error.message)+'</span>'; return; }
-    const row={id:currentUser.id+"-"+currentLeague.id+"-"+cfg.omg,user_id:currentUser.id,round_num:cfg.omg,formation:rankFantasyFormationDraft,ranked_ids:ranking};
+    const row={id:currentUser.id+"-"+currentLeague.id+"-"+cfg.omg,user_id:currentUser.id,round_num:cfg.omg,formation,ranked_ids:ranking};
     const idx=rankFantasyAllTipsGlobal.findIndex(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
     if(idx>=0) rankFantasyAllTipsGlobal[idx]=row; else rankFantasyAllTipsGlobal=[...rankFantasyAllTipsGlobal,row];
-    rankFantasyRankingDraft=[];
+    rankFantasyRankingDraft=[]; rankFantasyFormationDraft=null;
     if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">'+esc(t("investerare.savedSuccess"))+'</span>';
     render();
   }catch(e){
@@ -7022,7 +7024,7 @@ function renderRankFantasyTab(){
   const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
 
   let body;
-  if(locked||savedTip){
+  if(locked){
     if(!savedTip){
       body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("rankfantasy.noTipForLockedRound"))}</div></div>`;
     } else {
@@ -7049,7 +7051,11 @@ function renderRankFantasyTab(){
       </div>`;
     }
   } else {
-    const formation=rankFantasyFormationDraft;
+    // rankFantasyFormationDraft är null tills man aktivt klickar ett formationsval den
+    // här sessionen – då gäller alltid det klicket, oavsett om rangordningen råkar
+    // vara tom just då (t.ex. direkt efter ett formationsbyte). Annars visas den
+    // senast sparade formationen, eller 4-3-3 som standard för en helt ny spelare.
+    const formation = rankFantasyFormationDraft || (savedTip ? savedTip.formation : "4-3-3");
     const need={GK:1,...RANKFANTASY_FORMATIONS[formation]};
     const ranking=rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[]);
 
@@ -11727,11 +11733,12 @@ function attachHandlers(){
       const pid=el.dataset.id;
       const pl=players.find(p=>p.id===pid);
       const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
+      const formation=rankFantasyFormationDraft||(savedTip?savedTip.formation:"4-3-3");
       let ranking=rankFantasyRankingDraft.length?[...rankFantasyRankingDraft]:(savedTip?[...savedTip.ranked_ids]:[]);
       if(ranking.includes(pid)){
         ranking=ranking.filter(id=>id!==pid);
       } else {
-        const need=pl.pos==="GK"?1:RANKFANTASY_FORMATIONS[rankFantasyFormationDraft][pl.pos];
+        const need=pl.pos==="GK"?1:RANKFANTASY_FORMATIONS[formation][pl.pos];
         const haveCount=ranking.filter(id=>{const p=players.find(x=>x.id===id);return p&&p.pos===pl.pos;}).length;
         if(haveCount>=need) return;
         ranking.push(pid); // läggs sist – klickordningen avgör rangordningen
