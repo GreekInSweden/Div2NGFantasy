@@ -126,6 +126,17 @@ const RANKFANTASY_FORMATIONS={
 function rankFantasyMultiplier(rank){
   return 1.20 - (rank-1)/10*0.20;
 }
+// Text som visar vilken match ett lag spelar i given omgång, t.ex. "vs IFK Kumla (H)".
+// Returnerar tom sträng om laget inte har någon match inlagd den omgången.
+function rankFantasyOpponentText(teamId,rd){
+  if(!rd||!rd.matches) return "";
+  const m=rd.matches.find(mt=>mt.hId===teamId||mt.aId===teamId);
+  if(!m) return "";
+  const isHome=m.hId===teamId;
+  const opp=TEAMS.find(tm=>tm.id===(isHome?m.aId:m.hId));
+  if(!opp) return "";
+  return `vs ${opp.name} (${isHome?t("common.homeAbbrev"):t("common.awayAbbrev")})`;
+}
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:7},MID:{clean:2,goal:5},FW:{clean:1,goal:5}};
 const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
@@ -2530,9 +2541,9 @@ const TRANSLATIONS={
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
     "rankfantasy.buildSquadButton":"Bygg min trupp →","rankfantasy.chooseFormation":"Välj formation",
     "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
-    "rankfantasy.rankHint":"Din bäst rankade spelare får ×1.20 på sina poäng, den sämst rankade ×1.00 – linjärt däremellan.",
+    "rankfantasy.rankHint":"Din bäst rankade spelare ger mest extra poäng, den sämst rankade minst – ju högre upp du placerar någon, desto mer räknas deras insats.",
     "rankfantasy.formationChangeNote":"Byter du formation måste du välja startelva på nytt.",
-    "rankfantasy.clickOrderHint":"💡 Ordningen du klickar spelarna i avgör din rangordning – först klickad blir din 1:a (×1.20), sist klickad din sista (×1.00). Du kan finjustera med pilarna längre ner efteråt.",
+    "rankfantasy.clickOrderHint":"💡 Ordningen du klickar spelarna i avgör din rangordning – först klickad blir din 1:a (störst bonus), sist klickad din sista. Du kan finjustera med pilarna längre ner efteråt.",
     "rankfantasy.needCount":"{have}/{need} valda","rankfantasy.saveTip":"Spara rangordning",
     "rankfantasy.yourFormation":"Din formation: {formation}","rankfantasy.benchNote":"Bänk (0 poäng denna omgång)",
     "rankfantasy.pointsThisRound":"{pts} p denna omgång","rankfantasy.leaderboardTitle":"🏆 Ligatabell – Fantasy XI",
@@ -3065,9 +3076,9 @@ const TRANSLATIONS={
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"You haven't built your squad yet.",
     "rankfantasy.buildSquadButton":"Build my squad →","rankfantasy.chooseFormation":"Choose formation",
     "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
-    "rankfantasy.rankHint":"Your top-ranked player gets ×1.20 on their points, the lowest-ranked gets ×1.00 – linear in between.",
+    "rankfantasy.rankHint":"Your top-ranked player earns you the biggest bonus, the lowest-ranked the smallest – the higher up you place someone, the more their performance counts.",
     "rankfantasy.formationChangeNote":"Changing formation means you'll need to pick your starting XI again.",
-    "rankfantasy.clickOrderHint":"💡 The order you click players in determines your ranking – first clicked becomes your #1 (×1.20), last clicked your last (×1.00). You can fine-tune with the arrows further down afterward.",
+    "rankfantasy.clickOrderHint":"💡 The order you click players in determines your ranking – first clicked becomes your #1 (biggest bonus), last clicked your last. You can fine-tune with the arrows further down afterward.",
     "rankfantasy.needCount":"{have}/{need} chosen","rankfantasy.saveTip":"Save ranking",
     "rankfantasy.yourFormation":"Your formation: {formation}","rankfantasy.benchNote":"Bench (0 points this round)",
     "rankfantasy.pointsThisRound":"{pts} p this round","rankfantasy.leaderboardTitle":"🏆 League table – Fantasy XI",
@@ -3600,9 +3611,9 @@ const TRANSLATIONS={
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
     "rankfantasy.buildSquadButton":"Φτιάξε την ομάδα μου →","rankfantasy.chooseFormation":"Διάλεξε διάταξη",
     "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
-    "rankfantasy.rankHint":"Ο παίκτης στην κορυφή της κατάταξής σου παίρνει ×1.20 στους πόντους του, ο τελευταίος ×1.00 – γραμμικά ανάμεσα.",
+    "rankfantasy.rankHint":"Ο παίκτης στην κορυφή της κατάταξής σου σου δίνει το μεγαλύτερο μπόνους, ο τελευταίος το μικρότερο – όσο πιο ψηλά τοποθετείς κάποιον, τόσο περισσότερο μετράει η απόδοσή του.",
     "rankfantasy.formationChangeNote":"Αν αλλάξεις διάταξη θα χρειαστεί να διαλέξεις ξανά την ενδεκάδα σου.",
-    "rankfantasy.clickOrderHint":"💡 Η σειρά με την οποία πατάς τους παίκτες καθορίζει την κατάταξή σου – ο πρώτος που πατάς γίνεται ο #1 (×1.20), ο τελευταίος ο τελευταίος (×1.00). Μπορείς να προσαρμόσεις με τα βέλη παρακάτω μετά.",
+    "rankfantasy.clickOrderHint":"💡 Η σειρά με την οποία πατάς τους παίκτες καθορίζει την κατάταξή σου – ο πρώτος που πατάς γίνεται ο #1 (μεγαλύτερο μπόνους), ο τελευταίος ο τελευταίος. Μπορείς να προσαρμόσεις με τα βέλη παρακάτω μετά.",
     "rankfantasy.needCount":"{have}/{need} επιλεγμένοι","rankfantasy.saveTip":"Αποθήκευση κατάταξης",
     "rankfantasy.yourFormation":"Η διάταξή σου: {formation}","rankfantasy.benchNote":"Πάγκος (0 πόντοι αυτόν τον γύρο)",
     "rankfantasy.pointsThisRound":"{pts} β. αυτόν τον γύρο","rankfantasy.leaderboardTitle":"🏆 Κατάταξη – Fantasy XI",
@@ -7039,7 +7050,7 @@ function renderRankFantasyTab(){
         const finalPts=rawPts!=null?Math.round(rawPts*mult*10)/10:null;
         return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
           <div style="width:26px;height:26px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0">${i+1}</div>
-          <div style="flex:1"><div style="font-size:14px">${esc(pl.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")} · ×${mult.toFixed(2)}</div></div>
+          <div style="flex:1"><div style="font-size:14px">${esc(pl.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")}</div></div>
           <div style="font-weight:600;font-size:14px">${finalPts!=null?finalPts+"p":"–"}</div>
         </div>`;
       }).join("");
@@ -7073,11 +7084,16 @@ function renderRankFantasyTab(){
         const selected=ranking.includes(pid);
         const rankNum=selected?ranking.indexOf(pid)+1:null;
         const disabled=!selected&&haveCount>=needCount;
-        return `<button data-act="rf-toggle-starter" data-id="${pid}" ${disabled?"disabled":""} style="padding:8px 10px;border-radius:8px;border:0.5px solid ${selected?G_GREEN:"var(--color-border-secondary)"};background:${selected?G_GREENL:"var(--color-background-primary)"};color:${selected?G_GREEN:disabled?"var(--color-text-secondary)":"var(--color-text-primary)"};font-size:12px;cursor:${disabled?"not-allowed":"pointer"};opacity:${disabled?0.5:1};display:flex;align-items:center;gap:5px">${selected?`<span style="background:${G_GREEN};color:#fff;border-radius:50%;width:16px;height:16px;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${rankNum}</span>`:""}${esc(pl.namn)}</button>`;
+        const oppText=rankFantasyOpponentText(pl.teamId,rd);
+        return `<button data-act="rf-toggle-starter" data-id="${pid}" ${disabled?"disabled":""} style="display:flex;align-items:center;gap:10px;width:100%;padding:10px 12px;border-radius:8px;border:0.5px solid ${selected?G_GREEN:"var(--color-border-secondary)"};background:${selected?G_GREENL:"var(--color-background-primary)"};margin-bottom:6px;text-align:left;cursor:${disabled?"not-allowed":"pointer"};opacity:${disabled?0.5:1}">
+          ${selected?`<span style="background:${G_GREEN};color:#fff;border-radius:50%;width:22px;height:22px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">${rankNum}</span>`:`<span style="width:22px;height:22px;border-radius:50%;border:0.5px solid var(--color-border-secondary);flex-shrink:0"></span>`}
+          <span style="flex:1;font-size:13px;color:${selected?G_GREEN:disabled?"var(--color-text-secondary)":"var(--color-text-primary)"};font-weight:${selected?500:400}">${esc(pl.namn)}</span>
+          ${oppText?`<span style="font-size:11px;color:var(--color-text-secondary);white-space:nowrap">${esc(oppText)}</span>`:""}
+        </button>`;
       }).join("");
       return `<div style="margin-bottom:10px">
         <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--color-text-secondary)">${posLabel(pos)} – ${esc(t("rankfantasy.needCount",{have:haveCount,need:needCount}))}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+        ${chips}
       </div>`;
     }).join("");
 
@@ -7089,7 +7105,7 @@ function renderRankFantasyTab(){
       const team=TEAMS.find(tm=>tm.id===pl.teamId);
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
         <div style="width:24px;height:24px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0">${i+1}</div>
-        <div style="flex:1"><div style="font-size:13px">${esc(pl.namn)} <span style="font-size:10px;color:var(--color-text-secondary)">${pl.pos}</span></div><div style="font-size:10px;color:var(--color-text-secondary)">${esc(team?team.name:"")} · ×${rankFantasyMultiplier(i+1).toFixed(2)}</div></div>
+        <div style="flex:1"><div style="font-size:13px">${esc(pl.namn)} <span style="font-size:10px;color:var(--color-text-secondary)">${pl.pos}</span></div><div style="font-size:10px;color:var(--color-text-secondary)">${esc(team?team.name:"")}</div></div>
         <button data-act="rf-rank-move" data-id="${pid}" data-dir="-1" ${i===0?"disabled":""} style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;width:28px;height:28px;cursor:pointer;opacity:${i===0?0.3:1}">↑</button>
         <button data-act="rf-rank-move" data-id="${pid}" data-dir="1" ${i===ranking.length-1?"disabled":""} style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;width:28px;height:28px;cursor:pointer;opacity:${i===ranking.length-1?0.3:1}">↓</button>
       </div>`;
