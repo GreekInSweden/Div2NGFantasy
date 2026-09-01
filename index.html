@@ -214,7 +214,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
-    rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyTeamFilter="",
+    rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     pendingUnassignedUser=null,
@@ -2540,6 +2540,10 @@ const TRANSLATIONS={
     "rankfantasy.noTipForLockedRound":"Din trupp är byggd, men du hann inte lämna in en formation och rangordning för den här omgången innan spelstopp. Nästa omgång kan du vara med igen.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
     "rankfantasy.buildSquadButton":"Bygg min trupp →","rankfantasy.chooseFormation":"Välj formation",
+    "rankfantasy.orDivider":"eller","rankfantasy.importFantasyButton":"📥 Importera mina 11 Fantasy-spelare",
+    "rankfantasy.importFantasyHint":"Dina 11 spelare från vanliga Fantasy läggs in direkt – du behöver bara välja 1 försvarare och 2 mittfältare till för att komplettera din trupp på 14.",
+    "rankfantasy.importSuccess":"✓ Dina 11 Fantasy-spelare är importerade! Välj 1 försvarare och 2 mittfältare till nedan.",
+    "rankfantasy.fantasyNotComplete":"Din vanliga Fantasy-trupp är inte komplett än – bygg klart den först.",
     "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
     "rankfantasy.rankHint":"Din bäst rankade spelare ger mest extra poäng, den sämst rankade minst – ju högre upp du placerar någon, desto mer räknas deras insats.",
     "rankfantasy.formationChangeNote":"Byter du formation måste du välja startelva på nytt.",
@@ -3075,6 +3079,10 @@ const TRANSLATIONS={
     "rankfantasy.noTipForLockedRound":"Your squad is built, but you didn't submit a formation and ranking for this round before the deadline. You'll be able to join in again next round.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"You haven't built your squad yet.",
     "rankfantasy.buildSquadButton":"Build my squad →","rankfantasy.chooseFormation":"Choose formation",
+    "rankfantasy.orDivider":"or","rankfantasy.importFantasyButton":"📥 Import my 11 Fantasy players",
+    "rankfantasy.importFantasyHint":"Your 11 players from regular Fantasy are added right away – you just need to pick 1 more defender and 2 more midfielders to complete your 14-player squad.",
+    "rankfantasy.importSuccess":"✓ Your 11 Fantasy players are imported! Pick 1 more defender and 2 more midfielders below.",
+    "rankfantasy.fantasyNotComplete":"Your regular Fantasy squad isn't complete yet – finish building it first.",
     "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
     "rankfantasy.rankHint":"Your top-ranked player earns you the biggest bonus, the lowest-ranked the smallest – the higher up you place someone, the more their performance counts.",
     "rankfantasy.formationChangeNote":"Changing formation means you'll need to pick your starting XI again.",
@@ -3610,6 +3618,10 @@ const TRANSLATIONS={
     "rankfantasy.noTipForLockedRound":"Η ομάδα σου είναι έτοιμη, αλλά δεν υπέβαλες διάταξη και κατάταξη για αυτόν τον γύρο πριν την προθεσμία. Θα μπορέσεις να συμμετάσχεις ξανά τον επόμενο γύρο.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
     "rankfantasy.buildSquadButton":"Φτιάξε την ομάδα μου →","rankfantasy.chooseFormation":"Διάλεξε διάταξη",
+    "rankfantasy.orDivider":"ή","rankfantasy.importFantasyButton":"📥 Εισαγωγή των 11 παικτών μου από το Fantasy",
+    "rankfantasy.importFantasyHint":"Οι 11 παίκτες σου από το κανονικό Fantasy προστίθενται αμέσως – χρειάζεται μόνο να διαλέξεις 1 ακόμα αμυντικό και 2 ακόμα μέσους για να ολοκληρώσεις την 14μελή ομάδα σου.",
+    "rankfantasy.importSuccess":"✓ Οι 11 παίκτες σου από το Fantasy εισήχθησαν! Διάλεξε 1 ακόμα αμυντικό και 2 ακόμα μέσους παρακάτω.",
+    "rankfantasy.fantasyNotComplete":"Η κανονική σου ομάδα Fantasy δεν είναι ακόμα ολοκληρωμένη – ολοκλήρωσέ την πρώτα.",
     "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
     "rankfantasy.rankHint":"Ο παίκτης στην κορυφή της κατάταξής σου σου δίνει το μεγαλύτερο μπόνους, ο τελευταίος το μικρότερο – όσο πιο ψηλά τοποθετείς κάποιον, τόσο περισσότερο μετράει η απόδοσή του.",
     "rankfantasy.formationChangeNote":"Αν αλλάξεις διάταξη θα χρειαστεί να διαλέξεις ξανά την ενδεκάδα σου.",
@@ -4993,6 +5005,7 @@ function renderRankFantasyPick(){
       <div style="display:flex;gap:4px;margin-bottom:10px">${posTabs}</div>
       <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("rankfantasy.maxOnePerTeamPerPos"))}</div>
       ${rankFantasyPickErr?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;font-weight:500">${esc(rankFantasyPickErr)}</div>`:""}
+      ${rankFantasyPickInfo?`<div style="font-size:12px;color:#1a6b3c;margin-bottom:8px;font-weight:500">${esc(rankFantasyPickInfo)}</div>`:""}
       <div style="font-size:13px;font-weight:500;margin-bottom:6px">${esc(posLabel(rankFantasyPickPos))}</div>
     </div>
     <div id="rf-player-list" style="padding:0 16px">${rows||`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("pick.noPlayersFound"))}</div>`}</div>
@@ -7023,12 +7036,18 @@ function renderRankFantasyTab(){
   const squadComplete=mySquad&&POSITIONS.every(pos=>(mySquad.picks[pos]||[]).length===RANKFANTASY_SQUAD_SIZE[pos]);
 
   if(!squadComplete){
+    const fantasyComplete=currentUser.picks&&POSITIONS.every(pos=>(currentUser.picks[pos]||[]).length===POS_COUNT[pos]);
     return `
     <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("rankfantasy.title"))}</div>
     ${renderSponsorBanner("rankfantasy")}
     <div class="fg-card" style="text-align:center;padding:2rem">
       <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">${esc(t("rankfantasy.noSquadYet"))}</div>
-      <button class="fg-btn" data-act="rf-edit-squad">${esc(t("rankfantasy.buildSquadButton"))}</button>
+      <button class="fg-btn" data-act="rf-edit-squad" style="margin-bottom:${fantasyComplete?"10px":"0"}">${esc(t("rankfantasy.buildSquadButton"))}</button>
+      ${fantasyComplete?`
+        <div style="font-size:11px;color:var(--color-text-secondary);margin:10px 0">${esc(t("rankfantasy.orDivider"))}</div>
+        <button class="fg-outbtn" data-act="rf-import-fantasy" style="width:100%">${esc(t("rankfantasy.importFantasyButton"))}</button>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:8px;line-height:1.4">${esc(t("rankfantasy.importFantasyHint"))}</div>
+      `:""}
     </div>`;
   }
 
@@ -11737,7 +11756,21 @@ function attachHandlers(){
       const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
       const base=mySquad?mySquad.picks:{GK:[],DEF:[],MID:[],FW:[]};
       rankFantasyPickState={picks:{GK:[...(base.GK||[])],DEF:[...(base.DEF||[])],MID:[...(base.MID||[])],FW:[...(base.FW||[])]}};
-      rankFantasyPickPos="GK"; rankFantasyPickErr=""; screen="rfpick"; render();
+      rankFantasyPickPos="GK"; rankFantasyPickErr=""; rankFantasyPickInfo=""; screen="rfpick"; render();
+    }
+    else if(act==="rf-import-fantasy"){
+      const fantasyComplete=currentUser.picks&&POSITIONS.every(pos=>(currentUser.picks[pos]||[]).length===POS_COUNT[pos]);
+      if(!fantasyComplete){ flash(t("rankfantasy.fantasyNotComplete")); return; }
+      rankFantasyPickState={picks:{
+        GK:[...(currentUser.picks.GK||[])],
+        DEF:[...(currentUser.picks.DEF||[])],
+        MID:[...(currentUser.picks.MID||[])],
+        FW:[...(currentUser.picks.FW||[])]
+      }};
+      rankFantasyPickPos="DEF"; // hoppa direkt till positionen som saknar spelare
+      rankFantasyPickErr=""; rankFantasyPickInfo=t("rankfantasy.importSuccess");
+      screen="rfpick"; render();
+      setTimeout(()=>{rankFantasyPickInfo="";render();},5000);
     }
     else if(act==="rf-back-to-main"){ screen="main"; mainTab="hem"; render(); }
     else if(act==="rf-pick-formation"){
