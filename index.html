@@ -2526,6 +2526,7 @@ const TRANSLATIONS={
     "rankfantasy.pickTitle":"Bygg din 14-mannatrupp","rankfantasy.squadSelected":"Spelare i truppen","rankfantasy.saveSquad":"Spara truppen",
     "rankfantasy.teamsInSquad":"🏟️ Lag i din trupp","rankfantasy.maxOnePerTeamPerPos":"⚠️ Max en spelare per lag och position (du kan alltså ha flera spelare från samma lag, men bara en per position)",
     "rankfantasy.teamPositionTakenSuffix":" · redan vald i denna position","rankfantasy.teamPositionTakenError":"Du har redan en spelare från det laget på den här positionen.",
+    "rankfantasy.noTipForLockedRound":"Din trupp är byggd, men du hann inte lämna in en formation och rangordning för den här omgången innan spelstopp. Nästa omgång kan du vara med igen.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
     "rankfantasy.buildSquadButton":"Bygg min trupp →","rankfantasy.chooseFormation":"Välj formation",
     "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
@@ -3059,6 +3060,7 @@ const TRANSLATIONS={
     "rankfantasy.pickTitle":"Build your 14-player squad","rankfantasy.squadSelected":"Players in squad","rankfantasy.saveSquad":"Save squad",
     "rankfantasy.teamsInSquad":"🏟️ Teams in your squad","rankfantasy.maxOnePerTeamPerPos":"⚠️ Max one player per team and position (you can have several players from the same team, but only one per position)",
     "rankfantasy.teamPositionTakenSuffix":" · already picked in this position","rankfantasy.teamPositionTakenError":"You already have a player from that team in this position.",
+    "rankfantasy.noTipForLockedRound":"Your squad is built, but you didn't submit a formation and ranking for this round before the deadline. You'll be able to join in again next round.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"You haven't built your squad yet.",
     "rankfantasy.buildSquadButton":"Build my squad →","rankfantasy.chooseFormation":"Choose formation",
     "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
@@ -3592,6 +3594,7 @@ const TRANSLATIONS={
     "rankfantasy.pickTitle":"Φτιάξε την 14μελή σου ομάδα","rankfantasy.squadSelected":"Παίκτες στην ομάδα","rankfantasy.saveSquad":"Αποθήκευση ομάδας",
     "rankfantasy.teamsInSquad":"🏟️ Ομάδες στην ομάδα σου","rankfantasy.maxOnePerTeamPerPos":"⚠️ Μέγιστο ένας παίκτης ανά ομάδα και θέση (μπορείς να έχεις πολλούς παίκτες από την ίδια ομάδα, αλλά μόνο έναν ανά θέση)",
     "rankfantasy.teamPositionTakenSuffix":" · έχει ήδη επιλεγεί σε αυτή τη θέση","rankfantasy.teamPositionTakenError":"Έχεις ήδη έναν παίκτη από αυτή την ομάδα σε αυτή τη θέση.",
+    "rankfantasy.noTipForLockedRound":"Η ομάδα σου είναι έτοιμη, αλλά δεν υπέβαλες διάταξη και κατάταξη για αυτόν τον γύρο πριν την προθεσμία. Θα μπορέσεις να συμμετάσχεις ξανά τον επόμενο γύρο.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
     "rankfantasy.buildSquadButton":"Φτιάξε την ομάδα μου →","rankfantasy.chooseFormation":"Διάλεξε διάταξη",
     "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
@@ -7020,7 +7023,7 @@ function renderRankFantasyTab(){
   let body;
   if(locked||savedTip){
     if(!savedTip){
-      body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("rankfantasy.noSquadYet"))}</div></div>`;
+      body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("rankfantasy.noTipForLockedRound"))}</div></div>`;
     } else {
       const resultsShown=rd&&rd.results_published;
       const myPts=resultsShown?calcRankFantasyRoundPts(currentUser.id,cfg.omg):0;
