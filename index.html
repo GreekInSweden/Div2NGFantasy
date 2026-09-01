@@ -2524,6 +2524,8 @@ const TRANSLATIONS={
     "pick.transfersLeftLabel":"Byten kvar","pick.transfersUnlimitedLabel":"Fritt (första omgången)",
     "pick.transferLimitError":"Du försöker göra {attempted} byten men har bara {available} kvar. Ändra tillbaka minst {diff} spelare för att spara, eller vänta till nästa omgång då du får fler.",
     "rankfantasy.pickTitle":"Bygg din 14-mannatrupp","rankfantasy.squadSelected":"Spelare i truppen","rankfantasy.saveSquad":"Spara truppen",
+    "rankfantasy.teamsInSquad":"🏟️ Lag i din trupp","rankfantasy.maxOnePerTeamPerPos":"⚠️ Max en spelare per lag och position (du kan alltså ha flera spelare från samma lag, men bara en per position)",
+    "rankfantasy.teamPositionTakenSuffix":" · redan vald i denna position","rankfantasy.teamPositionTakenError":"Du har redan en spelare från det laget på den här positionen.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
     "rankfantasy.buildSquadButton":"Bygg min trupp →","rankfantasy.chooseFormation":"Välj formation",
     "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
@@ -3055,6 +3057,8 @@ const TRANSLATIONS={
     "pick.transfersLeftLabel":"Transfers left","pick.transfersUnlimitedLabel":"Free (first round)",
     "pick.transferLimitError":"You're trying to make {attempted} transfers but only have {available} left. Change back at least {diff} player(s) to save, or wait until next round when you'll get more.",
     "rankfantasy.pickTitle":"Build your 14-player squad","rankfantasy.squadSelected":"Players in squad","rankfantasy.saveSquad":"Save squad",
+    "rankfantasy.teamsInSquad":"🏟️ Teams in your squad","rankfantasy.maxOnePerTeamPerPos":"⚠️ Max one player per team and position (you can have several players from the same team, but only one per position)",
+    "rankfantasy.teamPositionTakenSuffix":" · already picked in this position","rankfantasy.teamPositionTakenError":"You already have a player from that team in this position.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"You haven't built your squad yet.",
     "rankfantasy.buildSquadButton":"Build my squad →","rankfantasy.chooseFormation":"Choose formation",
     "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
@@ -3586,6 +3590,8 @@ const TRANSLATIONS={
     "pick.transfersLeftLabel":"Αλλαγές που απομένουν","pick.transfersUnlimitedLabel":"Ελεύθερο (πρώτος γύρος)",
     "pick.transferLimitError":"Προσπαθείς να κάνεις {attempted} αλλαγές αλλά σου απομένουν μόνο {available}. Άλλαξε πίσω τουλάχιστον {diff} παίκτη/ες για να αποθηκεύσεις, ή περίμενε τον επόμενο γύρο για περισσότερες.",
     "rankfantasy.pickTitle":"Φτιάξε την 14μελή σου ομάδα","rankfantasy.squadSelected":"Παίκτες στην ομάδα","rankfantasy.saveSquad":"Αποθήκευση ομάδας",
+    "rankfantasy.teamsInSquad":"🏟️ Ομάδες στην ομάδα σου","rankfantasy.maxOnePerTeamPerPos":"⚠️ Μέγιστο ένας παίκτης ανά ομάδα και θέση (μπορείς να έχεις πολλούς παίκτες από την ίδια ομάδα, αλλά μόνο έναν ανά θέση)",
+    "rankfantasy.teamPositionTakenSuffix":" · έχει ήδη επιλεγεί σε αυτή τη θέση","rankfantasy.teamPositionTakenError":"Έχεις ήδη έναν παίκτη από αυτή την ομάδα σε αυτή τη θέση.",
     "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
     "rankfantasy.buildSquadButton":"Φτιάξε την ομάδα μου →","rankfantasy.chooseFormation":"Διάλεξε διάταξη",
     "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
@@ -4087,7 +4093,7 @@ function render(){
         rankFantasyTeamFilter=document.getElementById("rf-team-filter")?.value||"";
         const teamFilter=rankFantasyTeamFilter;
         const picks=rankFantasyPickState.picks;
-        const usedTeams=POSITIONS.flatMap(pos=>(picks[pos]||[])).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.teamId:null;}).filter(Boolean);
+        const usedTeamsInCurrentPos=(picks[rankFantasyPickPos]||[]).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.teamId:null;}).filter(Boolean);
         const filtered=players.filter(p=>{
           if(p.pos!==rankFantasyPickPos)return false;
           if(searchVal&&!p.namn.toLowerCase().includes(searchVal))return false;
@@ -4098,14 +4104,14 @@ function render(){
           const sel=(picks[p.pos]||[]).includes(p.id);
           const team=TEAMS.find(t=>t.id===p.teamId);
           const c=POS_COLOR[p.pos];
-          const teamTaken=!sel&&usedTeams.includes(p.teamId);
+          const teamTaken=!sel&&usedTeamsInCurrentPos.includes(p.teamId);
           const posFull=!sel&&(picks[p.pos]||[]).length>=RANKFANTASY_SQUAD_SIZE[p.pos];
           const disabled=teamTaken||posFull;
           return `<div class="fg-card" style="margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${disabled?0.45:1}">
             <div class="fg-posbadge" style="width:34px;height:34px;background:${c.bg};color:${c.fc};font-size:11px">${p.pos}</div>
             <div style="flex:1">
               <div style="font-size:14px;font-weight:${sel?500:400}">${esc(p.namn)}</div>
-              <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?esc(t("pick.teamAlreadyTaken")):''}</div>
+              <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?esc(t("rankfantasy.teamPositionTakenSuffix")):''}</div>
             </div>
             <button data-act="rf-pick-player" data-id="${p.id}" ${disabled?"disabled":""} style="width:32px;height:32px;border-radius:50%;background:${sel?G_GREENL:"var(--color-background-secondary)"};border:0.5px solid ${sel?G_GREEN:"#ccc"};color:${sel?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;cursor:${disabled?"not-allowed":"pointer"};font-size:16px;flex-shrink:0">${sel?"✓":"+"}</button>
           </div>`;
@@ -4876,7 +4882,11 @@ function renderRankFantasyPick(){
     if(teamFilter && String(p.teamId)!==teamFilter) return false;
     return true;
   });
-  const usedTeams=POSITIONS.flatMap(pos=>(picks[pos]||[])).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.teamId:null;}).filter(Boolean);
+  // Max en spelare per LAG OCH POSITION – inte en spelare per lag totalt.
+  // Med 14 lag och 14 platser skulle "en per lag totalt" tvinga fram exakt
+  // en spelare från varje lag, vilket är för stelt. Här kollar vi bara om
+  // laget redan har en spelare i just den position man tittar på nu.
+  const usedTeamsInCurrentPos=(picks[rankFantasyPickPos]||[]).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.teamId:null;}).filter(Boolean);
 
   const posTabs=POSITIONS.map(pos=>{
     const have=(picks[pos]||[]).length, need=RANKFANTASY_SQUAD_SIZE[pos];
@@ -4891,14 +4901,14 @@ function renderRankFantasyPick(){
     const sel=(picks[p.pos]||[]).includes(p.id);
     const team=TEAMS.find(t=>t.id===p.teamId);
     const c=POS_COLOR[p.pos];
-    const teamTaken=!sel&&usedTeams.includes(p.teamId);
+    const teamTaken=!sel&&usedTeamsInCurrentPos.includes(p.teamId);
     const posFull=!sel&&(picks[p.pos]||[]).length>=RANKFANTASY_SQUAD_SIZE[p.pos];
     const disabled=teamTaken||posFull;
     return `<div class="fg-card" style="margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${disabled?0.45:1}">
       <div class="fg-posbadge" style="width:34px;height:34px;background:${c.bg};color:${c.fc};font-size:11px">${p.pos}</div>
       <div style="flex:1">
         <div style="font-size:14px;font-weight:${sel?500:400}">${esc(p.namn)}</div>
-        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?esc(t("pick.teamAlreadyTaken")):''}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?esc(t("rankfantasy.teamPositionTakenSuffix")):''}</div>
       </div>
       <button data-act="rf-pick-player" data-id="${p.id}" ${disabled?"disabled":""} style="width:32px;height:32px;border-radius:50%;background:${sel?G_GREENL:"var(--color-background-secondary)"};border:0.5px solid ${sel?G_GREEN:"#ccc"};color:${sel?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;cursor:${disabled?"not-allowed":"pointer"};font-size:16px;flex-shrink:0">${sel?"✓":"+"}</button>
     </div>`;
@@ -4918,6 +4928,27 @@ function renderRankFantasyPick(){
       <div style="font-size:18px;font-weight:500;color:${over?"#A32D2D":G_GREEN}">${remaining}</div>
     </div>`;
   })():"";
+
+  // Lagöversikt – vilka lag har man plockat spelare ifrån, och på vilka positioner
+  const teamGroups={};
+  POSITIONS.forEach(pos=>{
+    (picks[pos]||[]).forEach(pid=>{
+      const pl=players.find(p=>p.id===pid);
+      if(!pl) return;
+      if(!teamGroups[pl.teamId]) teamGroups[pl.teamId]=[];
+      teamGroups[pl.teamId].push(pos);
+    });
+  });
+  const teamBadges=Object.keys(teamGroups).map(teamId=>{
+    const team=TEAMS.find(tm=>tm.id===Number(teamId));
+    if(!team) return"";
+    const posList=teamGroups[teamId].join(", ");
+    return `<span style="padding:5px 10px;border-radius:14px;font-size:11px;font-weight:500;white-space:nowrap;background:${S_GREENL};color:${S_GREEN};border:0.5px solid ${S_GREEN}">${esc(team.name)} <span style="opacity:0.75">(${posList})</span></span>`;
+  }).join("");
+  const teamsOverview=Object.keys(teamGroups).length?`<div class="fg-card" style="margin-bottom:10px">
+    <div style="font-weight:500;font-size:12px;margin-bottom:8px">${esc(t("rankfantasy.teamsInSquad"))}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${teamBadges}</div>
+  </div>`:"";
 
   return `
   <div style="min-height:100vh;padding-bottom:90px">
@@ -4941,8 +4972,9 @@ function renderRankFantasyPick(){
         </div>
         ${transferCard}
       </div>
+      ${teamsOverview}
       <div style="display:flex;gap:4px;margin-bottom:10px">${posTabs}</div>
-      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("pick.maxOnePerTeam"))}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("rankfantasy.maxOnePerTeamPerPos"))}</div>
       ${rankFantasyPickErr?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;font-weight:500">${esc(rankFantasyPickErr)}</div>`:""}
       <div style="font-size:13px;font-weight:500;margin-bottom:6px">${esc(posLabel(rankFantasyPickPos))}</div>
     </div>
@@ -11635,8 +11667,8 @@ function attachHandlers(){
         rankFantasyPickErr=""; render(); return;
       }
       if(inPos.length>=RANKFANTASY_SQUAD_SIZE[pl.pos]){rankFantasyPickErr=`Du har redan valt ${RANKFANTASY_SQUAD_SIZE[pl.pos]} ${posLabel(pl.pos).toLowerCase()}(er).`;render();setTimeout(()=>{rankFantasyPickErr="";render();},2200);return;}
-      const usedTeams=POSITIONS.flatMap(pos=>(rankFantasyPickState.picks[pos]||[])).map(pid=>{const p=players.find(x=>x.id===pid);return p?p.teamId:null;}).filter(Boolean);
-      if(usedTeams.includes(pl.teamId)){rankFantasyPickErr="Du har redan en spelare från det laget i din trupp.";render();setTimeout(()=>{rankFantasyPickErr="";render();},2200);return;}
+      const usedTeamsInSamePos=inPos.map(pid=>{const p=players.find(x=>x.id===pid);return p?p.teamId:null;}).filter(Boolean);
+      if(usedTeamsInSamePos.includes(pl.teamId)){rankFantasyPickErr=t("rankfantasy.teamPositionTakenError");render();setTimeout(()=>{rankFantasyPickErr="";render();},2200);return;}
       rankFantasyPickState.picks[pl.pos]=[...inPos,pl.id];
       rankFantasyPickErr=""; render();
     }
