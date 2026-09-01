@@ -214,7 +214,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
-    rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
+    rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyDraftRound=null, rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     pendingUnassignedUser=null,
@@ -2269,8 +2269,7 @@ window.saveRankFantasyTip=async function(){
   const statusEl=document.getElementById("rf-tip-status");
   const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
   const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad?mySquad.picks[pos]||[]:[])));
-  const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
-  const formation = rankFantasyFormationDraft || (savedTip ? savedTip.formation : "4-3-3");
+  const formation = rankFantasyFormationDraft || "4-3-3";
   const ranking=rankFantasyRankingDraft.filter(id=>squadPlayerIds.has(id));
   const need=RANKFANTASY_FORMATIONS[formation];
   const totalNeeded=1+need.DEF+need.MID+need.FW;
@@ -2282,7 +2281,10 @@ window.saveRankFantasyTip=async function(){
     const row={id:currentUser.id+"-"+currentLeague.id+"-"+cfg.omg,user_id:currentUser.id,round_num:cfg.omg,formation,ranked_ids:ranking};
     const idx=rankFantasyAllTipsGlobal.findIndex(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
     if(idx>=0) rankFantasyAllTipsGlobal[idx]=row; else rankFantasyAllTipsGlobal=[...rankFantasyAllTipsGlobal,row];
-    rankFantasyRankingDraft=[]; rankFantasyFormationDraft=null;
+    // Tvinga en ren omstart av draften nästa rendering – den byggs då upp på
+    // nytt utifrån det just sparade tipset (så valet fortsätter synas, inte
+    // nollställs) istället för att bara sätta allt till tomt/null här.
+    rankFantasyDraftRound=null;
     if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">'+esc(t("investerare.savedSuccess"))+'</span>';
     render();
   }catch(e){
@@ -7055,6 +7057,19 @@ function renderRankFantasyTab(){
 
   const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
 
+  // Initiera draften EXAKT en gång per omgång man tittar på. Detta är
+  // avgörande: att bara kolla "är rangordningen tom?" för att avgöra om vi
+  // ska fylla i det sparade tipset går inte, eftersom en medvetet tömd lista
+  // (t.ex. efter formationsbyte) ser likadan ut som "aldrig påbörjad" – då
+  // fylldes det gamla sparade tipset tillbaka automatiskt varje gång, och
+  // det gick aldrig att verkligen nollställa valet. Nu styrs det istället av
+  // vilken omgång draften senast byggdes för.
+  if(rankFantasyDraftRound!==cfg.omg){
+    rankFantasyRankingDraft=savedTip?[...savedTip.ranked_ids]:[];
+    rankFantasyFormationDraft=savedTip?savedTip.formation:null;
+    rankFantasyDraftRound=cfg.omg;
+  }
+
   let body;
   if(locked){
     if(!savedTip){
@@ -7083,18 +7098,17 @@ function renderRankFantasyTab(){
       </div>`;
     }
   } else {
-    // rankFantasyFormationDraft är null tills man aktivt klickar ett formationsval den
-    // här sessionen – då gäller alltid det klicket, oavsett om rangordningen råkar
-    // vara tom just då (t.ex. direkt efter ett formationsbyte). Annars visas den
-    // senast sparade formationen, eller 4-3-3 som standard för en helt ny spelare.
-    const formation = rankFantasyFormationDraft || (savedTip ? savedTip.formation : "4-3-3");
+    // rankFantasyRankingDraft/rankFantasyFormationDraft är redan korrekt
+    // initierade för just den här omgången (se init-blocket ovan) – ingen
+    // ytterligare fallback-logik behövs eller ska finnas här, annars
+    // återinförs samma bugg som gjorde att gamla val inte gick att nollställa.
+    const formation = rankFantasyFormationDraft || "4-3-3";
     const need={GK:1,...RANKFANTASY_FORMATIONS[formation]};
     // Skyddsnät: filtrera bort ev. spelar-ID:n som inte längre finns i truppen
     // (t.ex. om truppen ändrats sedan rangordningen senast sparades) – annars
     // kan "osynliga" poster i arrayen förskjuta rangnumren för nya val.
     const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad.picks[pos]||[])));
-    const rawRanking=rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[]);
-    const ranking=rawRanking.filter(id=>squadPlayerIds.has(id));
+    const ranking=rankFantasyRankingDraft.filter(id=>squadPlayerIds.has(id));
 
     const formationBtns=Object.keys(RANKFANTASY_FORMATIONS).map(f=>`
       <button data-act="rf-pick-formation" data-formation="${f}" style="padding:9px 4px;border-radius:8px;border:${formation===f?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${formation===f?G_GREENL:"var(--color-background-primary)"};color:${formation===f?G_GREEN:"var(--color-text-primary)"};font-size:12px;font-weight:${formation===f?600:400};cursor:pointer;flex:1">${f}</button>
@@ -11795,9 +11809,8 @@ function attachHandlers(){
       const pl=players.find(p=>p.id===pid);
       const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
       const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad.picks[pos]||[])));
-      const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
-      const formation=rankFantasyFormationDraft||(savedTip?savedTip.formation:"4-3-3");
-      let ranking=(rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[])).filter(id=>squadPlayerIds.has(id));
+      const formation=rankFantasyFormationDraft||"4-3-3";
+      let ranking=rankFantasyRankingDraft.filter(id=>squadPlayerIds.has(id));
       if(ranking.includes(pid)){
         ranking=ranking.filter(id=>id!==pid);
       } else {
@@ -11814,8 +11827,7 @@ function attachHandlers(){
       const dir=Number(el.dataset.dir);
       const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
       const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad.picks[pos]||[])));
-      const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
-      let ranking=(rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[])).filter(id=>squadPlayerIds.has(id));
+      let ranking=rankFantasyRankingDraft.filter(id=>squadPlayerIds.has(id));
       const idx=ranking.indexOf(pid);
       const newIdx=idx+dir;
       if(idx<0||newIdx<0||newIdx>=ranking.length) return;
