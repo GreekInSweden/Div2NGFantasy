@@ -7123,10 +7123,10 @@ function renderRankFantasyTab(){
   }).join("");
 
   return `
-  <div style="font-weight:500;font-size:16px;margin-bottom:2px">${esc(t("rankfantasy.roundTitle",{n:cfg.omg}))}</div>
-  <button data-act="rf-edit-squad" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer;padding:0;margin-bottom:12px">${esc(t("rankfantasy.editSquadLink"))}</button>
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("rankfantasy.roundTitle",{n:cfg.omg}))}</div>
   ${renderSponsorBanner("rankfantasy")}
   ${renderRoundMatches(rd)}
+  <button data-act="rf-edit-squad" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer;padding:0;margin-bottom:10px">${esc(t("rankfantasy.editSquadLink"))}</button>
   ${body}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">${esc(t("rankfantasy.leaderboardTitle"))}</div>
