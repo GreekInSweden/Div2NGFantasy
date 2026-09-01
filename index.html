@@ -110,7 +110,7 @@ const POS_LABEL={GK:"Målvakt",DEF:"Försvarare",MID:"Mittfältare",FW:"Forward"
 function posLabel(p){ return t("pos."+p); }
 const POS_COUNT={GK:1,DEF:4,MID:3,FW:3};
 const TOTAL_PICKS=11;
-// ── Rangordningen (arbetsnamn) – parallell Fantasy-variant ──────────────────
+// ── Fantasy XI – parallell Fantasy-variant ──────────────────────────────────
 // 14-mannatrupp (1 MV + 5 FS + 5 MF + 3 AN). Formationen avgör hur många FS/MF/AN
 // av truppen som startar; målvakten spelar alltid. Resten sitter på bänken (0p).
 const RANKFANTASY_SQUAD_SIZE={GK:1,DEF:5,MID:5,FW:3};
@@ -837,7 +837,7 @@ async function fetchAllSnabbastTipsAllRounds(){
   if(error){console.error(error);return [];}
   return data;
 }
-// ── Rangordningen – trupper (parallell 14-mannatrupp per spelare) ──────────
+// ── Fantasy XI – trupper (parallell 14-mannatrupp per spelare) ────────────
 async function fetchRankFantasySquads(){
   const {data,error}=await sb.from("rankfantasy_squads").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return [];}
@@ -848,7 +848,7 @@ async function saveRankFantasySquad(userId,picks){
   const {error}=await sb.from("rankfantasy_squads").upsert({id,user_id:userId,league_id:currentLeague.id,picks});
   return error;
 }
-// ── Rangordningen – tips (formation + rangordnad startelva per omgång) ─────
+// ── Fantasy XI – tips (formation + rangordnad startelva per omgång) ───────
 async function fetchAllRankFantasyTipsAllRounds(){
   const {data,error}=await sb.from("rankfantasy_tips").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return [];}
@@ -2451,7 +2451,7 @@ const TRANSLATIONS={
     "modeselect.mode.investerare.title":"Investeraren","modeselect.mode.investerare.desc":"Placera 1000 kr på lag – bygg din portfölj hela säsongen",
     "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Välj ett lag varje omgång – förlorar du tre gånger är du utslagen",
     "modeselect.mode.anytime.title":"Skyttekung","modeselect.mode.anytime.desc":"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",
-    "modeselect.mode.rankfantasy.title":"Rangordningen","modeselect.mode.rankfantasy.desc":"Rangordna din startelva – bäst rankad ger mest poäng",
+    "modeselect.mode.rankfantasy.title":"Fantasy XI","modeselect.mode.rankfantasy.desc":"Rangordna din startelva – bäst rankad ger mest poäng",
     "modeselect.mode.standings.title":"Ställningar","modeselect.mode.standings.desc":"Se topplistan i alla spelformer på ett ställe",
     "modeselect.mode.contact.title":"Kontakta oss","modeselect.mode.contact.desc":"Idéer, felsökning eller frågor – vi svarar här i appen",
     "modeselect.mode.install.title":"Installera appen","modeselect.mode.install.desc":"Få push-notiser och snabbare laddning",
@@ -2524,14 +2524,14 @@ const TRANSLATIONS={
     "pick.transfersLeftLabel":"Byten kvar","pick.transfersUnlimitedLabel":"Fritt (första omgången)",
     "pick.transferLimitError":"Du försöker göra {attempted} byten men har bara {available} kvar. Ändra tillbaka minst {diff} spelare för att spara, eller vänta till nästa omgång då du får fler.",
     "rankfantasy.pickTitle":"Bygg din 14-mannatrupp","rankfantasy.squadSelected":"Spelare i truppen","rankfantasy.saveSquad":"Spara truppen",
-    "rankfantasy.title":"🎖️ Rangordningen","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
+    "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
     "rankfantasy.buildSquadButton":"Bygg min trupp →","rankfantasy.chooseFormation":"Välj formation",
     "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
     "rankfantasy.rankHint":"Din bäst rankade spelare får ×1.20 på sina poäng, den sämst rankade ×1.00 – linjärt däremellan.",
     "rankfantasy.formationChangeNote":"Byter du formation måste du välja startelva på nytt.",
     "rankfantasy.needCount":"{have}/{need} valda","rankfantasy.saveTip":"Spara rangordning",
     "rankfantasy.yourFormation":"Din formation: {formation}","rankfantasy.benchNote":"Bänk (0 poäng denna omgång)",
-    "rankfantasy.pointsThisRound":"{pts} p denna omgång","rankfantasy.leaderboardTitle":"🏆 Ligatabell – Rangordningen",
+    "rankfantasy.pointsThisRound":"{pts} p denna omgång","rankfantasy.leaderboardTitle":"🏆 Ligatabell – Fantasy XI",
     "rankfantasy.editSquadLink":"Ändra min trupp","rankfantasy.roundTitle":"Omgång {n} – din rangordning",
     "rankfantasy.lockedNotice":"Din formation och rangordning för omgången är sparad. Poäng visas här så fort resultaten är klara.",
     "rankfantasy.selectAllPositionsFirst":"Välj rätt antal spelare i varje position innan du rangordnar.",
@@ -2982,7 +2982,7 @@ const TRANSLATIONS={
     "modeselect.mode.investerare.title":"The Investor","modeselect.mode.investerare.desc":"Invest 1000 kr on teams – build your portfolio all season",
     "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Pick one team each round – lose three times and you're out",
     "modeselect.mode.anytime.title":"Top Scorer","modeselect.mode.anytime.desc":"Pick 1 defender + 2 midfielders + 2 forwards to score",
-    "modeselect.mode.rankfantasy.title":"The Ranking","modeselect.mode.rankfantasy.desc":"Rank your starting XI – top ranked gives the most points",
+    "modeselect.mode.rankfantasy.title":"Fantasy XI","modeselect.mode.rankfantasy.desc":"Rank your starting XI – top ranked gives the most points",
     "modeselect.mode.standings.title":"Standings","modeselect.mode.standings.desc":"See the leaderboard for all game modes in one place",
     "modeselect.mode.contact.title":"Contact us","modeselect.mode.contact.desc":"Ideas, troubleshooting or questions – we reply here in the app",
     "modeselect.mode.install.title":"Install the app","modeselect.mode.install.desc":"Get push notifications and faster loading",
@@ -3055,14 +3055,14 @@ const TRANSLATIONS={
     "pick.transfersLeftLabel":"Transfers left","pick.transfersUnlimitedLabel":"Free (first round)",
     "pick.transferLimitError":"You're trying to make {attempted} transfers but only have {available} left. Change back at least {diff} player(s) to save, or wait until next round when you'll get more.",
     "rankfantasy.pickTitle":"Build your 14-player squad","rankfantasy.squadSelected":"Players in squad","rankfantasy.saveSquad":"Save squad",
-    "rankfantasy.title":"🎖️ The Ranking","rankfantasy.noSquadYet":"You haven't built your squad yet.",
+    "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"You haven't built your squad yet.",
     "rankfantasy.buildSquadButton":"Build my squad →","rankfantasy.chooseFormation":"Choose formation",
     "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
     "rankfantasy.rankHint":"Your top-ranked player gets ×1.20 on their points, the lowest-ranked gets ×1.00 – linear in between.",
     "rankfantasy.formationChangeNote":"Changing formation means you'll need to pick your starting XI again.",
     "rankfantasy.needCount":"{have}/{need} chosen","rankfantasy.saveTip":"Save ranking",
     "rankfantasy.yourFormation":"Your formation: {formation}","rankfantasy.benchNote":"Bench (0 points this round)",
-    "rankfantasy.pointsThisRound":"{pts} p this round","rankfantasy.leaderboardTitle":"🏆 League table – The Ranking",
+    "rankfantasy.pointsThisRound":"{pts} p this round","rankfantasy.leaderboardTitle":"🏆 League table – Fantasy XI",
     "rankfantasy.editSquadLink":"Edit my squad","rankfantasy.roundTitle":"Round {n} – your ranking",
     "rankfantasy.lockedNotice":"Your formation and ranking for the round are saved. Points show here as soon as results are ready.",
     "rankfantasy.selectAllPositionsFirst":"Choose the right number of players in each position before ranking.",
@@ -3513,7 +3513,7 @@ const TRANSLATIONS={
     "modeselect.mode.investerare.title":"Ο Επενδυτής","modeselect.mode.investerare.desc":"Επένδυσε 1000 kr σε ομάδες – χτίσε το χαρτοφυλάκιό σου όλη τη σεζόν",
     "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Διάλεξε μία ομάδα κάθε γύρο – αν χάσεις τρεις φορές αποκλείεσαι",
     "modeselect.mode.anytime.title":"Πρώτος Σκόρερ","modeselect.mode.anytime.desc":"Διάλεξε 1 αμυντικό + 2 μέσους + 2 επιθετικούς που θα σκοράρουν",
-    "modeselect.mode.rankfantasy.title":"Η Κατάταξη","modeselect.mode.rankfantasy.desc":"Κατάταξε την ενδεκάδα σου – ο πρώτος δίνει τους περισσότερους πόντους",
+    "modeselect.mode.rankfantasy.title":"Fantasy XI","modeselect.mode.rankfantasy.desc":"Κατάταξε την ενδεκάδα σου – ο πρώτος δίνει τους περισσότερους πόντους",
     "modeselect.mode.standings.title":"Βαθμολογίες","modeselect.mode.standings.desc":"Δες την κατάταξη όλων των τρόπων παιχνιδιού σε ένα μέρος",
     "modeselect.mode.contact.title":"Επικοινωνία","modeselect.mode.contact.desc":"Ιδέες, προβλήματα ή ερωτήσεις – απαντάμε εδώ μέσα στην εφαρμογή",
     "modeselect.mode.install.title":"Εγκατάσταση εφαρμογής","modeselect.mode.install.desc":"Απόκτησε ειδοποιήσεις push και πιο γρήγορη φόρτωση",
@@ -3586,14 +3586,14 @@ const TRANSLATIONS={
     "pick.transfersLeftLabel":"Αλλαγές που απομένουν","pick.transfersUnlimitedLabel":"Ελεύθερο (πρώτος γύρος)",
     "pick.transferLimitError":"Προσπαθείς να κάνεις {attempted} αλλαγές αλλά σου απομένουν μόνο {available}. Άλλαξε πίσω τουλάχιστον {diff} παίκτη/ες για να αποθηκεύσεις, ή περίμενε τον επόμενο γύρο για περισσότερες.",
     "rankfantasy.pickTitle":"Φτιάξε την 14μελή σου ομάδα","rankfantasy.squadSelected":"Παίκτες στην ομάδα","rankfantasy.saveSquad":"Αποθήκευση ομάδας",
-    "rankfantasy.title":"🎖️ Η Κατάταξη","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
+    "rankfantasy.title":"🎖️ Fantasy XI","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
     "rankfantasy.buildSquadButton":"Φτιάξε την ομάδα μου →","rankfantasy.chooseFormation":"Διάλεξε διάταξη",
     "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
     "rankfantasy.rankHint":"Ο παίκτης στην κορυφή της κατάταξής σου παίρνει ×1.20 στους πόντους του, ο τελευταίος ×1.00 – γραμμικά ανάμεσα.",
     "rankfantasy.formationChangeNote":"Αν αλλάξεις διάταξη θα χρειαστεί να διαλέξεις ξανά την ενδεκάδα σου.",
     "rankfantasy.needCount":"{have}/{need} επιλεγμένοι","rankfantasy.saveTip":"Αποθήκευση κατάταξης",
     "rankfantasy.yourFormation":"Η διάταξή σου: {formation}","rankfantasy.benchNote":"Πάγκος (0 πόντοι αυτόν τον γύρο)",
-    "rankfantasy.pointsThisRound":"{pts} β. αυτόν τον γύρο","rankfantasy.leaderboardTitle":"🏆 Κατάταξη – Η Κατάταξη",
+    "rankfantasy.pointsThisRound":"{pts} β. αυτόν τον γύρο","rankfantasy.leaderboardTitle":"🏆 Κατάταξη – Fantasy XI",
     "rankfantasy.editSquadLink":"Επεξεργασία ομάδας μου","rankfantasy.roundTitle":"Γύρος {n} – η κατάταξή σου",
     "rankfantasy.lockedNotice":"Η διάταξη και η κατάταξή σου για τον γύρο είναι αποθηκευμένες. Οι πόντοι εμφανίζονται εδώ μόλις είναι έτοιμα τα αποτελέσματα.",
     "rankfantasy.selectAllPositionsFirst":"Διάλεξε τον σωστό αριθμό παικτών σε κάθε θέση πριν κατατάξεις.",
@@ -8589,7 +8589,7 @@ function renderAdminTab(){
       ["investerare","💰","Investeraren","investerareEnabled","investerare_enabled"],
       ["lts","💀","Last Team Standing","ltsEnabled","lts_enabled"],
       ["anytime","🎯","Skyttekung","anytimeEnabled","anytime_enabled"],
-      ["rankfantasy","🎖️","Rangordningen","rankfantasyEnabled","rankfantasy_enabled"],
+      ["rankfantasy","🎖️","Fantasy XI","rankfantasyEnabled","rankfantasy_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
