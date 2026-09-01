@@ -110,6 +110,22 @@ const POS_LABEL={GK:"Målvakt",DEF:"Försvarare",MID:"Mittfältare",FW:"Forward"
 function posLabel(p){ return t("pos."+p); }
 const POS_COUNT={GK:1,DEF:4,MID:3,FW:3};
 const TOTAL_PICKS=11;
+// ── Rangordningen (arbetsnamn) – parallell Fantasy-variant ──────────────────
+// 14-mannatrupp (1 MV + 5 FS + 5 MF + 3 AN). Formationen avgör hur många FS/MF/AN
+// av truppen som startar; målvakten spelar alltid. Resten sitter på bänken (0p).
+const RANKFANTASY_SQUAD_SIZE={GK:1,DEF:5,MID:5,FW:3};
+const RANKFANTASY_TOTAL_SQUAD=14;
+const RANKFANTASY_FORMATIONS={
+  "4-4-2":{DEF:4,MID:4,FW:2},
+  "4-3-3":{DEF:4,MID:3,FW:3},
+  "3-5-2":{DEF:3,MID:5,FW:2},
+  "3-4-3":{DEF:3,MID:4,FW:3},
+  "5-3-2":{DEF:5,MID:3,FW:2}
+};
+// Rank 1 (bästa placering) ger ×1.20, rank 11 (sämsta) ger ×1.00, linjärt däremellan.
+function rankFantasyMultiplier(rank){
+  return 1.20 - (rank-1)/10*0.20;
+}
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:7},MID:{clean:2,goal:5},FW:{clean:1,goal:5}};
 const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
@@ -186,6 +202,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     playersImportRows=[],
     ligatipp=null, allLeagueTips=[], ligatippStandings={}, ligatippCheckpoint=1, ligatippDraft={half:[],full:[]},
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
+    rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
+    rankFantasyFormationDraft="4-3-3", rankFantasyRankingDraft=[], rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyTeamFilter="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     pendingUnassignedUser=null,
@@ -440,7 +458,7 @@ async function deletePlayer(id){
   if(error)console.error(error);
 }
 async function fetchUsers(){
-  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id,email,paid,join_round,active_chip,chip_meta,chips_used,chip_pre_snapshot").eq("league_id",currentLeague.id).order("created_at");
+  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id,email,paid,join_round,active_chip,chip_meta,chips_used,chip_pre_snapshot,free_transfers,transfer_baseline_picks").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
   let accountPaidMap={},accountTrialMap={};
   const accountIds=[...new Set(data.map(u=>u.account_id).filter(Boolean))];
@@ -450,7 +468,7 @@ async function fetchUsers(){
       if(accs) accs.forEach(a=>{accountPaidMap[a.id]=!!a.paid;accountTrialMap[a.id]=a.trial_started_at||null;});
     }catch(e){console.error("fetchUsers accountPaidMap error:",e);}
   }
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||"",paid:!!u.paid||!!accountPaidMap[u.account_id],join_round:u.join_round==null?null:Number(u.join_round),trialStartedAt:accountTrialMap[u.account_id]||null,activeChip:u.active_chip||null,chipMeta:u.chip_meta||null,chipsUsed:u.chips_used||[],chipPreSnapshot:u.chip_pre_snapshot||null}));
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||"",paid:!!u.paid||!!accountPaidMap[u.account_id],join_round:u.join_round==null?null:Number(u.join_round),trialStartedAt:accountTrialMap[u.account_id]||null,activeChip:u.active_chip||null,chipMeta:u.chip_meta||null,chipsUsed:u.chips_used||[],chipPreSnapshot:u.chip_pre_snapshot||null,freeTransfers:u.free_transfers==null?1:u.free_transfers,transferBaselinePicks:u.transfer_baseline_picks||null}));
 }
 // Sant om spelarens provperiod gått ut OCH de inte markerats som betalda.
 // Provperioden räknas nu GLOBALT (via det delade Väg A-kontot) i antal DAGAR
@@ -564,7 +582,8 @@ async function insertUser(u){
     pin:u.pin,
     league_id:currentLeague.id,
     tips:{},
-    join_round:cfg.omg||1
+    join_round:cfg.omg||1,
+    free_transfers:1
   });
   return error;
 }
@@ -658,6 +677,24 @@ async function toggleRoundLock(rnd,locked){
   // "Fritt lag"-chippet återställer dessutom laget till hur det såg ut innan
   // chippet aktiverades – helt automatiskt, oavsett vad som pillats med däremellan.
   if(locked){
+    // ── Fantasy-byten ──────────────────────────────────────────────────────
+    // Räknar hur många spelare varje användare bytt ut sedan sin senaste
+    // sparade baseline (laget de gick in i den här omgången med), och
+    // uppdaterar antalet sparade byten inför NÄSTA omgång: förbrukade byten
+    // dras av, +1 för omgången som gick, max 5 sparade totalt. Spelare med
+    // Fritt lag-chippet aktivt undantas helt (chippet upphäver byte-gränsen
+    // för just den omgången, och deras lag återställs ändå direkt efter).
+    for(const u of users){
+      if(u.activeChip==="frittlag") continue;
+      if(u.transferBaselinePicks){
+        const oldIds=new Set(POSITIONS.flatMap(pos=>(u.transferBaselinePicks[pos]||[])));
+        const newIds=new Set(POSITIONS.flatMap(pos=>(u.picks[pos]||[])));
+        const usedTransfers=[...oldIds].filter(id=>!newIds.has(id)).length;
+        const currentBanked=u.freeTransfers==null?1:u.freeTransfers;
+        const newBanked=Math.min(5,Math.max(0,currentBanked-usedTransfers)+1);
+        try{ await sb.from("fantasy_users").update({free_transfers:newBanked}).eq("id",u.id); }catch(e){console.error("Kunde inte uppdatera byten för",u.namn,e);}
+      }
+    }
     const usersWithChip=users.filter(u=>u.activeChip);
     for(const u of usersWithChip){
       const newChipsUsed=[...(u.chipsUsed||[]),u.activeChip];
@@ -670,9 +707,17 @@ async function toggleRoundLock(rnd,locked){
         await sb.from("fantasy_users").update(updateFields).eq("id",u.id);
       }catch(e){console.error("Kunde inte förbruka chip för",u.namn,e);}
     }
-    if(usersWithChip.length){
-      try{ users=await fetchUsers(); if(currentUser){ currentUser=users.find(u=>u.id===currentUser.id)||currentUser; } }catch(e){console.error(e);}
-    }
+    // Uppdatera alla användares baseline till deras lag som det ser ut just nu
+    // (efter ev. chip-återställning ovan) – det här blir jämförelsepunkten
+    // för byten under NÄSTA omgång.
+    try{
+      const freshUsers=(usersWithChip.length)?await fetchUsers():users;
+      for(const u of freshUsers){
+        try{ await sb.from("fantasy_users").update({transfer_baseline_picks:u.picks}).eq("id",u.id); }catch(e){console.error("Kunde inte uppdatera baseline för",u.namn,e);}
+      }
+      users=await fetchUsers();
+      if(currentUser){ currentUser=users.find(x=>x.id===currentUser.id)||currentUser; }
+    }catch(e){console.error(e);}
   }
   return {locked_at,picks_snapshot};
 }
@@ -689,7 +734,7 @@ async function deleteRound(rnd){
   if(error)console.error(error);
 }
 async function fetchConfig(){
-  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,total_rounds,stod_enabled,stod_swish_number,stod_amount,stod_message,stod_qr_image_url,stod_paypal_handle,stod_paypal_amount,trial_enabled,trial_days,trial_price,lang_en_enabled,lang_gr_enabled").eq("league_id",currentLeague.id).maybeSingle();
+  const {data,error}=await sb.from("app_config").select("league_id,active_round,registration_open,ligatipp_locked,quiz_enabled,fantasy_enabled,tipp_enabled,snabbast_enabled,maljakten_enabled,ligatipp_enabled,hof_enabled,streak_enabled,matchfokus_enabled,duellen_enabled,malregn_enabled,jubel_enabled,investerare_enabled,lts_enabled,anytime_enabled,rankfantasy_enabled,total_rounds,stod_enabled,stod_swish_number,stod_amount,stod_message,stod_qr_image_url,stod_paypal_handle,stod_paypal_amount,trial_enabled,trial_days,trial_price,lang_en_enabled,lang_gr_enabled").eq("league_id",currentLeague.id).maybeSingle();
   if(error){console.error(error);return {omg:1,registrationOpen:true,totalRounds:26};}
   if(!data){
     await sb.from("app_config").insert({league_id:currentLeague.id,active_round:1,registration_open:true});
@@ -714,6 +759,7 @@ async function fetchConfig(){
     investerareEnabled:!!data.investerare_enabled,
     ltsEnabled:!!data.lts_enabled,
     anytimeEnabled:!!data.anytime_enabled,
+    rankfantasyEnabled:!!data.rankfantasy_enabled,
     langEnEnabled:!!data.lang_en_enabled,
     langGrEnabled:!!data.lang_gr_enabled,
     stodEnabled:!!data.stod_enabled,
@@ -790,6 +836,48 @@ async function fetchAllSnabbastTipsAllRounds(){
   const {data,error}=await sb.from("snabbast_tips").select("*").eq("league_id",currentLeague.id);
   if(error){console.error(error);return [];}
   return data;
+}
+// ── Rangordningen – trupper (parallell 14-mannatrupp per spelare) ──────────
+async function fetchRankFantasySquads(){
+  const {data,error}=await sb.from("rankfantasy_squads").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data.map(s=>({id:s.id,userId:s.user_id,picks:s.picks||{GK:[],DEF:[],MID:[],FW:[]},freeTransfers:s.free_transfers==null?1:s.free_transfers,transferBaselinePicks:s.transfer_baseline_picks||null}));
+}
+async function saveRankFantasySquad(userId,picks){
+  const id=userId+"-"+currentLeague.id;
+  const {error}=await sb.from("rankfantasy_squads").upsert({id,user_id:userId,league_id:currentLeague.id,picks});
+  return error;
+}
+// ── Rangordningen – tips (formation + rangordnad startelva per omgång) ─────
+async function fetchAllRankFantasyTipsAllRounds(){
+  const {data,error}=await sb.from("rankfantasy_tips").select("*").eq("league_id",currentLeague.id);
+  if(error){console.error(error);return [];}
+  return data;
+}
+async function saveRankFantasyTip(roundNum,formation,rankedIds){
+  const id=currentUser.id+"-"+currentLeague.id+"-"+roundNum;
+  const {error}=await sb.from("rankfantasy_tips").upsert({id,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,formation,ranked_ids:rankedIds});
+  return error;
+}
+// Poäng för en given omgång: varje rangordnad startande spelare får sina
+// vanliga Fantasy-poäng (samma plPts-motor) × platsmultiplikatorn för sin
+// rangordning. Bänkade spelare (inte med i ranked_ids) ger 0.
+function calcRankFantasyRoundPts(userId,roundNum){
+  const rd=rounds[String(roundNum)];
+  if(!rd||!rd.results_published) return 0;
+  const tip=rankFantasyAllTipsGlobal.find(t=>t.user_id===userId&&Number(t.round_num)===Number(roundNum));
+  if(!tip||!tip.ranked_ids||!tip.ranked_ids.length) return 0;
+  let tot=0;
+  tip.ranked_ids.forEach((pid,i)=>{
+    const pl=players.find(p=>p.id===pid);
+    if(!pl) return;
+    const pts=plPts(pl,rd);
+    tot+=pts*rankFantasyMultiplier(i+1);
+  });
+  return Math.round(tot*10)/10;
+}
+function userRankFantasyTotalPts(userId){
+  return Object.keys(rounds).reduce((s,r)=>s+calcRankFantasyRoundPts(userId,Number(r)),0);
 }
 async function saveSnabbastTip(roundNum,picks){
   const {error}=await sb.from("snabbast_tips").upsert({id:currentUser.id+"-"+currentLeague.id+"-"+roundNum,user_id:currentUser.id,league_id:currentLeague.id,round_num:roundNum,picks});
@@ -2165,6 +2253,29 @@ window.saveSnabbast=async function(){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
 };
+window.saveRankFantasyTip=async function(){
+  if(blockIfTrialExpired())return;
+  const statusEl=document.getElementById("rf-tip-status");
+  const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+  const gkId=(mySquad.picks.GK||[])[0];
+  const ranking=rankFantasyRankingDraft.length?rankFantasyRankingDraft:[gkId];
+  const need=RANKFANTASY_FORMATIONS[rankFantasyFormationDraft];
+  const totalNeeded=1+need.DEF+need.MID+need.FW;
+  if(ranking.length!==totalNeeded){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("rankfantasy.selectAllPositionsFirst"))+'</span>'; return; }
+  if(statusEl) statusEl.textContent=t("investerare.saving");
+  try{
+    const error=await saveRankFantasyTip(cfg.omg,rankFantasyFormationDraft,ranking);
+    if(error){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("investerare.errorPrefix"))+esc(error.message)+'</span>'; return; }
+    const row={id:currentUser.id+"-"+currentLeague.id+"-"+cfg.omg,user_id:currentUser.id,round_num:cfg.omg,formation:rankFantasyFormationDraft,ranked_ids:ranking};
+    const idx=rankFantasyAllTipsGlobal.findIndex(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
+    if(idx>=0) rankFantasyAllTipsGlobal[idx]=row; else rankFantasyAllTipsGlobal=[...rankFantasyAllTipsGlobal,row];
+    rankFantasyRankingDraft=[];
+    if(statusEl) statusEl.innerHTML='<span style="color:#1a6b3c;font-weight:500">'+esc(t("investerare.savedSuccess"))+'</span>';
+    render();
+  }catch(e){
+    if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("investerare.errorPrefix"))+esc(e.message)+'</span>';
+  }
+};
 
 // ── Ligatippen – poäng ────────────────────────────────────────────────────────────
 function calcLigatippPts(userTip,actualStandings){
@@ -2340,6 +2451,7 @@ const TRANSLATIONS={
     "modeselect.mode.investerare.title":"Investeraren","modeselect.mode.investerare.desc":"Placera 1000 kr på lag – bygg din portfölj hela säsongen",
     "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Välj ett lag varje omgång – förlorar du tre gånger är du utslagen",
     "modeselect.mode.anytime.title":"Skyttekung","modeselect.mode.anytime.desc":"Välj 1 försvarare + 2 mittfältare + 2 anfallare som gör mål",
+    "modeselect.mode.rankfantasy.title":"Rangordningen","modeselect.mode.rankfantasy.desc":"Rangordna din startelva – bäst rankad ger mest poäng",
     "modeselect.mode.standings.title":"Ställningar","modeselect.mode.standings.desc":"Se topplistan i alla spelformer på ett ställe",
     "modeselect.mode.contact.title":"Kontakta oss","modeselect.mode.contact.desc":"Idéer, felsökning eller frågor – vi svarar här i appen",
     "modeselect.mode.install.title":"Installera appen","modeselect.mode.install.desc":"Få push-notiser och snabbare laddning",
@@ -2409,6 +2521,20 @@ const TRANSLATIONS={
     "pick.noPlayersFound":"Inga spelare hittades.",
     "pick.clearAll":"🗑 Rensa allt och börja om","pick.saveTeam":"Spara mitt lag →",
     "pick.missingPrefix":"Saknas: ","pick.missingCaptain":"Saknas: välj en kapten (klicka ☆ på en av dina spelare)",
+    "pick.transfersLeftLabel":"Byten kvar","pick.transfersUnlimitedLabel":"Fritt (första omgången)",
+    "pick.transferLimitError":"Du försöker göra {attempted} byten men har bara {available} kvar. Ändra tillbaka minst {diff} spelare för att spara, eller vänta till nästa omgång då du får fler.",
+    "rankfantasy.pickTitle":"Bygg din 14-mannatrupp","rankfantasy.squadSelected":"Spelare i truppen","rankfantasy.saveSquad":"Spara truppen",
+    "rankfantasy.title":"🎖️ Rangordningen","rankfantasy.noSquadYet":"Du har inte byggt din trupp än.",
+    "rankfantasy.buildSquadButton":"Bygg min trupp →","rankfantasy.chooseFormation":"Välj formation",
+    "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
+    "rankfantasy.rankHint":"Din bäst rankade spelare får ×1.20 på sina poäng, den sämst rankade ×1.00 – linjärt däremellan.",
+    "rankfantasy.formationChangeNote":"Byter du formation måste du välja startelva på nytt.",
+    "rankfantasy.needCount":"{have}/{need} valda","rankfantasy.saveTip":"Spara rangordning",
+    "rankfantasy.yourFormation":"Din formation: {formation}","rankfantasy.benchNote":"Bänk (0 poäng denna omgång)",
+    "rankfantasy.pointsThisRound":"{pts} p denna omgång","rankfantasy.leaderboardTitle":"🏆 Ligatabell – Rangordningen",
+    "rankfantasy.editSquadLink":"Ändra min trupp","rankfantasy.roundTitle":"Omgång {n} – din rangordning",
+    "rankfantasy.lockedNotice":"Din formation och rangordning för omgången är sparad. Poäng visas här så fort resultaten är klara.",
+    "rankfantasy.selectAllPositionsFirst":"Välj rätt antal spelare i varje position innan du rangordnar.",
     "common.roundMatchesHeader":"📅 Omgång {n} – matcher",
     "tipp.backToLeague":"← Tillbaka till ligan","tipp.noMatches":"Inga matcher inlagda för denna omgång.",
     "tipp.rank":"Plats {rank} av {total} · {pts} p totalt",
@@ -2856,6 +2982,7 @@ const TRANSLATIONS={
     "modeselect.mode.investerare.title":"The Investor","modeselect.mode.investerare.desc":"Invest 1000 kr on teams – build your portfolio all season",
     "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Pick one team each round – lose three times and you're out",
     "modeselect.mode.anytime.title":"Top Scorer","modeselect.mode.anytime.desc":"Pick 1 defender + 2 midfielders + 2 forwards to score",
+    "modeselect.mode.rankfantasy.title":"The Ranking","modeselect.mode.rankfantasy.desc":"Rank your starting XI – top ranked gives the most points",
     "modeselect.mode.standings.title":"Standings","modeselect.mode.standings.desc":"See the leaderboard for all game modes in one place",
     "modeselect.mode.contact.title":"Contact us","modeselect.mode.contact.desc":"Ideas, troubleshooting or questions – we reply here in the app",
     "modeselect.mode.install.title":"Install the app","modeselect.mode.install.desc":"Get push notifications and faster loading",
@@ -2925,6 +3052,20 @@ const TRANSLATIONS={
     "pick.noPlayersFound":"No players found.",
     "pick.clearAll":"🗑 Clear everything and start over","pick.saveTeam":"Save my team →",
     "pick.missingPrefix":"Missing: ","pick.missingCaptain":"Missing: choose a captain (click ☆ on one of your players)",
+    "pick.transfersLeftLabel":"Transfers left","pick.transfersUnlimitedLabel":"Free (first round)",
+    "pick.transferLimitError":"You're trying to make {attempted} transfers but only have {available} left. Change back at least {diff} player(s) to save, or wait until next round when you'll get more.",
+    "rankfantasy.pickTitle":"Build your 14-player squad","rankfantasy.squadSelected":"Players in squad","rankfantasy.saveSquad":"Save squad",
+    "rankfantasy.title":"🎖️ The Ranking","rankfantasy.noSquadYet":"You haven't built your squad yet.",
+    "rankfantasy.buildSquadButton":"Build my squad →","rankfantasy.chooseFormation":"Choose formation",
+    "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
+    "rankfantasy.rankHint":"Your top-ranked player gets ×1.20 on their points, the lowest-ranked gets ×1.00 – linear in between.",
+    "rankfantasy.formationChangeNote":"Changing formation means you'll need to pick your starting XI again.",
+    "rankfantasy.needCount":"{have}/{need} chosen","rankfantasy.saveTip":"Save ranking",
+    "rankfantasy.yourFormation":"Your formation: {formation}","rankfantasy.benchNote":"Bench (0 points this round)",
+    "rankfantasy.pointsThisRound":"{pts} p this round","rankfantasy.leaderboardTitle":"🏆 League table – The Ranking",
+    "rankfantasy.editSquadLink":"Edit my squad","rankfantasy.roundTitle":"Round {n} – your ranking",
+    "rankfantasy.lockedNotice":"Your formation and ranking for the round are saved. Points show here as soon as results are ready.",
+    "rankfantasy.selectAllPositionsFirst":"Choose the right number of players in each position before ranking.",
     "common.roundMatchesHeader":"📅 Round {n} – matches",
     "tipp.backToLeague":"← Back to the league","tipp.noMatches":"No matches added for this round.",
     "tipp.rank":"Rank {rank} of {total} · {pts} p total",
@@ -3372,6 +3513,7 @@ const TRANSLATIONS={
     "modeselect.mode.investerare.title":"Ο Επενδυτής","modeselect.mode.investerare.desc":"Επένδυσε 1000 kr σε ομάδες – χτίσε το χαρτοφυλάκιό σου όλη τη σεζόν",
     "modeselect.mode.lts.title":"Last Team Standing","modeselect.mode.lts.desc":"Διάλεξε μία ομάδα κάθε γύρο – αν χάσεις τρεις φορές αποκλείεσαι",
     "modeselect.mode.anytime.title":"Πρώτος Σκόρερ","modeselect.mode.anytime.desc":"Διάλεξε 1 αμυντικό + 2 μέσους + 2 επιθετικούς που θα σκοράρουν",
+    "modeselect.mode.rankfantasy.title":"Η Κατάταξη","modeselect.mode.rankfantasy.desc":"Κατάταξε την ενδεκάδα σου – ο πρώτος δίνει τους περισσότερους πόντους",
     "modeselect.mode.standings.title":"Βαθμολογίες","modeselect.mode.standings.desc":"Δες την κατάταξη όλων των τρόπων παιχνιδιού σε ένα μέρος",
     "modeselect.mode.contact.title":"Επικοινωνία","modeselect.mode.contact.desc":"Ιδέες, προβλήματα ή ερωτήσεις – απαντάμε εδώ μέσα στην εφαρμογή",
     "modeselect.mode.install.title":"Εγκατάσταση εφαρμογής","modeselect.mode.install.desc":"Απόκτησε ειδοποιήσεις push και πιο γρήγορη φόρτωση",
@@ -3441,6 +3583,20 @@ const TRANSLATIONS={
     "pick.noPlayersFound":"Δεν βρέθηκαν παίκτες.",
     "pick.clearAll":"🗑 Καθάρισε τα πάντα και ξεκίνα ξανά","pick.saveTeam":"Αποθήκευση ομάδας →",
     "pick.missingPrefix":"Λείπει: ","pick.missingCaptain":"Λείπει: διάλεξε αρχηγό (πάτησε ☆ σε έναν από τους παίκτες σου)",
+    "pick.transfersLeftLabel":"Αλλαγές που απομένουν","pick.transfersUnlimitedLabel":"Ελεύθερο (πρώτος γύρος)",
+    "pick.transferLimitError":"Προσπαθείς να κάνεις {attempted} αλλαγές αλλά σου απομένουν μόνο {available}. Άλλαξε πίσω τουλάχιστον {diff} παίκτη/ες για να αποθηκεύσεις, ή περίμενε τον επόμενο γύρο για περισσότερες.",
+    "rankfantasy.pickTitle":"Φτιάξε την 14μελή σου ομάδα","rankfantasy.squadSelected":"Παίκτες στην ομάδα","rankfantasy.saveSquad":"Αποθήκευση ομάδας",
+    "rankfantasy.title":"🎖️ Η Κατάταξη","rankfantasy.noSquadYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.",
+    "rankfantasy.buildSquadButton":"Φτιάξε την ομάδα μου →","rankfantasy.chooseFormation":"Διάλεξε διάταξη",
+    "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
+    "rankfantasy.rankHint":"Ο παίκτης στην κορυφή της κατάταξής σου παίρνει ×1.20 στους πόντους του, ο τελευταίος ×1.00 – γραμμικά ανάμεσα.",
+    "rankfantasy.formationChangeNote":"Αν αλλάξεις διάταξη θα χρειαστεί να διαλέξεις ξανά την ενδεκάδα σου.",
+    "rankfantasy.needCount":"{have}/{need} επιλεγμένοι","rankfantasy.saveTip":"Αποθήκευση κατάταξης",
+    "rankfantasy.yourFormation":"Η διάταξή σου: {formation}","rankfantasy.benchNote":"Πάγκος (0 πόντοι αυτόν τον γύρο)",
+    "rankfantasy.pointsThisRound":"{pts} β. αυτόν τον γύρο","rankfantasy.leaderboardTitle":"🏆 Κατάταξη – Η Κατάταξη",
+    "rankfantasy.editSquadLink":"Επεξεργασία ομάδας μου","rankfantasy.roundTitle":"Γύρος {n} – η κατάταξή σου",
+    "rankfantasy.lockedNotice":"Η διάταξη και η κατάταξή σου για τον γύρο είναι αποθηκευμένες. Οι πόντοι εμφανίζονται εδώ μόλις είναι έτοιμα τα αποτελέσματα.",
+    "rankfantasy.selectAllPositionsFirst":"Διάλεξε τον σωστό αριθμό παικτών σε κάθε θέση πριν κατατάξεις.",
     "common.roundMatchesHeader":"📅 Γύρος {n} – αγώνες",
     "tipp.backToLeague":"← Πίσω στο πρωτάθλημα","tipp.noMatches":"Δεν υπάρχουν αγώνες για αυτόν τον γύρο.",
     "tipp.rank":"Θέση {rank} από {total} · {pts} β. σύνολο",
@@ -3923,6 +4079,41 @@ function render(){
       }
     };
   }
+  else if(screen==="rfpick"){root.innerHTML=renderRankFantasyPick();
+    window._rfPlayerSearchRender=()=>{
+      const list=document.getElementById("rf-player-list");
+      if(list){
+        const searchVal=document.getElementById("rf-player-search")?.value.toLowerCase()||"";
+        rankFantasyTeamFilter=document.getElementById("rf-team-filter")?.value||"";
+        const teamFilter=rankFantasyTeamFilter;
+        const picks=rankFantasyPickState.picks;
+        const usedTeams=POSITIONS.flatMap(pos=>(picks[pos]||[])).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.teamId:null;}).filter(Boolean);
+        const filtered=players.filter(p=>{
+          if(p.pos!==rankFantasyPickPos)return false;
+          if(searchVal&&!p.namn.toLowerCase().includes(searchVal))return false;
+          if(teamFilter&&String(p.teamId)!==teamFilter)return false;
+          return true;
+        });
+        list.innerHTML=filtered.map(p=>{
+          const sel=(picks[p.pos]||[]).includes(p.id);
+          const team=TEAMS.find(t=>t.id===p.teamId);
+          const c=POS_COLOR[p.pos];
+          const teamTaken=!sel&&usedTeams.includes(p.teamId);
+          const posFull=!sel&&(picks[p.pos]||[]).length>=RANKFANTASY_SQUAD_SIZE[p.pos];
+          const disabled=teamTaken||posFull;
+          return `<div class="fg-card" style="margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${disabled?0.45:1}">
+            <div class="fg-posbadge" style="width:34px;height:34px;background:${c.bg};color:${c.fc};font-size:11px">${p.pos}</div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:${sel?500:400}">${esc(p.namn)}</div>
+              <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?esc(t("pick.teamAlreadyTaken")):''}</div>
+            </div>
+            <button data-act="rf-pick-player" data-id="${p.id}" ${disabled?"disabled":""} style="width:32px;height:32px;border-radius:50%;background:${sel?G_GREENL:"var(--color-background-secondary)"};border:0.5px solid ${sel?G_GREEN:"#ccc"};color:${sel?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;cursor:${disabled?"not-allowed":"pointer"};font-size:16px;flex-shrink:0">${sel?"✓":"+"}</button>
+          </div>`;
+        }).join("")||`<div style="text-align:center;color:var(--color-text-secondary);padding:20px;font-size:13px">${esc(t("pick.noPlayersFound"))}</div>`;
+        attachHandlers();
+      }
+    };
+  }
   else if(screen==="rules")root.innerHTML=renderRulesScreen();
   else if(screen==="install")root.innerHTML=renderInstallGuide();
   else if(screen==="sponsors")root.innerHTML=renderSponsorsScreen();
@@ -4043,6 +4234,11 @@ function renderModeSelect(){
         <span style="font-size:28px">🎯</span>
         <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.anytime.title"))}</div>
         <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.anytime.desc"))}</div></div>
+      </button>`:""}
+      ${cfg.rankfantasyEnabled?`<button data-act="pick-mode" data-mode="rankfantasy" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px">
+        <span style="font-size:28px">🎖️</span>
+        <div><div style="font-weight:500;font-size:16px">${esc(t("modeselect.mode.rankfantasy.title"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("modeselect.mode.rankfantasy.desc"))}</div></div>
       </button>`:""}
       <button data-act="pick-mode" data-mode="standings" class="fg-card" style="display:flex;align-items:center;gap:14px;cursor:pointer;text-align:left;border:1.5px solid var(--color-border-tertiary);padding:18px;margin-top:6px">
         <span style="font-size:28px">🏆</span>
@@ -4579,7 +4775,7 @@ function renderPick(){
         </select>
       </div>
       ${renderRoundMatches(rounds[String(cfg.omg)])}
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div style="display:grid;grid-template-columns:${(currentUser.transferBaselinePicks&&currentUser.activeChip!=="frittlag")?"1fr 1fr 1fr":"1fr 1fr"};gap:8px;margin-bottom:10px">
         <div style="background:var(--color-background-secondary);border-radius:6px;padding:10px 8px;text-align:center">
           <div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("pick.playersSelected"))}</div>
           <div style="font-size:18px;font-weight:500">${totalPicked} / ${TOTAL_PICKS}</div>
@@ -4588,6 +4784,18 @@ function renderPick(){
           <div style="font-size:11px;color:${kap?G_GOLD:"var(--color-text-secondary)"}">${esc(t("pick.captainLabel"))}</div>
           <div style="font-size:16px;font-weight:500;color:${kap?G_GOLD:"var(--color-text-primary)"}">${kap?esc((players.find(p=>p.id===kap)||{namn:""}).namn):esc(t("pick.notSelected"))}</div>
         </div>
+        ${currentUser.transferBaselinePicks&&currentUser.activeChip!=="frittlag"?(()=>{
+          const oldIds=new Set(POSITIONS.flatMap(pos=>(currentUser.transferBaselinePicks[pos]||[])));
+          const newIds=new Set(POSITIONS.flatMap(pos=>(picks[pos]||[])));
+          const usedNow=[...oldIds].filter(id=>!newIds.has(id)).length;
+          const available=currentUser.freeTransfers==null?1:currentUser.freeTransfers;
+          const remaining=available-usedNow;
+          const over=remaining<0;
+          return `<div style="background:${over?"#fce8e8":G_GREENL};border-radius:6px;padding:10px 8px;text-align:center">
+            <div style="font-size:11px;color:${over?"#A32D2D":G_GREEN}">${esc(t("pick.transfersLeftLabel"))}</div>
+            <div style="font-size:18px;font-weight:500;color:${over?"#A32D2D":G_GREEN}">${remaining}</div>
+          </div>`;
+        })():""}
       </div>
       ${(()=>{
         const chipDefs=[
@@ -4645,6 +4853,107 @@ function renderPick(){
   </div>`;
 }
 
+function rankFantasyPickCount(picks){
+  return POSITIONS.reduce((s,pos)=>s+(picks[pos]||[]).length,0);
+}
+function rankFantasyMissingText(){
+  const missing=POSITIONS.filter(pos=>(rankFantasyPickState.picks[pos]||[]).length<RANKFANTASY_SQUAD_SIZE[pos]);
+  if(!missing.length) return "";
+  return t("pick.missingPrefix")+missing.map(pos=>{
+    const have=(rankFantasyPickState.picks[pos]||[]).length;
+    return `${posLabel(pos)} (${have}/${RANKFANTASY_SQUAD_SIZE[pos]})`;
+  }).join(", ");
+}
+function renderRankFantasyPick(){
+  const picks=rankFantasyPickState.picks;
+  const totalPicked=rankFantasyPickCount(picks);
+  const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+  const searchVal=document.getElementById("rf-player-search")?document.getElementById("rf-player-search").value.toLowerCase():"";
+  const teamFilter=rankFantasyTeamFilter||"";
+  const filtered=players.filter(p=>{
+    if(p.pos!==rankFantasyPickPos) return false;
+    if(searchVal && !p.namn.toLowerCase().includes(searchVal)) return false;
+    if(teamFilter && String(p.teamId)!==teamFilter) return false;
+    return true;
+  });
+  const usedTeams=POSITIONS.flatMap(pos=>(picks[pos]||[])).map(pid=>{const pl=players.find(p=>p.id===pid);return pl?pl.teamId:null;}).filter(Boolean);
+
+  const posTabs=POSITIONS.map(pos=>{
+    const have=(picks[pos]||[]).length, need=RANKFANTASY_SQUAD_SIZE[pos];
+    const full=have>=need;
+    const active=rankFantasyPickPos===pos;
+    const bg=full?POS_COLOR[pos].bg:"var(--color-background-primary)";
+    const fc=full?POS_COLOR[pos].fc:"var(--color-text-secondary)";
+    return `<button data-act="rf-pos-tab" data-pos="${pos}" style="flex:1;padding:8px 2px;border-radius:6px;border:${active?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${bg};color:${fc};font-size:11px;font-weight:500;cursor:pointer">${pos} ${have}/${need}</button>`;
+  }).join("");
+
+  const rows=filtered.map(p=>{
+    const sel=(picks[p.pos]||[]).includes(p.id);
+    const team=TEAMS.find(t=>t.id===p.teamId);
+    const c=POS_COLOR[p.pos];
+    const teamTaken=!sel&&usedTeams.includes(p.teamId);
+    const posFull=!sel&&(picks[p.pos]||[]).length>=RANKFANTASY_SQUAD_SIZE[p.pos];
+    const disabled=teamTaken||posFull;
+    return `<div class="fg-card" style="margin-bottom:8px;padding:10px 12px;display:flex;align-items:center;gap:10px;opacity:${disabled?0.45:1}">
+      <div class="fg-posbadge" style="width:34px;height:34px;background:${c.bg};color:${c.fc};font-size:11px">${p.pos}</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:${sel?500:400}">${esc(p.namn)}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary)">${esc(team?team.name:"")}${teamTaken?esc(t("pick.teamAlreadyTaken")):''}</div>
+      </div>
+      <button data-act="rf-pick-player" data-id="${p.id}" ${disabled?"disabled":""} style="width:32px;height:32px;border-radius:50%;background:${sel?G_GREENL:"var(--color-background-secondary)"};border:0.5px solid ${sel?G_GREEN:"#ccc"};color:${sel?G_GREEN:"var(--color-text-secondary)"};display:flex;align-items:center;justify-content:center;cursor:${disabled?"not-allowed":"pointer"};font-size:16px;flex-shrink:0">${sel?"✓":"+"}</button>
+    </div>`;
+  }).join("");
+
+  const missing=rankFantasyMissingText();
+
+  const transferCard=(mySquad&&mySquad.transferBaselinePicks)?(()=>{
+    const oldIds=new Set(POSITIONS.flatMap(pos=>(mySquad.transferBaselinePicks[pos]||[])));
+    const newIds=new Set(POSITIONS.flatMap(pos=>(picks[pos]||[])));
+    const usedNow=[...oldIds].filter(id=>!newIds.has(id)).length;
+    const available=mySquad.freeTransfers==null?1:mySquad.freeTransfers;
+    const remaining=available-usedNow;
+    const over=remaining<0;
+    return `<div style="background:${over?"#fce8e8":G_GREENL};border-radius:6px;padding:10px 8px;text-align:center">
+      <div style="font-size:11px;color:${over?"#A32D2D":G_GREEN}">${esc(t("pick.transfersLeftLabel"))}</div>
+      <div style="font-size:18px;font-weight:500;color:${over?"#A32D2D":G_GREEN}">${remaining}</div>
+    </div>`;
+  })():"";
+
+  return `
+  <div style="min-height:100vh;padding-bottom:90px">
+    <div class="fg-top">
+      <button data-act="rf-back-to-main" style="background:none;border:none;color:#fff;cursor:pointer;font-size:20px;padding:0">←</button>
+      <span style="font-weight:500;font-size:16px">${esc(t("rankfantasy.pickTitle"))}</span>
+    </div>
+    <div style="padding:12px 16px 0">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <input id="rf-player-search" type="search" placeholder="${esc(t("pick.searchPlaceholder"))}" oninput="window._rfPlayerSearchRender&&window._rfPlayerSearchRender()" style="flex:1;padding:8px 10px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:13px;background:var(--color-background-secondary)"/>
+        <select id="rf-team-filter" onchange="window._rfPlayerSearchRender&&window._rfPlayerSearchRender()" style="padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:8px;font-size:12px;background:var(--color-background-secondary);max-width:130px">
+          <option value="" ${teamFilter===""?"selected":""}>${esc(t("pick.allTeams"))}</option>
+          ${TEAMS.sort((a,b)=>a.name.localeCompare(b.name)).map(tm=>`<option value="${tm.id}" ${String(tm.id)===String(teamFilter)?"selected":""}>${esc(tm.name)}</option>`).join("")}
+        </select>
+      </div>
+      ${renderRoundMatches(rounds[String(cfg.omg)])}
+      <div style="display:grid;grid-template-columns:${transferCard?"1fr 1fr":"1fr"};gap:8px;margin-bottom:10px">
+        <div style="background:var(--color-background-secondary);border-radius:6px;padding:10px 8px;text-align:center">
+          <div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("rankfantasy.squadSelected"))}</div>
+          <div style="font-size:18px;font-weight:500">${totalPicked} / ${RANKFANTASY_TOTAL_SQUAD}</div>
+        </div>
+        ${transferCard}
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:10px">${posTabs}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("pick.maxOnePerTeam"))}</div>
+      ${rankFantasyPickErr?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;font-weight:500">${esc(rankFantasyPickErr)}</div>`:""}
+      <div style="font-size:13px;font-weight:500;margin-bottom:6px">${esc(posLabel(rankFantasyPickPos))}</div>
+    </div>
+    <div id="rf-player-list" style="padding:0 16px">${rows||`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("pick.noPlayersFound"))}</div>`}</div>
+    <div style="position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;padding:12px 16px;background:var(--color-background-primary);border-top:0.5px solid var(--color-border-tertiary)">
+      ${missing?`<div style="font-size:12px;color:#A32D2D;margin-bottom:8px;text-align:center;font-weight:500">${esc(missing)}</div>`:""}
+      ${totalPicked>0?`<button data-act="rf-clear-squad" class="fg-outbtn" style="width:100%;margin-bottom:8px">${esc(t("pick.clearAll"))}</button>`:""}
+      <button class="fg-btn" data-act="rf-save-squad">${esc(t("rankfantasy.saveSquad"))}</button>
+    </div>
+  </div>`;
+}
 function renderSponsorsScreen(){
   const active=sponsors.filter(s=>s.active);
   const rows=active.map(s=>`
@@ -5204,6 +5513,7 @@ function renderMain(){
     else if(appMode==="investerare") body=renderInvesterareTab();
     else if(appMode==="lts") body=renderLtsTab();
     else if(appMode==="anytime") body=renderAnytimeTab();
+    else if(appMode==="rankfantasy") body=renderRankFantasyTab();
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
@@ -5249,9 +5559,12 @@ function renderHemTab(sorted){
   if(harLag){
     const rd=rounds[String(cfg.omg)];
     teamHtml = `<div class="fg-card">
-      <div style="display:flex;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-weight:500">${esc(t("hemtab.myTeam"))}</div>
-        <button data-act="edit-team" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer">${esc(t("hemtab.editShort"))}</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${(user.transferBaselinePicks&&user.activeChip!=="frittlag")?`<span style="font-size:11px;color:${G_GREEN};font-weight:500">${esc(t("pick.transfersLeftLabel"))}: ${user.freeTransfers==null?1:user.freeTransfers}</span>`:""}
+          <button data-act="edit-team" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer">${esc(t("hemtab.editShort"))}</button>
+        </div>
       </div>
       ${POSITIONS.map(pos=>{
         const ids=user.picks[pos]||[];
@@ -6654,6 +6967,138 @@ window.saveLts=async function(){
     if(statusEl) statusEl.innerHTML=`<span style="color:#A32D2D">${esc(t("investerare.errorPrefix"))}${esc(e.message)}</span>`;
   }
 };
+function renderRankFantasyTab(){
+  const rd=rounds[String(cfg.omg)];
+  const locked=isRoundLocked(rd);
+  const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+  const squadComplete=mySquad&&POSITIONS.every(pos=>(mySquad.picks[pos]||[]).length===RANKFANTASY_SQUAD_SIZE[pos]);
+
+  if(!squadComplete){
+    return `
+    <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("rankfantasy.title"))}</div>
+    ${renderSponsorBanner("rankfantasy")}
+    <div class="fg-card" style="text-align:center;padding:2rem">
+      <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">${esc(t("rankfantasy.noSquadYet"))}</div>
+      <button class="fg-btn" data-act="rf-edit-squad">${esc(t("rankfantasy.buildSquadButton"))}</button>
+    </div>`;
+  }
+
+  const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
+
+  let body;
+  if(locked||savedTip){
+    if(!savedTip){
+      body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("rankfantasy.noSquadYet"))}</div></div>`;
+    } else {
+      const resultsShown=rd&&rd.results_published;
+      const myPts=resultsShown?calcRankFantasyRoundPts(currentUser.id,cfg.omg):0;
+      const rows=(savedTip.ranked_ids||[]).map((pid,i)=>{
+        const pl=players.find(p=>p.id===pid);
+        if(!pl)return"";
+        const team=TEAMS.find(tm=>tm.id===pl.teamId);
+        const rawPts=resultsShown?plPts(pl,rd):null;
+        const mult=rankFantasyMultiplier(i+1);
+        const finalPts=rawPts!=null?Math.round(rawPts*mult*10)/10:null;
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+          <div style="width:26px;height:26px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:500;flex-shrink:0">${i+1}</div>
+          <div style="flex:1"><div style="font-size:14px">${esc(pl.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")} · ×${mult.toFixed(2)}</div></div>
+          <div style="font-weight:600;font-size:14px">${finalPts!=null?finalPts+"p":"–"}</div>
+        </div>`;
+      }).join("");
+      body=`<div class="fg-card">
+        <div style="font-weight:500;margin-bottom:2px">${esc(t("common.roundLockedSimple"))}</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">${esc(t("rankfantasy.yourFormation",{formation:savedTip.formation}))}${resultsShown?" · "+esc(t("rankfantasy.pointsThisRound",{pts:myPts})):""}</div>
+        ${resultsShown?"":`<div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">${esc(t("rankfantasy.lockedNotice"))}</div>`}
+        ${rows}
+      </div>`;
+    }
+  } else {
+    const formation=rankFantasyFormationDraft;
+    const need=RANKFANTASY_FORMATIONS[formation];
+    const ranking=rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:(mySquad.picks.GK||[]).slice());
+    // Se till att målvakten alltid ligger med (auto, ingen toggle)
+    const gkId=(mySquad.picks.GK||[])[0];
+    const effectiveRanking = ranking.includes(gkId)?ranking:[gkId,...ranking.filter(id=>id!==gkId)];
+
+    const formationBtns=Object.keys(RANKFANTASY_FORMATIONS).map(f=>`
+      <button data-act="rf-pick-formation" data-formation="${f}" style="padding:9px 4px;border-radius:8px;border:${formation===f?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${formation===f?G_GREENL:"var(--color-background-primary)"};color:${formation===f?G_GREEN:"var(--color-text-primary)"};font-size:12px;font-weight:${formation===f?600:400};cursor:pointer;flex:1">${f}</button>
+    `).join("");
+
+    const posSections=["DEF","MID","FW"].map(pos=>{
+      const needCount=need[pos];
+      const squadIds=mySquad.picks[pos]||[];
+      const haveCount=squadIds.filter(id=>effectiveRanking.includes(id)).length;
+      const chips=squadIds.map(pid=>{
+        const pl=players.find(p=>p.id===pid);
+        if(!pl)return"";
+        const selected=effectiveRanking.includes(pid);
+        const disabled=!selected&&haveCount>=needCount;
+        return `<button data-act="rf-toggle-starter" data-id="${pid}" ${disabled?"disabled":""} style="padding:8px 10px;border-radius:8px;border:0.5px solid ${selected?G_GREEN:"var(--color-border-secondary)"};background:${selected?G_GREENL:"var(--color-background-primary)"};color:${selected?G_GREEN:disabled?"var(--color-text-secondary)":"var(--color-text-primary)"};font-size:12px;cursor:${disabled?"not-allowed":"pointer"};opacity:${disabled?0.5:1}">${esc(pl.namn)}</button>`;
+      }).join("");
+      return `<div style="margin-bottom:10px">
+        <div style="font-size:12px;font-weight:500;margin-bottom:6px;color:var(--color-text-secondary)">${posLabel(pos)} – ${esc(t("rankfantasy.needCount",{have:haveCount,need:needCount}))}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${chips}</div>
+      </div>`;
+    }).join("");
+
+    const totalNeeded=1+need.DEF+need.MID+need.FW;
+    const rankReady=effectiveRanking.length===totalNeeded;
+    const rankingRows=rankReady?effectiveRanking.map((pid,i)=>{
+      const pl=players.find(p=>p.id===pid);
+      if(!pl)return"";
+      const team=TEAMS.find(tm=>tm.id===pl.teamId);
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="width:24px;height:24px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;flex-shrink:0">${i+1}</div>
+        <div style="flex:1"><div style="font-size:13px">${esc(pl.namn)}</div><div style="font-size:10px;color:var(--color-text-secondary)">${esc(team?team.name:"")} · ×${rankFantasyMultiplier(i+1).toFixed(2)}</div></div>
+        <button data-act="rf-rank-move" data-id="${pid}" data-dir="-1" ${i===0||pl.pos==="GK"?"disabled":""} style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;width:28px;height:28px;cursor:pointer;opacity:${i===0||pl.pos==="GK"?0.3:1}">↑</button>
+        <button data-act="rf-rank-move" data-id="${pid}" data-dir="1" ${i===effectiveRanking.length-1||pl.pos==="GK"?"disabled":""} style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;width:28px;height:28px;cursor:pointer;opacity:${i===effectiveRanking.length-1||pl.pos==="GK"?0.3:1}">↓</button>
+      </div>`;
+    }).join(""):"";
+
+    body=`<div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">${esc(t("rankfantasy.chooseFormation"))}</div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">${formationBtns}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary)">${esc(t("rankfantasy.formationChangeNote"))}</div>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:8px">${esc(t("rankfantasy.chooseStarters"))}</div>
+      ${posSections}
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">${esc(t("rankfantasy.rankStarters"))}</div>
+      <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${esc(t("rankfantasy.rankHint"))}</div>
+      ${rankReady?rankingRows:`<div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("rankfantasy.selectAllPositionsFirst"))}</div>`}
+      <div id="rf-tip-status" style="font-size:13px;text-align:center;margin-top:10px;min-height:18px"></div>
+      ${rankReady?`<button class="fg-btn" style="margin-top:8px" onclick="window.saveRankFantasyTip()">${esc(t("rankfantasy.saveTip"))}</button>`:""}
+    </div>`;
+  }
+
+  const lb=[...rankFantasySquads].filter(s=>rankFantasyAllTipsGlobal.some(tp=>tp.user_id===s.userId)).sort((a,b)=>userRankFantasyTotalPts(b.userId)-userRankFantasyTotalPts(a.userId));
+  const medals=["🥇","🥈","🥉"];
+  const lbRows=lb.map((s,i)=>{
+    const u=users.find(x=>x.id===s.userId);
+    if(!u)return"";
+    const pts=Math.round(userRankFantasyTotalPts(s.userId)*10)/10;
+    const isMe=u.id===currentUser.id;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary);${isMe?`background:${G_GREENL};border-radius:6px;padding-left:6px`:""}">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <span style="flex:1;font-size:14px;font-weight:${isMe?500:400}">${esc(u.namn)}${isMe?esc(t("tipp.you")):""}</span>
+      <span style="font-weight:500">${pts} p</span>
+    </div>`;
+  }).join("");
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:2px">${esc(t("rankfantasy.roundTitle",{n:cfg.omg}))}</div>
+  <button data-act="rf-edit-squad" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer;padding:0;margin-bottom:12px">${esc(t("rankfantasy.editSquadLink"))}</button>
+  ${renderSponsorBanner("rankfantasy")}
+  ${renderRoundMatches(rd)}
+  ${body}
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("rankfantasy.leaderboardTitle"))}</div>
+    ${lbRows||`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("tipp.noTipsYet"))}</div>`}
+  </div>
+  ${renderPrivateLeagueSection("rankfantasy")}`;
+}
 function renderAnytimeTab(){
   const rd=rounds[String(cfg.omg)];
   const locked=isRoundLocked(rd);
@@ -8144,6 +8589,7 @@ function renderAdminTab(){
       ["investerare","💰","Investeraren","investerareEnabled","investerare_enabled"],
       ["lts","💀","Last Team Standing","ltsEnabled","lts_enabled"],
       ["anytime","🎯","Skyttekung","anytimeEnabled","anytime_enabled"],
+      ["rankfantasy","🎖️","Rangordningen","rankfantasyEnabled","rankfantasy_enabled"],
     ];
     const rows=modes.map(([id,ico,name,cfgKey,dbKey])=>`
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
@@ -10060,7 +10506,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal,rankFantasySquads,rankFantasyAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds(),fetchRankFantasySquads(),fetchAllRankFantasyTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
       if(tryAutoLoginViaAccount()){
@@ -10095,7 +10541,7 @@ function attachHandlers(){
         users=await fetchUsers();
         rounds=await fetchRounds();
         cfg=await fetchConfig();
-        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+        try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal,rankFantasySquads,rankFantasyAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds(),fetchRankFantasySquads(),fetchAllRankFantasyTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
@@ -10620,7 +11066,7 @@ function attachHandlers(){
       users=await fetchUsers();
       rounds=await fetchRounds();
       cfg=await fetchConfig();
-      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal,rankFantasySquads,rankFantasyAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds(),fetchRankFantasySquads(),fetchAllRankFantasyTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
       try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
@@ -11160,6 +11606,17 @@ function attachHandlers(){
       const allFilled=POSITIONS.every(pos=>(pickState.picks[pos]||[]).length===POS_COUNT[pos]);
       if(!allFilled){pickErr="Fyll alla positioner enligt 4-3-3 innan du sparar.";render();return;}
       if(!pickState.kapten){pickErr="Sätt en kapten innan du sparar.";render();return;}
+      if(currentUser.transferBaselinePicks&&currentUser.activeChip!=="frittlag"){
+        const oldIds=new Set(POSITIONS.flatMap(pos=>(currentUser.transferBaselinePicks[pos]||[])));
+        const newIds=new Set(POSITIONS.flatMap(pos=>(pickState.picks[pos]||[])));
+        const attempted=[...oldIds].filter(id=>!newIds.has(id)).length;
+        const available=currentUser.freeTransfers==null?1:currentUser.freeTransfers;
+        if(attempted>available){
+          pickErr=t("pick.transferLimitError",{attempted,available,diff:attempted-available});
+          render();
+          return;
+        }
+      }
       await updateUserPicks(currentUser.id,pickState.picks,pickState.kapten,pickState.chipMeta||null);
       users=users.map(u=>u.id===currentUser.id?{...u,picks:pickState.picks,kapten:pickState.kapten,chipMeta:pickState.chipMeta||null}:u);
       currentUser={...currentUser,picks:pickState.picks,kapten:pickState.kapten,chipMeta:pickState.chipMeta||null};
@@ -11168,6 +11625,100 @@ function attachHandlers(){
     else if(act==="edit-team"){
       pickState={picks: currentUser.picks ? {GK:[...(currentUser.picks.GK||[])],DEF:[...(currentUser.picks.DEF||[])],MID:[...(currentUser.picks.MID||[])],FW:[...(currentUser.picks.FW||[])]} : {GK:[],DEF:[],MID:[],FW:[]}, kapten:currentUser.kapten||null, chipMeta:currentUser.chipMeta?{...currentUser.chipMeta}:null};
       pickPos="GK"; pickErr=""; screen="pick"; render();
+    }
+    else if(act==="rf-pos-tab"){rankFantasyPickPos=el.dataset.pos;render();}
+    else if(act==="rf-pick-player"){
+      const pl=players.find(p=>p.id===el.dataset.id);
+      const inPos=(rankFantasyPickState.picks[pl.pos]||[]);
+      if(inPos.includes(pl.id)){
+        rankFantasyPickState.picks[pl.pos]=inPos.filter(id=>id!==pl.id);
+        rankFantasyPickErr=""; render(); return;
+      }
+      if(inPos.length>=RANKFANTASY_SQUAD_SIZE[pl.pos]){rankFantasyPickErr=`Du har redan valt ${RANKFANTASY_SQUAD_SIZE[pl.pos]} ${posLabel(pl.pos).toLowerCase()}(er).`;render();setTimeout(()=>{rankFantasyPickErr="";render();},2200);return;}
+      const usedTeams=POSITIONS.flatMap(pos=>(rankFantasyPickState.picks[pos]||[])).map(pid=>{const p=players.find(x=>x.id===pid);return p?p.teamId:null;}).filter(Boolean);
+      if(usedTeams.includes(pl.teamId)){rankFantasyPickErr="Du har redan en spelare från det laget i din trupp.";render();setTimeout(()=>{rankFantasyPickErr="";render();},2200);return;}
+      rankFantasyPickState.picks[pl.pos]=[...inPos,pl.id];
+      rankFantasyPickErr=""; render();
+    }
+    else if(act==="rf-clear-squad"){
+      if(!confirm("Rensa hela din 14-mannatrupp och börja om? Sparas direkt."))return;
+      if(blockIfTrialExpired())return;
+      const emptyPicks={GK:[],DEF:[],MID:[],FW:[]};
+      const error=await saveRankFantasySquad(currentUser.id,emptyPicks);
+      if(error){flash("Fel: "+error.message+" (har du kört SQL-migreringen för rankfantasy_squads?)");return;}
+      rankFantasySquads=rankFantasySquads.map(s=>s.userId===currentUser.id?{...s,picks:emptyPicks}:s);
+      rankFantasyPickState={picks:emptyPicks};
+      rankFantasyPickErr=""; render();
+      flash("✓ Truppen rensad – välj dina 14 nya spelare.");
+    }
+    else if(act==="rf-save-squad"){
+      if(blockIfTrialExpired())return;
+      const allFilled=POSITIONS.every(pos=>(rankFantasyPickState.picks[pos]||[]).length===RANKFANTASY_SQUAD_SIZE[pos]);
+      if(!allFilled){rankFantasyPickErr="Fyll truppen enligt 1-5-5-3 innan du sparar.";render();return;}
+      const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+      if(mySquad&&mySquad.transferBaselinePicks){
+        const oldIds=new Set(POSITIONS.flatMap(pos=>(mySquad.transferBaselinePicks[pos]||[])));
+        const newIds=new Set(POSITIONS.flatMap(pos=>(rankFantasyPickState.picks[pos]||[])));
+        const attempted=[...oldIds].filter(id=>!newIds.has(id)).length;
+        const available=mySquad.freeTransfers==null?1:mySquad.freeTransfers;
+        if(attempted>available){
+          rankFantasyPickErr=t("pick.transferLimitError",{attempted,available,diff:attempted-available});
+          render();
+          return;
+        }
+      }
+      const error=await saveRankFantasySquad(currentUser.id,rankFantasyPickState.picks);
+      if(error){flash("Fel: "+error.message+" (har du kört SQL-migreringen för rankfantasy_squads?)");return;}
+      if(mySquad){
+        rankFantasySquads=rankFantasySquads.map(s=>s.userId===currentUser.id?{...s,picks:rankFantasyPickState.picks}:s);
+      } else {
+        rankFantasySquads=[...rankFantasySquads,{id:currentUser.id+"-"+currentLeague.id,userId:currentUser.id,picks:rankFantasyPickState.picks,freeTransfers:1,transferBaselinePicks:null}];
+      }
+      rankFantasyPickErr=""; screen="main"; mainTab="hem"; appMode="rankfantasy"; render();
+    }
+    else if(act==="rf-edit-squad"){
+      const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+      const base=mySquad?mySquad.picks:{GK:[],DEF:[],MID:[],FW:[]};
+      rankFantasyPickState={picks:{GK:[...(base.GK||[])],DEF:[...(base.DEF||[])],MID:[...(base.MID||[])],FW:[...(base.FW||[])]}};
+      rankFantasyPickPos="GK"; rankFantasyPickErr=""; screen="rfpick"; render();
+    }
+    else if(act==="rf-back-to-main"){ screen="main"; mainTab="hem"; render(); }
+    else if(act==="rf-pick-formation"){
+      rankFantasyFormationDraft=el.dataset.formation;
+      rankFantasyRankingDraft=[]; // ny formation = välj startelva på nytt
+      render();
+    }
+    else if(act==="rf-toggle-starter"){
+      const pid=el.dataset.id;
+      const pl=players.find(p=>p.id===pid);
+      const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+      const gkId=(mySquad.picks.GK||[])[0];
+      let ranking=rankFantasyRankingDraft.length?[...rankFantasyRankingDraft]:[gkId];
+      if(ranking.includes(pid)){
+        ranking=ranking.filter(id=>id!==pid);
+      } else {
+        const need=RANKFANTASY_FORMATIONS[rankFantasyFormationDraft][pl.pos];
+        const haveCount=ranking.filter(id=>{const p=players.find(x=>x.id===id);return p&&p.pos===pl.pos;}).length;
+        if(haveCount>=need) return;
+        ranking.push(pid);
+      }
+      rankFantasyRankingDraft=ranking;
+      render();
+    }
+    else if(act==="rf-rank-move"){
+      const pid=el.dataset.id;
+      const dir=Number(el.dataset.dir);
+      const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+      const gkId=(mySquad.picks.GK||[])[0];
+      const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
+      let ranking=rankFantasyRankingDraft.length?[...rankFantasyRankingDraft]:(savedTip?[...savedTip.ranked_ids]:[gkId]);
+      const idx=ranking.indexOf(pid);
+      const newIdx=idx+dir;
+      if(idx<0||newIdx<0||newIdx>=ranking.length) return;
+      if(ranking[newIdx]===gkId||ranking[idx]===gkId) return; // målvakten flyttas aldrig
+      [ranking[idx],ranking[newIdx]]=[ranking[newIdx],ranking[idx]];
+      rankFantasyRankingDraft=ranking;
+      render();
     }
     else if(act==="logout"){currentUser=null;appMode=null;screen="home";homeMode="start";forgetAccount();if(presenceHeartbeatTimer){clearInterval(presenceHeartbeatTimer);presenceHeartbeatTimer=null;}presenceSessionId=null;render();}
     else if(act==="main-tab"){
@@ -12006,7 +12557,7 @@ function attachHandlers(){
     users=await fetchUsers();
     rounds=await fetchRounds();
     cfg=await fetchConfig();
-    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds()]);}catch(e){console.error(e);}
+    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal,rankFantasySquads,rankFantasyAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds(),fetchRankFantasySquads(),fetchAllRankFantasyTipsAllRounds()]);}catch(e){console.error(e);}
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
     if(tryAutoLoginViaAccount()){
