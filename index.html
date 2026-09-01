@@ -2267,9 +2267,11 @@ window.saveSnabbast=async function(){
 window.saveRankFantasyTip=async function(){
   if(blockIfTrialExpired())return;
   const statusEl=document.getElementById("rf-tip-status");
+  const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+  const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad?mySquad.picks[pos]||[]:[])));
   const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
   const formation = rankFantasyFormationDraft || (savedTip ? savedTip.formation : "4-3-3");
-  const ranking=rankFantasyRankingDraft;
+  const ranking=rankFantasyRankingDraft.filter(id=>squadPlayerIds.has(id));
   const need=RANKFANTASY_FORMATIONS[formation];
   const totalNeeded=1+need.DEF+need.MID+need.FW;
   if(ranking.length!==totalNeeded){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("rankfantasy.selectAllPositionsFirst"))+'</span>'; return; }
@@ -7087,7 +7089,12 @@ function renderRankFantasyTab(){
     // senast sparade formationen, eller 4-3-3 som standard för en helt ny spelare.
     const formation = rankFantasyFormationDraft || (savedTip ? savedTip.formation : "4-3-3");
     const need={GK:1,...RANKFANTASY_FORMATIONS[formation]};
-    const ranking=rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[]);
+    // Skyddsnät: filtrera bort ev. spelar-ID:n som inte längre finns i truppen
+    // (t.ex. om truppen ändrats sedan rangordningen senast sparades) – annars
+    // kan "osynliga" poster i arrayen förskjuta rangnumren för nya val.
+    const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad.picks[pos]||[])));
+    const rawRanking=rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[]);
+    const ranking=rawRanking.filter(id=>squadPlayerIds.has(id));
 
     const formationBtns=Object.keys(RANKFANTASY_FORMATIONS).map(f=>`
       <button data-act="rf-pick-formation" data-formation="${f}" style="padding:9px 4px;border-radius:8px;border:${formation===f?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${formation===f?G_GREENL:"var(--color-background-primary)"};color:${formation===f?G_GREEN:"var(--color-text-primary)"};font-size:12px;font-weight:${formation===f?600:400};cursor:pointer;flex:1">${f}</button>
@@ -11750,6 +11757,10 @@ function attachHandlers(){
       } else {
         rankFantasySquads=[...rankFantasySquads,{id:currentUser.id+"-"+currentLeague.id,userId:currentUser.id,picks:rankFantasyPickState.picks,freeTransfers:1,transferBaselinePicks:null}];
       }
+      // Truppen kan ha ändrats (nya/borttagna spelare) – ett tidigare påbörjat
+      // rangordningsval kan innehålla spelare som inte längre finns kvar, vilket
+      // annars ger "osynliga" hål i rangordningen. Börja om rent.
+      rankFantasyRankingDraft=[];
       rankFantasyPickErr=""; screen="main"; mainTab="hem"; appMode="rankfantasy"; render();
     }
     else if(act==="rf-edit-squad"){
@@ -11767,6 +11778,7 @@ function attachHandlers(){
         MID:[...(currentUser.picks.MID||[])],
         FW:[...(currentUser.picks.FW||[])]
       }};
+      rankFantasyRankingDraft=[]; // ny/ändrad trupp – börja om rangordningen rent
       rankFantasyPickPos="DEF"; // hoppa direkt till positionen som saknar spelare
       rankFantasyPickErr=""; rankFantasyPickInfo=t("rankfantasy.importSuccess");
       screen="rfpick"; render();
@@ -11781,9 +11793,11 @@ function attachHandlers(){
     else if(act==="rf-toggle-starter"){
       const pid=el.dataset.id;
       const pl=players.find(p=>p.id===pid);
+      const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+      const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad.picks[pos]||[])));
       const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
       const formation=rankFantasyFormationDraft||(savedTip?savedTip.formation:"4-3-3");
-      let ranking=rankFantasyRankingDraft.length?[...rankFantasyRankingDraft]:(savedTip?[...savedTip.ranked_ids]:[]);
+      let ranking=(rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[])).filter(id=>squadPlayerIds.has(id));
       if(ranking.includes(pid)){
         ranking=ranking.filter(id=>id!==pid);
       } else {
@@ -11798,8 +11812,10 @@ function attachHandlers(){
     else if(act==="rf-rank-move"){
       const pid=el.dataset.id;
       const dir=Number(el.dataset.dir);
+      const mySquad=rankFantasySquads.find(s=>s.userId===currentUser.id);
+      const squadPlayerIds=new Set(POSITIONS.flatMap(pos=>(mySquad.picks[pos]||[])));
       const savedTip=rankFantasyAllTipsGlobal.find(tp=>tp.user_id===currentUser.id&&Number(tp.round_num)===Number(cfg.omg));
-      let ranking=rankFantasyRankingDraft.length?[...rankFantasyRankingDraft]:(savedTip?[...savedTip.ranked_ids]:[]);
+      let ranking=(rankFantasyRankingDraft.length?rankFantasyRankingDraft:(savedTip?savedTip.ranked_ids:[])).filter(id=>squadPlayerIds.has(id));
       const idx=ranking.indexOf(pid);
       const newIdx=idx+dir;
       if(idx<0||newIdx<0||newIdx>=ranking.length) return;
