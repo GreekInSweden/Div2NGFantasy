@@ -138,6 +138,16 @@ function rankFantasyOpponentText(teamId,rd){
   return `vs ${opp.name} (${isHome?t("common.homeAbbrev"):t("common.awayAbbrev")})`;
 }
 const POS_COLOR={GK:{bg:"#E6F1FB",fc:"#185FA5"},DEF:{bg:"#EAF3DE",fc:"#3B6D11"},MID:{bg:"#FAEEDA",fc:"#854F0B"},FW:{bg:"#FAECE7",fc:"#993C1D"}};
+// Spelformer som har en förklarande landningssida innan man kastas rakt in i
+// spelet. Visas automatiskt bara första gången per spelform (styrs av
+// currentUser.onboardingSeen), men kan alltid tas fram igen via "?"-knappen
+// inne i respektive spelform.
+const MODE_INTRO_LIST=["fantasy","rankfantasy","duellen","tipp","ligatipp"];
+// Liten återanvändbar "?"-länk att lägga in i respektive spelforms egen vy,
+// så man kan ta fram landningssidan igen manuellt efter första gången.
+function modeIntroLink(mode){
+  return `<button data-act="show-mode-intro" data-mode="${mode}" style="background:none;border:none;color:var(--color-text-secondary);font-size:11px;cursor:pointer;padding:0;text-decoration:underline;margin-bottom:10px;display:inline-block">${esc(t("modeintro.viewAgainLink"))}</button>`;
+}
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:7},MID:{clean:2,goal:5},FW:{clean:1,goal:5}};
 const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
 // Push API-nyckel – behövs i klienten för att kunna skicka notiser
@@ -215,6 +225,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     snabbastMyTips={}, snabbastAllTips=[], snabbastDraft=[], snabbastAllTipsGlobal=[],
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
     rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyDraftRound=null, rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
+    modeIntroShowing=null, modeIntroPendingScreen=null, modeIntroPendingTab=null,
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     pendingUnassignedUser=null,
@@ -469,7 +480,7 @@ async function deletePlayer(id){
   if(error)console.error(error);
 }
 async function fetchUsers(){
-  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id,email,paid,join_round,active_chip,chip_meta,chips_used,chip_pre_snapshot,free_transfers,transfer_baseline_picks").eq("league_id",currentLeague.id).order("created_at");
+  const {data,error}=await sb.from("fantasy_users").select("id,namn,picks,kapten,tips,created_at,account_id,email,paid,join_round,active_chip,chip_meta,chips_used,chip_pre_snapshot,free_transfers,transfer_baseline_picks,onboarding_seen").eq("league_id",currentLeague.id).order("created_at");
   if(error){console.error(error);return [];}
   let accountPaidMap={},accountTrialMap={};
   const accountIds=[...new Set(data.map(u=>u.account_id).filter(Boolean))];
@@ -479,7 +490,16 @@ async function fetchUsers(){
       if(accs) accs.forEach(a=>{accountPaidMap[a.id]=!!a.paid;accountTrialMap[a.id]=a.trial_started_at||null;});
     }catch(e){console.error("fetchUsers accountPaidMap error:",e);}
   }
-  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||"",paid:!!u.paid||!!accountPaidMap[u.account_id],join_round:u.join_round==null?null:Number(u.join_round),trialStartedAt:accountTrialMap[u.account_id]||null,activeChip:u.active_chip||null,chipMeta:u.chip_meta||null,chipsUsed:u.chips_used||[],chipPreSnapshot:u.chip_pre_snapshot||null,freeTransfers:u.free_transfers==null?1:u.free_transfers,transferBaselinePicks:u.transfer_baseline_picks||null}));
+  return data.map(u=>({id:u.id,namn:u.namn,picks:u.picks||{GK:[],DEF:[],MID:[],FW:[]},kapten:u.kapten,tips:u.tips||{},created_at:u.created_at,account_id:u.account_id||null,email:u.email||"",paid:!!u.paid||!!accountPaidMap[u.account_id],join_round:u.join_round==null?null:Number(u.join_round),trialStartedAt:accountTrialMap[u.account_id]||null,activeChip:u.active_chip||null,chipMeta:u.chip_meta||null,chipsUsed:u.chips_used||[],chipPreSnapshot:u.chip_pre_snapshot||null,freeTransfers:u.free_transfers==null?1:u.free_transfers,transferBaselinePicks:u.transfer_baseline_picks||null,onboardingSeen:u.onboarding_seen||[]}));
+}
+// Markerar en spelforms landningssida som sedd för alltid, så den inte visas
+// automatiskt igen (man kan fortfarande se den manuellt via "?"-knappen).
+async function markModeIntroSeen(mode){
+  if(!currentUser) return;
+  const seen=[...new Set([...(currentUser.onboardingSeen||[]),mode])];
+  currentUser={...currentUser,onboardingSeen:seen};
+  users=users.map(u=>u.id===currentUser.id?{...u,onboardingSeen:seen}:u);
+  try{ await sb.from("fantasy_users").update({onboarding_seen:seen}).eq("id",currentUser.id); }catch(e){console.error("Kunde inte spara sedd landningssida:",e);}
 }
 // Sant om spelarens provperiod gått ut OCH de inte markerats som betalda.
 // Provperioden räknas nu GLOBALT (via det delade Väg A-kontot) i antal DAGAR
@@ -2550,6 +2570,23 @@ const TRANSLATIONS={
     "rankfantasy.fantasyNotComplete":"Din vanliga Fantasy-trupp är inte komplett än – bygg klart den först.",
     "rankfantasy.chooseStarters":"Välj din startelva","rankfantasy.rankStarters":"Rangordna din startelva",
     "rankfantasy.clearRankingButton":"🗑 Rensa allt och börja om",
+    "modeintro.howItWorksTitle":"Så här funkar det","modeintro.continueButton":"Kom igång →",
+    "modeintro.viewAgainLink":"❓ Hur funkar det här?",
+    "modeintro.fantasy.bullet1":"Bygg ett drömlag med 11 spelare i formationen 4-3-3 – max en spelare per lag.",
+    "modeintro.fantasy.bullet2":"Utse en kapten – dennes poäng räknas dubbelt.",
+    "modeintro.fantasy.bullet3":"Få poäng när dina spelares lag vinner, håller nollan eller gör mål.",
+    "modeintro.rankfantasy.bullet1":"Bygg en bredare trupp på 14 spelare – flera kan komma från samma lag, bara inte på samma position.",
+    "modeintro.rankfantasy.bullet2":"Välj formation och rangordna din startelva varje omgång – ordningen du klickar spelarna i avgör rangordningen.",
+    "modeintro.rankfantasy.bullet3":"Din bäst rankade spelare ger mest bonus – tänk igenom vem du litar mest på just den här omgången.",
+    "modeintro.duellen.bullet1":"Möt en annan spelare hemma och borta under säsongen, precis som ett riktigt seriespel.",
+    "modeintro.duellen.bullet2":"Vinnaren avgörs automatiskt av vem som får flest poäng i Tippa resultat den omgången.",
+    "modeintro.duellen.bullet3":"Samla poäng i en egen tabell – 3 för vinst, 1 för oavgjort, 0 för förlust.",
+    "modeintro.tipp.bullet1":"Gissa det exakta resultatet i varje match, varje omgång.",
+    "modeintro.tipp.bullet2":"Exakt rätt ger mest poäng – rätt antal mål för ett lag eller bara rätt utfall (1X2) ger mindre.",
+    "modeintro.tipp.bullet3":"Ju fler omgångar du tippar, desto högre klättrar du i tipsligan.",
+    "modeintro.ligatipp.bullet1":"Rangordna alla lag i serien innan säsongen ens startat – vem vinner, vem slutar sist?",
+    "modeintro.ligatipp.bullet2":"Poäng delas ut vid två tillfällen: vid halvtid och när säsongen är slut.",
+    "modeintro.ligatipp.bullet3":"Går bara att göra en gång per säsong – tänk igenom ditt tips ordentligt innan du sparar!",
     "rankfantasy.rankHint":"Din bäst rankade spelare ger mest extra poäng, den sämst rankade minst – ju högre upp du placerar någon, desto mer räknas deras insats.",
     "rankfantasy.formationChangeNote":"Byter du formation måste du välja startelva på nytt.",
     "rankfantasy.clickOrderHint":"💡 Ordningen du klickar spelarna i avgör din rangordning – först klickad blir din 1:a (störst bonus), sist klickad din sista. Du kan finjustera med pilarna längre ner efteråt.",
@@ -3090,6 +3127,23 @@ const TRANSLATIONS={
     "rankfantasy.fantasyNotComplete":"Your regular Fantasy squad isn't complete yet – finish building it first.",
     "rankfantasy.chooseStarters":"Choose your starting XI","rankfantasy.rankStarters":"Rank your starting XI",
     "rankfantasy.clearRankingButton":"🗑 Clear everything and start over",
+    "modeintro.howItWorksTitle":"How it works","modeintro.continueButton":"Get started →",
+    "modeintro.viewAgainLink":"❓ How does this work?",
+    "modeintro.fantasy.bullet1":"Build a dream team of 11 players in a 4-3-3 formation – max one player per team.",
+    "modeintro.fantasy.bullet2":"Appoint a captain – their points count double.",
+    "modeintro.fantasy.bullet3":"Score points when your players' teams win, keep a clean sheet, or score goals.",
+    "modeintro.rankfantasy.bullet1":"Build a wider squad of 14 players – several can come from the same team, just not in the same position.",
+    "modeintro.rankfantasy.bullet2":"Choose a formation and rank your starting XI every round – the order you click players in determines the ranking.",
+    "modeintro.rankfantasy.bullet3":"Your top-ranked player gives the biggest bonus – think about who you trust most this particular round.",
+    "modeintro.duellen.bullet1":"Face another player home and away over the season, just like a real league.",
+    "modeintro.duellen.bullet2":"The winner is decided automatically by who gets more points in Predict the Result that round.",
+    "modeintro.duellen.bullet3":"Earn points in your own table – 3 for a win, 1 for a draw, 0 for a loss.",
+    "modeintro.tipp.bullet1":"Guess the exact result of every match, every round.",
+    "modeintro.tipp.bullet2":"An exact result gives the most points – the correct goal count for one team or just the right outcome (1X2) gives less.",
+    "modeintro.tipp.bullet3":"The more rounds you predict, the higher you climb the prediction league.",
+    "modeintro.ligatipp.bullet1":"Rank all the teams in the league before the season even starts – who wins, who finishes last?",
+    "modeintro.ligatipp.bullet2":"Points are awarded twice: at halfway and when the season ends.",
+    "modeintro.ligatipp.bullet3":"Only possible once per season – think your prediction through carefully before saving!",
     "rankfantasy.rankHint":"Your top-ranked player earns you the biggest bonus, the lowest-ranked the smallest – the higher up you place someone, the more their performance counts.",
     "rankfantasy.formationChangeNote":"Changing formation means you'll need to pick your starting XI again.",
     "rankfantasy.clickOrderHint":"💡 The order you click players in determines your ranking – first clicked becomes your #1 (biggest bonus), last clicked your last. You can fine-tune with the arrows further down afterward.",
@@ -3630,6 +3684,23 @@ const TRANSLATIONS={
     "rankfantasy.fantasyNotComplete":"Η κανονική σου ομάδα Fantasy δεν είναι ακόμα ολοκληρωμένη – ολοκλήρωσέ την πρώτα.",
     "rankfantasy.chooseStarters":"Διάλεξε την βασική σου ενδεκάδα","rankfantasy.rankStarters":"Κατάταξε την ενδεκάδα σου",
     "rankfantasy.clearRankingButton":"🗑 Καθάρισε τα πάντα και ξεκίνα ξανά",
+    "modeintro.howItWorksTitle":"Πώς λειτουργεί","modeintro.continueButton":"Ξεκίνα →",
+    "modeintro.viewAgainLink":"❓ Πώς λειτουργεί αυτό;",
+    "modeintro.fantasy.bullet1":"Φτιάξε μια ονειρική ομάδα με 11 παίκτες στη διάταξη 4-3-3 – μέγιστο ένας παίκτης ανά ομάδα.",
+    "modeintro.fantasy.bullet2":"Όρισε έναν αρχηγό – οι πόντοι του διπλασιάζονται.",
+    "modeintro.fantasy.bullet3":"Κέρδισε πόντους όταν οι ομάδες των παικτών σου κερδίζουν, κρατάνε καθαρό μηδέν, ή σκοράρουν.",
+    "modeintro.rankfantasy.bullet1":"Φτιάξε μια μεγαλύτερη ομάδα 14 παικτών – πολλοί μπορούν να προέρχονται από την ίδια ομάδα, αρκεί να μην είναι στην ίδια θέση.",
+    "modeintro.rankfantasy.bullet2":"Διάλεξε διάταξη και κατάταξε την ενδεκάδα σου κάθε γύρο – η σειρά με την οποία πατάς τους παίκτες καθορίζει την κατάταξη.",
+    "modeintro.rankfantasy.bullet3":"Ο παίκτης στην κορυφή της κατάταξής σου δίνει το μεγαλύτερο μπόνους – σκέψου ποιον εμπιστεύεσαι περισσότερο αυτόν τον γύρο.",
+    "modeintro.duellen.bullet1":"Αναμετρήσου με έναν άλλο παίκτη εντός και εκτός έδρας σε όλη τη σεζόν, σαν πραγματικό πρωτάθλημα.",
+    "modeintro.duellen.bullet2":"Ο νικητής καθορίζεται αυτόματα από το ποιος παίρνει περισσότερους πόντους στο Πρόβλεψε το Αποτέλεσμα εκείνον τον γύρο.",
+    "modeintro.duellen.bullet3":"Μάζεψε πόντους στον δικό σου πίνακα – 3 για νίκη, 1 για ισοπαλία, 0 για ήττα.",
+    "modeintro.tipp.bullet1":"Μάντεψε το ακριβές αποτέλεσμα κάθε αγώνα, κάθε γύρο.",
+    "modeintro.tipp.bullet2":"Το ακριβές αποτέλεσμα δίνει τους περισσότερους πόντους – ο σωστός αριθμός γκολ για μία ομάδα ή απλώς η σωστή έκβαση (1Χ2) δίνει λιγότερους.",
+    "modeintro.tipp.bullet3":"Όσο περισσότερους γύρους προβλέπεις, τόσο πιο ψηλά ανεβαίνεις στην κατάταξη προβλέψεων.",
+    "modeintro.ligatipp.bullet1":"Κατάταξε όλες τις ομάδες στο πρωτάθλημα πριν καν ξεκινήσει η σεζόν – ποιος κερδίζει, ποιος τελειώνει τελευταίος;",
+    "modeintro.ligatipp.bullet2":"Οι πόντοι μοιράζονται δύο φορές: στα μισά και όταν τελειώσει η σεζόν.",
+    "modeintro.ligatipp.bullet3":"Γίνεται μόνο μία φορά ανά σεζόν – σκέψου καλά την πρόβλεψή σου πριν αποθηκεύσεις!",
     "rankfantasy.rankHint":"Ο παίκτης στην κορυφή της κατάταξής σου σου δίνει το μεγαλύτερο μπόνους, ο τελευταίος το μικρότερο – όσο πιο ψηλά τοποθετείς κάποιον, τόσο περισσότερο μετράει η απόδοσή του.",
     "rankfantasy.formationChangeNote":"Αν αλλάξεις διάταξη θα χρειαστεί να διαλέξεις ξανά την ενδεκάδα σου.",
     "rankfantasy.clickOrderHint":"💡 Η σειρά με την οποία πατάς τους παίκτες καθορίζει την κατάταξή σου – ο πρώτος που πατάς γίνεται ο #1 (μεγαλύτερο μπόνους), ο τελευταίος ο τελευταίος. Μπορείς να προσαρμόσεις με τα βέλη παρακάτω μετά.",
@@ -4077,6 +4148,7 @@ function render(){
   else if(screen==="reg")root.innerHTML=renderReg();
   else if(screen==="unassigned-reg")root.innerHTML=renderUnassignedReg();
   else if(screen==="unassigned")root.innerHTML=renderUnassignedHome();
+  else if(screen==="mode-intro")root.innerHTML=renderModeIntro();
   else if(screen==="mode")root.innerHTML=renderModeSelect();
   else if(screen==="pick"){root.innerHTML=renderPick();
     // Sök-hook: re-renderar bara spellistan utan att hoppa till toppen
@@ -4736,6 +4808,83 @@ function renderUnassignedHome(){
       <button class="fg-btn" data-act="unassigned-back-to-leagues" style="margin-bottom:10px">${esc(t("unassignedHome.browseLeaguesButton"))}</button>
       <button data-act="unassigned-logout" style="width:100%;background:none;border:none;color:var(--color-text-secondary);font-size:12px;cursor:pointer;text-decoration:underline">${esc(t("unassignedHome.logoutButton"))}</button>
     </div>
+  </div>`;
+}
+function renderModeIntro(){
+  const mode=modeIntroShowing;
+  const icoMap={fantasy:"⚽",rankfantasy:"🎖️",duellen:"🥊",tipp:"🎯",ligatipp:"📊"};
+  const titleKeyMap={fantasy:"home.mode.fantasy.title",rankfantasy:"modeselect.mode.rankfantasy.title",duellen:"home.mode.duellen.title",tipp:"home.mode.tipp.title",ligatipp:"home.mode.ligatipp.title"};
+  const title=t(titleKeyMap[mode]||mode);
+  const bullets=[1,2,3].map(n=>t(`modeintro.${mode}.bullet${n}`));
+
+  const illustration=(()=>{
+    if(mode==="fantasy"){
+      const dot=(c,label)=>`<div style="width:34px;height:34px;border-radius:50%;background:${c.bg};color:${c.fc};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;border:2px solid #fff">${label}</div>`;
+      return `<div style="background:#1b4d2e;border-radius:14px;padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:14px">
+        <div style="display:flex;gap:20px">${dot(POS_COLOR.FW,"AN")}${dot(POS_COLOR.FW,"AN")}${dot(POS_COLOR.FW,"AN")}</div>
+        <div style="display:flex;gap:16px">${dot(POS_COLOR.MID,"MF")}${dot(POS_COLOR.MID,"MF")}${dot(POS_COLOR.MID,"MF")}</div>
+        <div style="display:flex;gap:14px">${dot(POS_COLOR.DEF,"FS")}${dot(POS_COLOR.DEF,"FS")}${dot(POS_COLOR.DEF,"FS")}${dot(POS_COLOR.DEF,"FS")}</div>
+        <div style="width:34px;height:34px;border-radius:50%;background:${G_GOLD};color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;border:2px solid #fff">★MV</div>
+      </div>`;
+    }
+    if(mode==="rankfantasy"){
+      const rows=[[1,"92%"],[2,"78%"],[3,"64%"]];
+      return `<div style="background:var(--color-background-secondary);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;gap:10px">
+        ${rows.map(([n,w])=>`<div style="display:flex;align-items:center;gap:10px">
+          <div style="width:24px;height:24px;border-radius:50%;background:${G_GREEN};color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${n}</div>
+          <div style="flex:1;height:14px;border-radius:7px;background:var(--color-border-tertiary);overflow:hidden"><div style="width:${w};height:100%;background:${G_GREEN}"></div></div>
+        </div>`).join("")}
+      </div>`;
+    }
+    if(mode==="duellen"){
+      return `<div style="background:var(--color-background-secondary);border-radius:14px;padding:26px 16px;display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="display:flex;align-items:center;gap:16px">
+          <div style="width:46px;height:46px;border-radius:50%;background:${G_GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700">A</div>
+          <div style="font-weight:700;color:var(--color-text-secondary);font-size:14px">VS</div>
+          <div style="width:46px;height:46px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700">B</div>
+        </div>
+        <div style="font-size:22px">🏆</div>
+      </div>`;
+    }
+    if(mode==="tipp"){
+      return `<div style="background:var(--color-background-secondary);border-radius:14px;padding:26px 16px;display:flex;flex-direction:column;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500">
+          <span>Hemmalag</span>
+          <span style="background:${G_GREENL};color:${G_GREEN};border-radius:6px;padding:4px 10px;font-weight:700">2</span>
+          <span>–</span>
+          <span style="background:${G_GREENL};color:${G_GREEN};border-radius:6px;padding:4px 10px;font-weight:700">1</span>
+          <span>Bortalag</span>
+        </div>
+        <div style="color:${G_GREEN};font-weight:600;font-size:13px">✓ Exakt rätt! +10 p</div>
+      </div>`;
+    }
+    if(mode==="ligatipp"){
+      const teams=["Lag A","Lag B","Lag C"];
+      return `<div style="background:var(--color-background-secondary);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:8px">
+        ${teams.map((tm,i)=>`<div style="display:flex;align-items:center;gap:10px">
+          <div style="width:22px;height:22px;border-radius:50%;background:${G_GREEN};color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0">${i+1}</div>
+          <div style="font-size:13px">${tm}</div>
+        </div>`).join("")}
+      </div>`;
+    }
+    return "";
+  })();
+
+  return `
+  <div style="min-height:100vh;padding:24px;max-width:420px;margin:0 auto;display:flex;flex-direction:column">
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:40px;margin-bottom:8px">${icoMap[mode]||"🎮"}</div>
+      <div style="font-size:22px;font-weight:600">${esc(title)}</div>
+    </div>
+    ${illustration}
+    <div class="fg-card" style="margin-top:20px">
+      <div style="font-weight:600;margin-bottom:12px">${esc(t("modeintro.howItWorksTitle"))}</div>
+      ${bullets.map(b=>`<div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-start">
+        <span style="color:${G_GREEN};font-size:16px;line-height:1.4">•</span>
+        <span style="font-size:13px;line-height:1.5">${esc(b)}</span>
+      </div>`).join("")}
+    </div>
+    <button class="fg-btn" data-act="mode-intro-continue" style="margin-top:24px">${esc(t("modeintro.continueButton"))}</button>
   </div>`;
 }
 function pickMissingText(){
@@ -5674,6 +5823,7 @@ function renderHemTab(sorted){
     <button data-act="logout" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;color:var(--color-text-secondary)">${esc(t("common.logout"))}</button>
   </div>
   ${renderSponsorBanner("fantasy")}
+  ${modeIntroLink("fantasy")}
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
     <div style="background:${G_GREENL};border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:${G_GREEN}">${esc(t("common.round",{n:cfg.omg}))}</div><div style="font-size:28px;font-weight:500;color:${G_GREEN}">${omgP}</div></div>
     <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("common.total"))}</div><div style="font-size:28px;font-weight:500">${totP}</div></div>
@@ -5821,6 +5971,7 @@ function renderTippTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("tipp.title"))}</div>
   ${renderSponsorBanner("tipp")}
+  ${modeIntroLink("tipp")}
   ${roundPicker}
   ${inputSection}
   <div class="fg-card">
@@ -6085,6 +6236,7 @@ function renderLigatippTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("ligatipp.title"))}</div>
   ${renderSponsorBanner("ligatipp")}
+  ${modeIntroLink("ligatipp")}
   <div class="fg-card" style="padding:10px">
     ${locked?`<div style="background:#fce8e8;border-radius:6px;padding:8px 12px;font-size:13px;color:#c1272d;font-weight:500;margin-bottom:10px">${esc(t("ligatipp.predictionsClosedNotice"))}</div>`:""}
     <div style="display:flex;gap:6px;margin-bottom:12px">${cpTabs}</div>
@@ -6396,6 +6548,7 @@ function renderDuellenTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">${esc(t("duellen.title"))}</div>
   ${renderSponsorBanner("duellen")}
+  ${modeIntroLink("duellen")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:14px">${esc(t("duellen.season1Subtitle",{rank:myRank>0?myRank:"–",total:standings.length,n:cfg.omg,total2:duellenConfig.total_rounds}))}</div>
   ${matchCard}
   <div class="fg-card">
@@ -6442,6 +6595,7 @@ function renderDuellenDivisionView(){
       return `
       <div style="font-weight:500;font-size:16px;margin-bottom:4px">${esc(t("duellen.title"))} – ${esc(t("common.season",{season:1}))}</div>
       ${renderSponsorBanner("duellen")}
+  ${modeIntroLink("duellen")}
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${esc(t("duellen.freeLeaguePlay"))}${isCurrentSeason?"":esc(t("duellen.endedSuffix"))}</div>
       ${seasonPicker}
       <div class="fg-card">
@@ -6549,6 +6703,7 @@ function renderDuellenDivisionView(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:4px">${esc(t("duellen.title"))} – ${esc(t("common.season",{season}))}${isCurrentSeason?"":esc(t("duellen.seasonEnded"))}</div>
   ${renderSponsorBanner("duellen")}
+  ${modeIntroLink("duellen")}
   <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px">${esc(viewDivision.name)}${isCurrentSeason?" · "+esc(t("common.round",{n:cfg.omg})):""}</div>
   ${seasonPicker}
   ${divisionPicker}
@@ -7047,6 +7202,7 @@ function renderRankFantasyTab(){
     return `
     <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("rankfantasy.title"))}</div>
     ${renderSponsorBanner("rankfantasy")}
+    ${modeIntroLink("rankfantasy")}
     <div class="fg-card" style="text-align:center;padding:2rem">
       <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">${esc(t("rankfantasy.noSquadYet"))}</div>
       <button class="fg-btn" data-act="rf-edit-squad" style="margin-bottom:${fantasyComplete?"10px":"0"}">${esc(t("rankfantasy.buildSquadButton"))}</button>
@@ -7193,6 +7349,7 @@ function renderRankFantasyTab(){
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("rankfantasy.roundTitle",{n:cfg.omg}))}</div>
   ${renderSponsorBanner("rankfantasy")}
+    ${modeIntroLink("rankfantasy")}
   ${renderRoundMatches(rd)}
   <button data-act="rf-edit-squad" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer;padding:0;margin-bottom:10px">${esc(t("rankfantasy.editSquadLink"))}</button>
   ${body}
@@ -11028,6 +11185,11 @@ function attachHandlers(){
       }
       // Ladda privata ligor
       try{try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}}catch(e){allPrivateLeagues=[];}
+      // Visa spelformens landningssida om det är första gången man går in i den
+      if(MODE_INTRO_LIST.includes(appMode) && !(currentUser.onboardingSeen||[]).includes(appMode)){
+        modeIntroPendingScreen=screen; modeIntroPendingTab=mainTab;
+        modeIntroShowing=appMode; screen="mode-intro";
+      }
       render();
     }
     else if(act==="pl-view"){
@@ -11805,6 +11967,20 @@ function attachHandlers(){
       setTimeout(()=>{rankFantasyPickInfo="";render();},5000);
     }
     else if(act==="rf-back-to-main"){ screen="main"; mainTab="hem"; render(); }
+    else if(act==="mode-intro-continue"){
+      const mode=modeIntroShowing;
+      if(mode && !(currentUser.onboardingSeen||[]).includes(mode)){
+        markModeIntroSeen(mode); // sparas i bakgrunden, väntar inte in svaret
+      }
+      screen=modeIntroPendingScreen||"main"; mainTab=modeIntroPendingTab||"hem";
+      modeIntroShowing=null; modeIntroPendingScreen=null; modeIntroPendingTab=null;
+      render();
+    }
+    else if(act==="show-mode-intro"){
+      modeIntroPendingScreen=screen; modeIntroPendingTab=mainTab;
+      modeIntroShowing=el.dataset.mode; screen="mode-intro";
+      render();
+    }
     else if(act==="rf-clear-ranking"){
       rankFantasyRankingDraft=[];
       render();
