@@ -2551,6 +2551,7 @@ const TRANSLATIONS={
     "pick.chipActiveSuffix":" – Aktiv denna omgång","pick.chipUsedSuffix":" – Använt",
     "pick.chipCancel":"Avbryt","pick.chipUsed":"Använt","pick.chipUse":"Använd",
     "pick.chipTitle":"🃏 Chip","pick.chipSubtitle":"Ett per omgång, ett per säsong – välj klokt",
+    "pick.chipLockedForRound":"🔒 Omgången är låst – chip kan inte ändras förrän nästa omgång",
     "pick.teamsInMyTeam":"🏟 Lag i ditt lag","pick.freeTeamActiveNote":" (Fritt lag aktivt – ingen spärr just nu)",
     "pick.maxOnePerTeam":"⚠️ Max en spelare per lag totalt i hela laget",
     "pick.noPlayersFound":"Inga spelare hittades.",
@@ -3108,6 +3109,7 @@ const TRANSLATIONS={
     "pick.chipActiveSuffix":" – Active this round","pick.chipUsedSuffix":" – Used",
     "pick.chipCancel":"Cancel","pick.chipUsed":"Used","pick.chipUse":"Use",
     "pick.chipTitle":"🃏 Chip","pick.chipSubtitle":"One per round, one per season – choose wisely",
+    "pick.chipLockedForRound":"🔒 The round is locked – the chip can't be changed until next round",
     "pick.teamsInMyTeam":"🏟 Teams in your team","pick.freeTeamActiveNote":" (Free Team active – no limit right now)",
     "pick.maxOnePerTeam":"⚠️ Max one player per team across your whole squad",
     "pick.noPlayersFound":"No players found.",
@@ -3665,6 +3667,7 @@ const TRANSLATIONS={
     "pick.chipActiveSuffix":" – Ενεργό αυτόν τον γύρο","pick.chipUsedSuffix":" – Χρησιμοποιήθηκε",
     "pick.chipCancel":"Ακύρωση","pick.chipUsed":"Χρησιμοποιήθηκε","pick.chipUse":"Χρήση",
     "pick.chipTitle":"🃏 Chip","pick.chipSubtitle":"Ένα ανά γύρο, ένα ανά σεζόν – διάλεξε σοφά",
+    "pick.chipLockedForRound":"🔒 Ο γύρος είναι κλειδωμένος – το chip δεν μπορεί να αλλάξει μέχρι τον επόμενο γύρο",
     "pick.teamsInMyTeam":"🏟 Ομάδες στην ομάδα σου","pick.freeTeamActiveNote":" (Ελεύθερη Ομάδα ενεργή – κανένας περιορισμός αυτή τη στιγμή)",
     "pick.maxOnePerTeam":"⚠️ Μέγιστο ένας παίκτης ανά ομάδα σε όλο το σύνολό σου",
     "pick.noPlayersFound":"Δεν βρέθηκαν παίκτες.",
@@ -4903,6 +4906,43 @@ function usedTeamIds(excludePid){
   return ids.map(pid=>{const p=players.find(x=>x.id===pid);return p?p.teamId:null;}).filter(x=>x!=null);
 }
 
+// Chip-kortet – återanvänds både i "Ändra lag" och på Fantasy-hemfliken, så
+// man kan aktivera/avbryta ett chip utan att behöva gå in i redigeringsläget.
+// Chip kan bara ändras innan omgången låsts (annars är det redan för sent att
+// påverka poängen för omgången, så knapparna byts mot ren information).
+function renderChipCard(){
+  const rd=rounds[String(cfg.omg)];
+  const roundLocked=isRoundLocked(rd);
+  const chipDefs=[
+    {id:"hallanollan",ico:"🧤",label:t("pick.chip.hallanollan.label"),desc:t("pick.chip.hallanollan.desc")},
+    {id:"trippelbindeln",ico:"🚀",label:t("pick.chip.trippelbindeln.label"),desc:t("pick.chip.trippelbindeln.desc")},
+    {id:"kaptenboost",ico:"👑",label:t("pick.chip.kaptenboost.label"),desc:t("pick.chip.kaptenboost.desc")},
+    {id:"frittlag",ico:"♾️",label:t("pick.chip.frittlag.label"),desc:t("pick.chip.frittlag.desc")}
+  ];
+  const chipsUsed=currentUser.chipsUsed||[];
+  const activeChip=currentUser.activeChip;
+  const rows=chipDefs.map(c=>{
+    const used=chipsUsed.includes(c.id);
+    const active=activeChip===c.id;
+    const otherActive=activeChip&&!active;
+    const bg=active?'#fff3d6':used?'var(--color-background-secondary)':'var(--color-background-primary)';
+    const border=active?'1.5px solid #e6a817':'0.5px solid var(--color-border-tertiary)';
+    const disabled=roundLocked||(used&&!active)||otherActive;
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:${bg};border:${border};border-radius:8px;margin-bottom:6px;opacity:${used&&!active?0.5:1}">
+      <span style="font-size:20px">${c.ico}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:500">${esc(c.label)}${active?esc(t("pick.chipActiveSuffix")):used?esc(t("pick.chipUsedSuffix")):''}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary)">${esc(c.desc)}</div>
+      </div>
+      <button data-act="${active?'deactivate-chip':'activate-chip'}" data-chip="${c.id}" ${disabled?"disabled":""} style="background:${active?'#e6a817':'#1a1a1a'};color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:500;cursor:${disabled?'not-allowed':'pointer'};white-space:nowrap;opacity:${disabled?0.4:1}">${active?esc(t("pick.chipCancel")):used?esc(t("pick.chipUsed")):esc(t("pick.chipUse"))}</button>
+    </div>`;
+  }).join("");
+  return `<div class="fg-card" style="margin-bottom:10px">
+    <div style="font-weight:500;margin-bottom:2px">${esc(t("pick.chipTitle"))}</div>
+    <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${roundLocked?esc(t("pick.chipLockedForRound")):esc(t("pick.chipSubtitle"))}</div>
+    ${rows}
+  </div>`;
+}
 function renderPick(){
   const picks=pickState.picks, kap=pickState.kapten;
   const totalPicked = POSITIONS.reduce((s,pos)=>s+(picks[pos]||[]).length,0);
@@ -4988,36 +5028,7 @@ function renderPick(){
           </div>`;
         })():""}
       </div>
-      ${(()=>{
-        const chipDefs=[
-          {id:"hallanollan",ico:"🧤",label:t("pick.chip.hallanollan.label"),desc:t("pick.chip.hallanollan.desc")},
-          {id:"trippelbindeln",ico:"🚀",label:t("pick.chip.trippelbindeln.label"),desc:t("pick.chip.trippelbindeln.desc")},
-          {id:"kaptenboost",ico:"👑",label:t("pick.chip.kaptenboost.label"),desc:t("pick.chip.kaptenboost.desc")},
-          {id:"frittlag",ico:"♾️",label:t("pick.chip.frittlag.label"),desc:t("pick.chip.frittlag.desc")}
-        ];
-        const chipsUsed=currentUser.chipsUsed||[];
-        const activeChip=currentUser.activeChip;
-        const rows=chipDefs.map(c=>{
-          const used=chipsUsed.includes(c.id);
-          const active=activeChip===c.id;
-          const otherActive=activeChip&&!active;
-          const bg=active?'#fff3d6':used?'var(--color-background-secondary)':'var(--color-background-primary)';
-          const border=active?'1.5px solid #e6a817':'0.5px solid var(--color-border-tertiary)';
-          return `<div style="display:flex;align-items:center;gap:10px;padding:10px;background:${bg};border:${border};border-radius:8px;margin-bottom:6px;opacity:${used&&!active?0.5:1}">
-            <span style="font-size:20px">${c.ico}</span>
-            <div style="flex:1">
-              <div style="font-size:13px;font-weight:500">${esc(c.label)}${active?esc(t("pick.chipActiveSuffix")):used?esc(t("pick.chipUsedSuffix")):''}</div>
-              <div style="font-size:11px;color:var(--color-text-secondary)">${esc(c.desc)}</div>
-            </div>
-            <button data-act="${active?'deactivate-chip':'activate-chip'}" data-chip="${c.id}" ${used&&!active?"disabled":otherActive?"disabled":""} style="background:${active?'#e6a817':'#1a1a1a'};color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:500;cursor:${used&&!active||otherActive?'not-allowed':'pointer'};white-space:nowrap;opacity:${used&&!active||otherActive?0.4:1}">${active?esc(t("pick.chipCancel")):used?esc(t("pick.chipUsed")):esc(t("pick.chipUse"))}</button>
-          </div>`;
-        }).join("");
-        return `<div class="fg-card" style="margin-bottom:10px">
-          <div style="font-weight:500;margin-bottom:2px">${esc(t("pick.chipTitle"))}</div>
-          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:10px">${esc(t("pick.chipSubtitle"))}</div>
-          ${rows}
-        </div>`;
-      })()}
+      ${renderChipCard()}
       ${(()=>{
         const frittlagActive=currentUser&&currentUser.activeChip==="frittlag";
         const usedTeamsForDisplay=frittlagActive?[]:usedTeamIds(null);
@@ -5829,6 +5840,7 @@ function renderHemTab(sorted){
     <div style="background:var(--color-background-secondary);border-radius:10px;padding:14px;text-align:center"><div style="font-size:12px;color:var(--color-text-secondary)">${esc(t("common.total"))}</div><div style="font-size:28px;font-weight:500">${totP}</div></div>
   </div>
   ${teamHtml}
+  ${harLag?renderChipCard():""}
   <div class="fg-card">
     <div style="font-weight:500;margin-bottom:8px">${esc(t("hemtab.scoringRules"))}</div>
     <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">${esc(t("hemtab.teamResultRule"))}</div>
