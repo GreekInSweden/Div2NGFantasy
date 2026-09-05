@@ -226,6 +226,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
     rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyDraftRound=null, rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
     modeIntroShowing=null, modeIntroPendingScreen=null, modeIntroPendingTab=null,
+    teamPagesSelectedId=null, teamPagesStaffDraft="", teamPagesWriterDraft="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     pendingUnassignedUser=null,
@@ -893,6 +894,63 @@ async function saveRankFantasyTip(roundNum,formation,rankedIds){
 // Poäng för en given omgång: varje rangordnad startande spelare får sina
 // vanliga Fantasy-poäng (samma plPts-motor) × platsmultiplikatorn för sin
 // rangordning. Bänkade spelare (inte med i ranked_ids) ger 0.
+// ── Serietabellen – riktig fotbollstabell räknad ur inlagda matchresultat ───
+// Bygger på samma data som redan matas in för Fantasy/Tippa resultat, ingen
+// extra inmatning behövs. "variant" avgör vilka matcher som räknas med:
+// "full"/"home"/"away" = hela säsongen (ev. bara hemma/borta),
+// "last5"/"last5home"/"last5away" = bara de 5 senaste aktuella matcherna.
+function getAllPlayedMatchesChrono(){
+  return Object.keys(rounds)
+    .map(Number).sort((a,b)=>a-b)
+    .filter(r=>rounds[String(r)].results_published)
+    .flatMap(r=>(rounds[String(r)].matches||[])
+      .filter(m=>m.hMål!=null&&m.aMål!=null&&m.hId!=null&&m.aId!=null)
+      .map(m=>({...m,round:r})));
+}
+function computeLeagueTable(variant){
+  const played=getAllPlayedMatchesChrono();
+  const stats={};
+  TEAMS.forEach(tm=>{ stats[tm.id]={teamId:tm.id,name:tm.name,p:0,w:0,d:0,l:0,gf:0,ga:0,form:[]}; });
+
+  const addResult=(row,gf,ga)=>{
+    row.p++; row.gf+=gf; row.ga+=ga;
+    if(gf>ga){row.w++;row.form.push("W");}
+    else if(gf<ga){row.l++;row.form.push("L");}
+    else{row.d++;row.form.push("D");}
+  };
+
+  if(variant==="last5"||variant==="last5home"||variant==="last5away"){
+    // Bygg varje lags egen matchhistorik (i rätt venue om det behövs), ta de 5 senaste
+    TEAMS.forEach(tm=>{
+      const relevant=played.filter(m=>{
+        if(variant==="last5home") return m.hId===tm.id;
+        if(variant==="last5away") return m.aId===tm.id;
+        return m.hId===tm.id||m.aId===tm.id;
+      }).slice(-5);
+      relevant.forEach(m=>{
+        const isHome=m.hId===tm.id;
+        addResult(stats[tm.id],isHome?m.hMål:m.aMål,isHome?m.aMål:m.hMål);
+      });
+    });
+  } else {
+    played.forEach(m=>{
+      if(variant!=="away" && stats[m.hId]) addResult(stats[m.hId],m.hMål,m.aMål);
+      if(variant!=="home" && stats[m.aId]) addResult(stats[m.aId],m.aMål,m.hMål);
+    });
+  }
+
+  return Object.values(stats)
+    .map(r=>({...r,gd:r.gf-r.ga,pts:r.w*3+r.d,form:r.form.slice(-5)}))
+    .sort((a,b)=>b.pts-a.pts||b.gd-a.gd||b.gf-a.gf||a.name.localeCompare(b.name,"sv"));
+}
+function getLatestResultsRound(){
+  const rs=Object.keys(rounds).map(Number).filter(r=>rounds[String(r)].results_published).sort((a,b)=>b-a);
+  return rs.length?rs[0]:null;
+}
+function getUpcomingRound(){
+  const rs=Object.keys(rounds).map(Number).filter(r=>!rounds[String(r)].results_published&&(rounds[String(r)].matches||[]).length).sort((a,b)=>a-b);
+  return rs.length?rs[0]:null;
+}
 function calcRankFantasyRoundPts(userId,roundNum){
   const rd=rounds[String(roundNum)];
   if(!rd||!rd.results_published) return 0;
@@ -2495,14 +2553,24 @@ const TRANSLATIONS={
     "modeselect.mode.hof.title":"Hall of Fame","modeselect.mode.hof.desc":"Säsongsvinnare per spelform",
     "modeselect.mode.quiz.titleSuffix":"Quiz","modeselect.mode.quiz.desc":"Allmänna frågor om {league}",
     "common.sponsoredBy":"Sponsras av","common.visitLink":"Besök →","common.logout":"Logga ut",
-    "tabs.spelformer":"Spelformer","tabs.hem":"Hem","tabs.regler":"Regler","tabs.liga":"Liga","tabs.inbox":"Inbox","tabs.stats":"Statistik",
+    "tabs.spelformer":"Spelformer","tabs.hem":"Hem","tabs.regler":"Regler","tabs.liga":"Liga","tabs.inbox":"Inbox","tabs.stats":"Statistik","tabs.serien":"Serien",
+    "serie.title":"🏆 {league}","serie.variant.full":"Tabell","serie.variant.home":"Hemmafacit","serie.variant.away":"Bortafacit",
+    "serie.variant.last5":"Senaste 5","serie.variant.last5home":"Senaste 5 hemma","serie.variant.last5away":"Senaste 5 borta",
+    "serie.colTeam":"Lag","serie.colPlayed":"S","serie.colWDL":"V-O-F","serie.colGoals":"Mål","serie.colGD":"MSK","serie.colPts":"P","serie.colForm":"Form",
+    "serie.latestResultsTitle":"📅 Senaste resultat (Omgång {n})","serie.upcomingTitle":"🔜 Kommande matcher (Omgång {n})",
+    "serie.noResultsYet":"Inga resultat inlagda ännu.","serie.noUpcomingYet":"Inga kommande matcher inlagda ännu.",
+    "serie.latestNewsTitle":"📰 Senaste nyheter","serie.noNewsYet":"Inga nyheter publicerade ännu.",
+    "serie.backToTable":"← Tillbaka till tabellen","serie.teamLatestResultTitle":"📅 Senaste resultat","serie.teamUpcomingTitle":"🔜 Kommande match",
+    "serie.writerSectionTitle":"Nyheter från laget","serie.squadTitle":"👥 Truppen","serie.staffLabel":"Ledare",
+    "serie.gkLabel":"Målvakter","serie.defLabel":"Försvar","serie.midLabel":"Mittfältare","serie.fwLabel":"Forwards",
+    "serie.noSquadYet":"Ingen trupp inlagd ännu.",
     "tabs.hof":"Hall of Fame","tabs.standings":"Ställningar","tabs.profil":"Profil","tabs.stod":"Stöd oss",
     "header.suffix.tipp":" · Tipp","header.suffix.ligatipp":" · Tippa serien","header.suffix.snabbast":" · Snabbast",
     "header.suffix.maljakten":" · Måljakten","header.suffix.matchfokus":" · Matchexperten",
     "common.adminLock":"🔒 Admin","common.switchLeague":"Byt serie",
     "pos.GK":"Målvakt","pos.DEF":"Försvarare","pos.MID":"Mittfältare","pos.FW":"Forward",
     "common.round":"Omgång {n}","common.total":"Totalt",
-    "hemtab.myTeam":"Mitt lag (4-3-3)","hemtab.editShort":"✏ Byt",
+    "hemtab.myTeam":"Mitt lag (4-3-3)","hemtab.editShort":"✏ Byt","hemtab.editTeamButton":"✏️ Ändra mitt lag",
     "hemtab.noTeamYet":"Du har inte byggt ditt lag ännu.","hemtab.buildTeamButton":"Bygg mitt lag →",
     "hemtab.rank":"Plats {rank} av {total}","hemtab.notRanked":"Inte rankad",
     "hemtab.scoringRules":"Poängregler","hemtab.teamResultRule":"Lagresultat: Vinst 5p · Oavgjort 2p · Förlust 0p",
@@ -3053,14 +3121,24 @@ const TRANSLATIONS={
     "modeselect.mode.hof.title":"Hall of Fame","modeselect.mode.hof.desc":"Season winners per game mode",
     "modeselect.mode.quiz.titleSuffix":"Quiz","modeselect.mode.quiz.desc":"General questions about {league}",
     "common.sponsoredBy":"Sponsored by","common.visitLink":"Visit →","common.logout":"Log out",
-    "tabs.spelformer":"Game modes","tabs.hem":"Home","tabs.regler":"Rules","tabs.liga":"League","tabs.inbox":"Inbox","tabs.stats":"Statistics",
+    "tabs.spelformer":"Game modes","tabs.hem":"Home","tabs.regler":"Rules","tabs.liga":"League","tabs.inbox":"Inbox","tabs.stats":"Statistics","tabs.serien":"Standings",
+    "serie.title":"🏆 {league}","serie.variant.full":"Table","serie.variant.home":"Home form","serie.variant.away":"Away form",
+    "serie.variant.last5":"Last 5","serie.variant.last5home":"Last 5 home","serie.variant.last5away":"Last 5 away",
+    "serie.colTeam":"Team","serie.colPlayed":"P","serie.colWDL":"W-D-L","serie.colGoals":"Goals","serie.colGD":"GD","serie.colPts":"Pts","serie.colForm":"Form",
+    "serie.latestResultsTitle":"📅 Latest results (Round {n})","serie.upcomingTitle":"🔜 Upcoming matches (Round {n})",
+    "serie.noResultsYet":"No results entered yet.","serie.noUpcomingYet":"No upcoming matches entered yet.",
+    "serie.latestNewsTitle":"📰 Latest news","serie.noNewsYet":"No news published yet.",
+    "serie.backToTable":"← Back to table","serie.teamLatestResultTitle":"📅 Latest result","serie.teamUpcomingTitle":"🔜 Upcoming match",
+    "serie.writerSectionTitle":"News from the team","serie.squadTitle":"👥 Squad","serie.staffLabel":"Staff",
+    "serie.gkLabel":"Goalkeepers","serie.defLabel":"Defenders","serie.midLabel":"Midfielders","serie.fwLabel":"Forwards",
+    "serie.noSquadYet":"No squad added yet.",
     "tabs.hof":"Hall of Fame","tabs.standings":"Standings","tabs.profil":"Profile","tabs.stod":"Support us",
     "header.suffix.tipp":" · Predict","header.suffix.ligatipp":" · Predict the League","header.suffix.snabbast":" · Fastest Wins",
     "header.suffix.maljakten":" · Goal Hunt","header.suffix.matchfokus":" · Match Expert",
     "common.adminLock":"🔒 Admin","common.switchLeague":"Switch series",
     "pos.GK":"Goalkeeper","pos.DEF":"Defender","pos.MID":"Midfielder","pos.FW":"Forward",
     "common.round":"Round {n}","common.total":"Total",
-    "hemtab.myTeam":"My team (4-3-3)","hemtab.editShort":"✏ Edit",
+    "hemtab.myTeam":"My team (4-3-3)","hemtab.editShort":"✏ Edit","hemtab.editTeamButton":"✏️ Edit my team",
     "hemtab.noTeamYet":"You haven't built your team yet.","hemtab.buildTeamButton":"Build my team →",
     "hemtab.rank":"Rank {rank} of {total}","hemtab.notRanked":"Not ranked",
     "hemtab.scoringRules":"Scoring rules","hemtab.teamResultRule":"Team result: Win 5p · Draw 2p · Loss 0p",
@@ -3611,14 +3689,24 @@ const TRANSLATIONS={
     "modeselect.mode.hof.title":"Hall of Fame","modeselect.mode.hof.desc":"Νικητές σεζόν ανά τρόπο παιχνιδιού",
     "modeselect.mode.quiz.titleSuffix":"Κουίζ","modeselect.mode.quiz.desc":"Γενικές ερωτήσεις για το {league}",
     "common.sponsoredBy":"Χορηγία από","common.visitLink":"Επίσκεψη →","common.logout":"Αποσύνδεση",
-    "tabs.spelformer":"Τρόποι παιχνιδιού","tabs.hem":"Αρχική","tabs.regler":"Κανόνες","tabs.liga":"Πρωτάθλημα","tabs.inbox":"Εισερχόμενα","tabs.stats":"Στατιστικά",
+    "tabs.spelformer":"Τρόποι παιχνιδιού","tabs.hem":"Αρχική","tabs.regler":"Κανόνες","tabs.liga":"Πρωτάθλημα","tabs.inbox":"Εισερχόμενα","tabs.stats":"Στατιστικά","tabs.serien":"Βαθμολογία",
+    "serie.title":"🏆 {league}","serie.variant.full":"Πίνακας","serie.variant.home":"Εντός έδρας","serie.variant.away":"Εκτός έδρας",
+    "serie.variant.last5":"Τελευταίοι 5","serie.variant.last5home":"Τελευταίοι 5 εντός","serie.variant.last5away":"Τελευταίοι 5 εκτός",
+    "serie.colTeam":"Ομάδα","serie.colPlayed":"Α","serie.colWDL":"Ν-Ι-Η","serie.colGoals":"Γκολ","serie.colGD":"Διαφ.","serie.colPts":"Β","serie.colForm":"Φόρμα",
+    "serie.latestResultsTitle":"📅 Τελευταία αποτελέσματα (Γύρος {n})","serie.upcomingTitle":"🔜 Επόμενοι αγώνες (Γύρος {n})",
+    "serie.noResultsYet":"Δεν έχουν καταχωρηθεί αποτελέσματα ακόμα.","serie.noUpcomingYet":"Δεν έχουν καταχωρηθεί επερχόμενοι αγώνες ακόμα.",
+    "serie.latestNewsTitle":"📰 Τελευταία νέα","serie.noNewsYet":"Δεν έχουν δημοσιευτεί νέα ακόμα.",
+    "serie.backToTable":"← Πίσω στον πίνακα","serie.teamLatestResultTitle":"📅 Τελευταίο αποτέλεσμα","serie.teamUpcomingTitle":"🔜 Επόμενος αγώνας",
+    "serie.writerSectionTitle":"Νέα από την ομάδα","serie.squadTitle":"👥 Ομάδα","serie.staffLabel":"Τεχνικό επιτελείο",
+    "serie.gkLabel":"Τερματοφύλακες","serie.defLabel":"Αμυντικοί","serie.midLabel":"Μέσοι","serie.fwLabel":"Επιθετικοί",
+    "serie.noSquadYet":"Δεν έχει προστεθεί ομάδα ακόμα.",
     "tabs.hof":"Hall of Fame","tabs.standings":"Βαθμολογίες","tabs.profil":"Προφίλ","tabs.stod":"Στήριξέ μας",
     "header.suffix.tipp":" · Πρόβλεψη","header.suffix.ligatipp":" · Πρόβλεψε το Πρωτάθλημα","header.suffix.snabbast":" · Ο Πιο Γρήγορος",
     "header.suffix.maljakten":" · Κυνήγι Γκολ","header.suffix.matchfokus":" · Ειδικός Αγώνα",
     "common.adminLock":"🔒 Διαχείριση","common.switchLeague":"Αλλαγή σειράς",
     "pos.GK":"Τερματοφύλακας","pos.DEF":"Αμυντικός","pos.MID":"Μέσος","pos.FW":"Επιθετικός",
     "common.round":"Γύρος {n}","common.total":"Σύνολο",
-    "hemtab.myTeam":"Η ομάδα μου (4-3-3)","hemtab.editShort":"✏ Αλλαγή",
+    "hemtab.myTeam":"Η ομάδα μου (4-3-3)","hemtab.editShort":"✏ Αλλαγή","hemtab.editTeamButton":"✏️ Επεξεργασία ομάδας μου",
     "hemtab.noTeamYet":"Δεν έχεις φτιάξει ακόμα την ομάδα σου.","hemtab.buildTeamButton":"Φτιάξε την ομάδα μου →",
     "hemtab.rank":"Θέση {rank} από {total}","hemtab.notRanked":"Χωρίς κατάταξη",
     "hemtab.scoringRules":"Κανόνες βαθμολόγησης","hemtab.teamResultRule":"Αποτέλεσμα ομάδας: Νίκη 5β · Ισοπαλία 2β · Ήττα 0β",
@@ -5704,7 +5792,7 @@ function renderMain(){
     ? [["spelformer","🎮",t("tabs.spelformer")],["standings","🏆",t("tabs.standings")],["inbox","📬",t("tabs.inbox")]]
     : appMode==="profil"
     ? [["spelformer","🎮",t("tabs.spelformer")],["profil","👤",t("tabs.profil")],["inbox","📬",t("tabs.inbox")]]
-    : [["spelformer","🎮",t("tabs.spelformer")],["hem","🏠",t("tabs.hem")],["regler","📋",t("tabs.regler")],["liga","📊",t("tabs.liga")],["inbox","📬",t("tabs.inbox")]];
+    : [["spelformer","🎮",t("tabs.spelformer")],["hem","🏠",t("tabs.hem")],["serien","🏆",t("tabs.serien")],["regler","📋",t("tabs.regler")],["liga","📊",t("tabs.liga")],["inbox","📬",t("tabs.inbox")]];
   if(cfg.stodEnabled&&(supportMethod()==="paypal"?cfg.stodPaypalHandle:cfg.stodSwishNumber)){
     const inboxIdx=tabsDef.findIndex(tb=>tb[0]==="inbox");
     if(inboxIdx>=0) tabsDef.splice(inboxIdx,0,["stod","❤️",t("tabs.stod")]);
@@ -5746,6 +5834,7 @@ function renderMain(){
     else body=renderHemTab(sorted);
   }
   else if(mainTab==="regler") body=renderRegler();
+  else if(mainTab==="serien") body=viewingTeamId?renderTeamPage():renderSerieTab();
   else if(mainTab==="liga") body=renderLigaTab(sorted);
   else if(mainTab==="statistik") body=renderStatistikTab();
   else if(mainTab==="hof") body=renderHofTab();
@@ -5790,10 +5879,7 @@ function renderHemTab(sorted){
     teamHtml = `<div class="fg-card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <div style="font-weight:500">${esc(t("hemtab.myTeam"))}</div>
-        <div style="display:flex;align-items:center;gap:8px">
-          ${(user.transferBaselinePicks&&user.activeChip!=="frittlag")?`<span style="font-size:11px;color:${G_GREEN};font-weight:500">${esc(t("pick.transfersLeftLabel"))}: ${user.freeTransfers==null?1:user.freeTransfers}</span>`:""}
-          <button data-act="edit-team" style="background:none;border:none;color:${G_GREEN};font-size:12px;cursor:pointer">${esc(t("hemtab.editShort"))}</button>
-        </div>
+        ${(user.transferBaselinePicks&&user.activeChip!=="frittlag")?`<span style="font-size:11px;color:${G_GREEN};font-weight:500">${esc(t("pick.transfersLeftLabel"))}: ${user.freeTransfers==null?1:user.freeTransfers}</span>`:""}
       </div>
       ${POSITIONS.map(pos=>{
         const ids=user.picks[pos]||[];
@@ -5812,6 +5898,7 @@ function renderHemTab(sorted){
           </div>`;
         }).join("");
       }).join("")}
+      <button class="fg-outbtn" data-act="edit-team" style="width:100%;margin-top:14px;font-weight:500">${esc(t("hemtab.editTeamButton"))}</button>
     </div>`;
   } else {
     teamHtml = `<div class="fg-card" style="text-align:center;padding:2rem">
@@ -8080,6 +8167,207 @@ function renderTeamPitchView(u,r){
   ${renderTopPlayersCard(r)}
   `;
 }
+let serieTableVariant="full", viewingTeamId=null;
+function renderSerieTab(){
+  const variants=[
+    ["full",t("serie.variant.full")],
+    ["home",t("serie.variant.home")],
+    ["away",t("serie.variant.away")],
+    ["last5",t("serie.variant.last5")],
+    ["last5home",t("serie.variant.last5home")],
+    ["last5away",t("serie.variant.last5away")]
+  ];
+  const table=computeLeagueTable(serieTableVariant);
+  const formIco={W:"🟢",D:"🟡",L:"🔴"};
+
+  const tabBtns=variants.map(([id,label])=>`
+    <button data-act="serie-variant" data-variant="${id}" style="padding:8px 12px;border-radius:8px;border:${serieTableVariant===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${serieTableVariant===id?G_GREENL:"var(--color-background-primary)"};color:${serieTableVariant===id?G_GREEN:"var(--color-text-secondary)"};font-size:12px;font-weight:${serieTableVariant===id?600:400};cursor:pointer;white-space:nowrap;flex-shrink:0">${esc(label)}</button>
+  `).join("");
+
+  const tableRows=table.map((r,i)=>`
+    <tr style="border-top:0.5px solid var(--color-border-tertiary);cursor:pointer" data-act="view-team-page" data-id="${r.teamId}">
+      <td style="padding:7px 4px;font-size:12px;color:var(--color-text-secondary);text-align:center">${i+1}</td>
+      <td style="padding:7px 4px;font-size:13px;font-weight:500;color:${G_GREEN}">${esc(r.name)}</td>
+      <td style="padding:7px 4px;font-size:12px;text-align:center">${r.p}</td>
+      <td style="padding:7px 4px;font-size:12px;text-align:center;color:var(--color-text-secondary)">${r.w}-${r.d}-${r.l}</td>
+      <td style="padding:7px 4px;font-size:12px;text-align:center;color:var(--color-text-secondary)">${r.gf}-${r.ga}</td>
+      <td style="padding:7px 4px;font-size:12px;text-align:center;color:var(--color-text-secondary)">${r.gd>0?"+":""}${r.gd}</td>
+      <td style="padding:7px 4px;font-size:13px;text-align:center;font-weight:700">${r.pts}</td>
+      <td style="padding:7px 4px;text-align:center;white-space:nowrap">${r.form.map(f=>formIco[f]).join("")}</td>
+    </tr>`).join("");
+
+  const latestRound=getLatestResultsRound();
+  const latestHtml=latestRound?(rounds[String(latestRound)].matches||[]).filter(m=>m.hMål!=null&&m.aMål!=null).map(m=>{
+    const h=TEAMS.find(tm=>tm.id===m.hId), a=TEAMS.find(tm=>tm.id===m.aId);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+      <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
+      <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:600;min-width:44px;text-align:center">${m.hMål}–${m.aMål}</span>
+      <span style="flex:1">${esc(a?a.name:"")}</span>
+    </div>`;
+  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div>`;
+
+  const upcomingRound=getUpcomingRound();
+  const upcomingHtml=upcomingRound?(rounds[String(upcomingRound)].matches||[]).map(m=>{
+    const h=TEAMS.find(tm=>tm.id===m.hId), a=TEAMS.find(tm=>tm.id===m.aId);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
+      <span style="flex:1;text-align:right">${esc(h?h.name:"")}</span>
+      <span style="color:var(--color-text-secondary);min-width:44px;text-align:center">–</span>
+      <span style="flex:1">${esc(a?a.name:"")}</span>
+    </div>`;
+  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noUpcomingYet"))}</div>`;
+
+  // Senaste nyheter – skribenttexter från alla lag, senast uppdaterad överst
+  const newsTeams=TEAMS.filter(tm=>tm.writer_text&&tm.writer_text.trim()).sort((a,b)=>new Date(b.writer_updated_at||0)-new Date(a.writer_updated_at||0)).slice(0,5);
+  const newsHtml=newsTeams.length?newsTeams.map(tm=>`
+    <button data-act="view-team-page" data-id="${tm.id}" class="fg-card" style="display:block;text-align:left;cursor:pointer;width:100%;margin-bottom:8px;border:0.5px solid var(--color-border-tertiary)">
+      <div style="font-weight:500;font-size:13px;color:${G_GREEN};margin-bottom:4px">${esc(tm.name)}</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(tm.writer_text)}</div>
+    </button>`).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noNewsYet"))}</div>`;
+
+  return `
+  <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("serie.title",{league:currentLeague.name}))}</div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("serie.latestNewsTitle"))}</div>
+    ${newsHtml}
+  </div>
+
+  <div class="fg-card">
+    <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px">${tabBtns}</div>
+    ${table.length?`<div style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;min-width:400px">
+        <thead><tr style="font-size:11px;color:var(--color-text-secondary)">
+          <td style="text-align:center">#</td><td>${esc(t("serie.colTeam"))}</td>
+          <td style="text-align:center">${esc(t("serie.colPlayed"))}</td>
+          <td style="text-align:center">${esc(t("serie.colWDL"))}</td>
+          <td style="text-align:center">${esc(t("serie.colGoals"))}</td>
+          <td style="text-align:center">${esc(t("serie.colGD"))}</td>
+          <td style="text-align:center">${esc(t("serie.colPts"))}</td>
+          <td style="text-align:center">${esc(t("serie.colForm"))}</td>
+        </tr></thead>
+        <tbody>${tableRows}</tbody>
+      </table>
+    </div>`:`<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:10px">${esc(t("serie.noResultsYet"))}</div>`}
+  </div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("serie.latestResultsTitle",{n:latestRound||""}))}</div>
+    ${latestHtml}
+  </div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("serie.upcomingTitle",{n:upcomingRound||""}))}</div>
+    ${upcomingHtml}
+  </div>`;
+}
+function renderTeamPage(){
+  const team=TEAMS.find(tm=>tm.id===viewingTeamId);
+  if(!team) return renderSerieTab();
+
+  const fullTable=computeLeagueTable("full");
+  const rowIdx=fullTable.findIndex(r=>r.teamId===team.id);
+  const row=rowIdx>=0?fullTable[rowIdx]:null;
+  const formIco={W:"🟢",D:"🟡",L:"🔴"};
+
+  const rowHtml=row?`<div class="fg-card">
+    <table style="width:100%;border-collapse:collapse">
+      <thead><tr style="font-size:11px;color:var(--color-text-secondary)">
+        <td style="text-align:center">#</td><td>${esc(t("serie.colTeam"))}</td>
+        <td style="text-align:center">${esc(t("serie.colPlayed"))}</td>
+        <td style="text-align:center">${esc(t("serie.colWDL"))}</td>
+        <td style="text-align:center">${esc(t("serie.colGoals"))}</td>
+        <td style="text-align:center">${esc(t("serie.colGD"))}</td>
+        <td style="text-align:center">${esc(t("serie.colPts"))}</td>
+        <td style="text-align:center">${esc(t("serie.colForm"))}</td>
+      </tr></thead>
+      <tbody><tr>
+        <td style="padding:7px 4px;font-size:12px;color:var(--color-text-secondary);text-align:center;font-weight:700">${rowIdx+1}</td>
+        <td style="padding:7px 4px;font-size:13px;font-weight:600">${esc(row.name)}</td>
+        <td style="padding:7px 4px;font-size:12px;text-align:center">${row.p}</td>
+        <td style="padding:7px 4px;font-size:12px;text-align:center;color:var(--color-text-secondary)">${row.w}-${row.d}-${row.l}</td>
+        <td style="padding:7px 4px;font-size:12px;text-align:center;color:var(--color-text-secondary)">${row.gf}-${row.ga}</td>
+        <td style="padding:7px 4px;font-size:12px;text-align:center;color:var(--color-text-secondary)">${row.gd>0?"+":""}${row.gd}</td>
+        <td style="padding:7px 4px;font-size:13px;text-align:center;font-weight:700">${row.pts}</td>
+        <td style="padding:7px 4px;text-align:center;white-space:nowrap">${row.form.map(f=>formIco[f]).join("")}</td>
+      </tr></tbody>
+    </table>
+  </div>`:`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div></div>`;
+
+  // Senaste resultat + kommande match för just det här laget
+  const played=getAllPlayedMatchesChrono().filter(m=>m.hId===team.id||m.aId===team.id);
+  const lastMatch=played.length?played[played.length-1]:null;
+  const futureRounds=Object.keys(rounds).map(Number).filter(r=>!rounds[String(r)].results_published).sort((a,b)=>a-b);
+  let nextMatch=null;
+  for(const r of futureRounds){
+    const m=(rounds[String(r)].matches||[]).find(mt=>mt.hId===team.id||mt.aId===team.id);
+    if(m){ nextMatch={...m,round:r}; break; }
+  }
+  const matchLine=(m,showScore)=>{
+    const h=TEAMS.find(tm=>tm.id===m.hId), a=TEAMS.find(tm=>tm.id===m.aId);
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px">
+      <span style="flex:1;text-align:right;font-weight:${m.hId===team.id?600:400}">${esc(h?h.name:"")}</span>
+      <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:600;min-width:44px;text-align:center">${showScore?`${m.hMål}–${m.aMål}`:"–"}</span>
+      <span style="flex:1;font-weight:${m.aId===team.id?600:400}">${esc(a?a.name:"")}</span>
+    </div>`;
+  };
+
+  const resultsCard=`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:4px">${esc(t("serie.teamLatestResultTitle"))}</div>
+    ${lastMatch?matchLine(lastMatch,true):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div>`}
+    <div style="font-weight:500;margin:12px 0 4px">${esc(t("serie.teamUpcomingTitle"))}</div>
+    ${nextMatch?matchLine(nextMatch,false):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noUpcomingYet"))}</div>`}
+  </div>`;
+
+  const writerCard=(team.writer_text&&team.writer_text.trim())?`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">✍️ ${esc(t("serie.writerSectionTitle"))}</div>
+    <div style="font-size:13px;line-height:1.6;white-space:pre-wrap">${esc(team.writer_text)}</div>
+  </div>`:"";
+
+  const avatar=(p)=>p.photo_url
+    ?`<img src="${esc(p.photo_url)}" alt="${esc(p.namn)}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0"/>`
+    :`<div style="width:52px;height:52px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(p.namn[0])}</div>`;
+
+  const staff=Array.isArray(team.staff)?team.staff:[];
+  const staffHtml=staff.length?`<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:18px">
+    ${staff.map(s=>`<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;text-align:center">
+      <div style="width:52px;height:52px;border-radius:50%;background:${G_GOLDL};color:${G_GOLD};display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px">${esc((s.name||"?")[0])}</div>
+      <div style="font-size:11px;font-weight:500;line-height:1.3">${esc(s.name||"")}</div>
+      <div style="font-size:10px;color:var(--color-text-secondary)">${esc(s.role||"")}</div>
+    </div>`).join("")}
+  </div>`:"";
+
+  const squadGroup=(pos,label)=>{
+    const list=players.filter(p=>p.teamId===team.id&&p.pos===pos);
+    if(!list.length) return "";
+    return `<div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px">${esc(label)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:14px">
+        ${list.map(p=>`<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;text-align:center">
+          ${avatar(p)}
+          <div style="font-size:11px;font-weight:500;line-height:1.3">${esc(p.namn)}</div>
+        </div>`).join("")}
+      </div>
+    </div>`;
+  };
+
+  const squadCard=`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:12px">${esc(t("serie.squadTitle"))}</div>
+    ${staff.length?`<div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px">${esc(t("serie.staffLabel"))}</div>${staffHtml}`:""}
+    ${squadGroup("GK",t("serie.gkLabel"))}
+    ${squadGroup("DEF",t("serie.defLabel"))}
+    ${squadGroup("MID",t("serie.midLabel"))}
+    ${squadGroup("FW",t("serie.fwLabel"))}
+    ${(!staff.length&&!players.some(p=>p.teamId===team.id))?`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noSquadYet"))}</div>`:""}
+  </div>`;
+
+  return `
+  <button data-act="team-page-back" style="background:none;border:none;color:${G_GREEN};font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">${esc(t("serie.backToTable"))}</button>
+  <div style="font-weight:600;font-size:20px;margin-bottom:14px">${esc(team.name)}</div>
+  ${rowHtml}
+  ${resultsCard}
+  ${writerCard}
+  ${squadCard}`;
+}
 function renderLigaTab(sorted){
   if(viewingTeamUserId&&(appMode==="fantasy"||appMode===null)){
     const u=users.find(x=>x.id===viewingTeamUserId);
@@ -8259,7 +8547,7 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["pending","⏳ Väntande spelare"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["teampages","📰 Lagsidor"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["pending","⏳ Väntande spelare"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
   const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
   const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["players","👤 Spelare"],["import","📥 Importera"]];
 
@@ -8494,6 +8782,28 @@ function renderAdminTab(){
       </div>
     </div>
     <div class="fg-card">${rowsHtml||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga lag inlagda ännu – lägg till det första ovan.</div>'}</div>`;
+  } else if(adminSection==="teampages"){
+    const selectedTeam=TEAMS.find(tm=>tm.id===teamPagesSelectedId)||TEAMS[0]||null;
+    if(selectedTeam && teamPagesSelectedId!==selectedTeam.id){
+      teamPagesSelectedId=selectedTeam.id;
+      teamPagesStaffDraft=(Array.isArray(selectedTeam.staff)?selectedTeam.staff:[]).map(s=>`${s.name||""} - ${s.role||""}`).join("\n");
+      teamPagesWriterDraft=selectedTeam.writer_text||"";
+    }
+    const teamOpts=TEAMS.map(tm=>`<option value="${tm.id}" ${tm.id===teamPagesSelectedId?"selected":""}>${esc(tm.name)}</option>`).join("");
+    body=`<div class="fg-card" style="background:var(--color-background-secondary)">
+        <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här lägger du in ledare/tränare och den skribenttext som visas på lagets sida (och som senaste nyhet på Serien-fliken). Detta är en enkel manuell inmatning tills godkännande-flödet för skribenter är byggt.</div>
+      </div>
+      <div class="fg-card">
+        <label class="fg-label">Välj lag</label>
+        <select id="teampages-team-select" data-act="teampages-select-team" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);margin-bottom:14px">
+          ${teamOpts}
+        </select>
+        <label class="fg-label">Ledare/tränare (en per rad, format "Namn - Roll")</label>
+        <textarea id="teampages-staff" rows="4" class="fg-input" style="margin-bottom:14px;font-family:inherit" placeholder="Anna Andersson - Huvudtränare&#10;Björn Berg - Assisterande tränare">${esc(teamPagesStaffDraft)}</textarea>
+        <label class="fg-label">Skribenttext</label>
+        <textarea id="teampages-writer" rows="6" class="fg-input" style="margin-bottom:14px;font-family:inherit" placeholder="Skriv lagets senaste nyheter här...">${esc(teamPagesWriterDraft)}</textarea>
+        <button class="fg-btn" data-act="save-teampage" data-id="${selectedTeam?selectedTeam.id:""}" style="width:100%">Spara lagsida</button>
+      </div>`;
   } else if(adminSection==="ligatipp"){
     const curTips=allLeagueTips;
     const cp1=ligatippStandings[1]||{standings:[],locked:false};
@@ -12039,6 +12349,7 @@ function attachHandlers(){
       if(tab==="regler"){ rulesFrom="main"; screen="rules"; render(); return; }
       mainTab=tab;errMsg="";
       if(tab==="tipp"){ tipDraft={}; }
+      if(tab==="serien"){ viewingTeamId=null; }
       if(mainTab==="adm" && adminOk && adminSection==="round"){ bulkRows=defaultBulkRows(String(cfg.omg)); }
       render();
     }
@@ -12162,6 +12473,46 @@ function attachHandlers(){
     }
     else if(act==="standings-tab"){
       standingsTab=el.dataset.tab;
+      render();
+    }
+    else if(act==="serie-variant"){
+      serieTableVariant=el.dataset.variant;
+      render();
+    }
+    else if(act==="teampages-select-team"){
+      const sel=document.getElementById("teampages-team-select");
+      teamPagesSelectedId=Number(sel.value);
+      const tm=TEAMS.find(x=>x.id===teamPagesSelectedId);
+      teamPagesStaffDraft=(tm&&Array.isArray(tm.staff)?tm.staff:[]).map(s=>`${s.name||""} - ${s.role||""}`).join("\n");
+      teamPagesWriterDraft=(tm&&tm.writer_text)||"";
+      render();
+    }
+    else if(act==="save-teampage"){
+      const id=Number(el.dataset.id);
+      if(!id){flash("Inget lag valt.");return;}
+      const staffText=document.getElementById("teampages-staff").value;
+      const writerText=document.getElementById("teampages-writer").value;
+      const staff=staffText.split("\n").map(line=>line.trim()).filter(Boolean).map(line=>{
+        const parts=line.split(" - ");
+        return {name:(parts[0]||"").trim(),role:(parts.slice(1).join(" - ")||"").trim()};
+      });
+      const oldTeam=TEAMS.find(tm=>tm.id===id);
+      const writerChanged=oldTeam&&oldTeam.writer_text!==writerText;
+      const updateFields={staff,writer_text:writerText};
+      if(writerChanged) updateFields.writer_updated_at=new Date().toISOString();
+      const {error}=await sb.from("teams").update(updateFields).eq("id",id).eq("league_id",currentLeague.id);
+      if(error){flash("Fel: "+error.message+" (har du kört SQL:en som lägger till staff/writer_text/writer_updated_at på teams?)");return;}
+      TEAMS=TEAMS.map(tm=>tm.id===id?{...tm,...updateFields}:tm);
+      flash("✓ Lagsidan sparad!");
+      render();
+    }
+    else if(act==="view-team-page"){
+      viewingTeamId=Number(el.dataset.id);
+      mainTab="serien";
+      render();
+    }
+    else if(act==="team-page-back"){
+      viewingTeamId=null;
       render();
     }
     else if(act==="duellen-generate"){
