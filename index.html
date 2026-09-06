@@ -8651,8 +8651,8 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["teampages","📰 Lagsidor"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["pending","⏳ Väntande spelare"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
-  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["permissions","🔑 Behörigheter"],["push","🔔 Notiser"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["teampages","📰 Lagsidor"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["stod","❤️ Stöd oss"]];
+  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["pending","⏳ Väntande spelare"],["trial","⏳ Provperiod"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["permissions","🔑 Behörigheter"],["push","🔔 Notiser"]];
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
 
   // Snabbväljare för serie – alltid synlig oavsett vilken flik man står i,
