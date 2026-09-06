@@ -2485,7 +2485,7 @@ const TRANSLATIONS={
     "home.loginButton":"Logga in",
     "home.registerButton":"Ny spelare – Registrera dig",
     "home.registrationClosed":"🔒 Registrering är stängd",
-    "home.readRulesLink":"Läs om spelformerna →",
+    "home.readRulesLink":"Läs om spelformerna →","home.trialPricingBadge":"🎉 Gratis i {days} dagar — därefter <b>{price} kr</b> för hela säsongen",
     "home.sponsorsLink":"Våra sponsorer →",
     "home.supportSuffix":"– Stöd oss",
     "home.supportedBy":"Stöttas av",
@@ -3053,7 +3053,7 @@ const TRANSLATIONS={
     "home.loginButton":"Log in",
     "home.registerButton":"New player – Register",
     "home.registrationClosed":"🔒 Registration is closed",
-    "home.readRulesLink":"Read about the game modes →",
+    "home.readRulesLink":"Read about the game modes →","home.trialPricingBadge":"🎉 Free for {days} days — then <b>{price} kr</b> for the whole season",
     "home.sponsorsLink":"Our sponsors →",
     "home.supportSuffix":"– Support us",
     "home.supportedBy":"Supported by",
@@ -3621,7 +3621,7 @@ const TRANSLATIONS={
     "home.loginButton":"Σύνδεση",
     "home.registerButton":"Νέος παίκτης – Εγγραφή",
     "home.registrationClosed":"🔒 Οι εγγραφές είναι κλειστές",
-    "home.readRulesLink":"Διάβασε για τους τρόπους παιχνιδιού →",
+    "home.readRulesLink":"Διάβασε για τους τρόπους παιχνιδιού →","home.trialPricingBadge":"🎉 Δωρεάν για {days} ημέρες — μετά <b>{price} kr</b> για όλη τη σεζόν",
     "home.sponsorsLink":"Οι χορηγοί μας →",
     "home.supportSuffix":"– Στήριξέ μας",
     "home.supportedBy":"Με την υποστήριξη",
@@ -4800,6 +4800,7 @@ function renderHome(){
         <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
         <div style="height:1px;width:50px;background:#c1272d"></div>
       </div>
+      ${(cfg.trialEnabled&&cfg.trialPrice)?`<div style="display:inline-block;background:#1f1515;border:0.5px solid #3a2020;border-radius:20px;padding:7px 16px;font-size:12px;color:#ddd">${t("home.trialPricingBadge",{days:cfg.trialDays||14,price:cfg.trialPrice})}</div>`:""}
     </div>
 
     <!-- Spelformskort -->
