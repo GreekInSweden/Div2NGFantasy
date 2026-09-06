@@ -569,27 +569,28 @@ function tryAutoLoginViaAccount(){
   return true;
 }
 async function ensureAccountLink(u,rawPin){
-  if(u.account_id) return u.account_id;
+  if(u.account_id) return {accountId:u.account_id,trialStartedAt:u.trialStartedAt||null};
   try{
-    const {data:candidates}=await sb.from("player_accounts").select("id,namn").ilike("namn",u.namn);
+    const {data:candidates}=await sb.from("player_accounts").select("id,namn,trial_started_at").ilike("namn",u.namn);
     if(candidates&&candidates.length){
       for(const cand of candidates){
         const hash=await hashPin(rawPin,cand.id);
         const {data:match}=await sb.rpc("verify_account_pin",{p_account_id:cand.id,p_pin_hash:hash});
         if(match){
           await sb.from("fantasy_users").update({account_id:cand.id}).eq("id",u.id);
-          return cand.id;
+          return {accountId:cand.id,trialStartedAt:cand.trial_started_at||null};
         }
       }
     }
     const ownHash=await hashPin(rawPin,u.id);
-    const {error:accErr}=await sb.from("player_accounts").insert({id:u.id,namn:u.namn,pin:ownHash,trial_started_at:new Date().toISOString()});
+    const trialStartedAt=new Date().toISOString();
+    const {error:accErr}=await sb.from("player_accounts").insert({id:u.id,namn:u.namn,pin:ownHash,trial_started_at:trialStartedAt});
     if(!accErr){
       await sb.from("fantasy_users").update({account_id:u.id}).eq("id",u.id);
-      return u.id;
+      return {accountId:u.id,trialStartedAt};
     }
   }catch(e){console.error("ensureAccountLink error:",e);}
-  return null;
+  return {accountId:null,trialStartedAt:null};
 }
 // Väg B: kolla om samma namn+PIN redan finns i en ANNAN serie, så vi kan
 // bekräfta för spelaren att de "känns igen" istället för att tvinga en ny PIN.
@@ -11231,8 +11232,8 @@ function attachHandlers(){
         currentUser=u; pendingCrossLeagueUser=null; loginErr="";
         addRecentUserId(u.id);
         try{
-          const accId=await ensureAccountLink(u,pin);
-          if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
+          const {accountId,trialStartedAt}=await ensureAccountLink(u,pin);
+          if(accountId){ currentUser={...currentUser,account_id:accountId,trialStartedAt:trialStartedAt||currentUser.trialStartedAt}; rememberAccount(accountId); }
           presenceSessionId=null; startPresenceHeartbeat();
         }catch(e){console.error(e);}
         screen="mode";
@@ -11419,8 +11420,8 @@ function attachHandlers(){
         currentUser=u; pendingLoginUser=null; loginErr="";
         addRecentUserId(u.id);
         try{
-          const accId=await ensureAccountLink(u,val);
-          if(accId){ currentUser={...currentUser,account_id:accId}; rememberAccount(accId); }
+          const {accountId,trialStartedAt}=await ensureAccountLink(u,val);
+          if(accountId){ currentUser={...currentUser,account_id:accountId,trialStartedAt:trialStartedAt||currentUser.trialStartedAt}; rememberAccount(accountId); }
           presenceSessionId=null; startPresenceHeartbeat();
         }catch(e){console.error(e);}
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
@@ -11465,8 +11466,8 @@ function attachHandlers(){
       try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
       loadMyRoundStatus().then(render);
       try{
-        const accId=await ensureAccountLink(ny,pin);
-        if(accId){ currentUser={...currentUser,account_id:accId}; users=users.map(u=>u.id===ny.id?{...u,account_id:accId}:u); rememberAccount(accId); }
+        const {accountId,trialStartedAt}=await ensureAccountLink(ny,pin);
+        if(accountId){ currentUser={...currentUser,account_id:accountId,trialStartedAt}; users=users.map(u=>u.id===ny.id?{...u,account_id:accountId,trialStartedAt}:u); rememberAccount(accountId); }
         presenceSessionId=null; startPresenceHeartbeat();
       }catch(e){console.error(e);}
       if(recognized) flash("✓ Välkommen tillbaka! Samma PIN funkar här också.");
