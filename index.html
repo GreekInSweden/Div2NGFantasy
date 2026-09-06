@@ -229,6 +229,8 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     teamPagesSelectedId=null, teamPagesStaffDraft="", teamPagesWriterDraft="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
+    adminAllowedSections=null, adminPermLeagues=[], adminNavGroup=null,
+    adminQuickSwitchOpen=false, adminPermSelectedUserId="", adminPermDraft=new Set(),
     pendingUnassignedUser=null,
     allPrivateLeagues=[], myPrivateMemberships=[], privateLeagueView=null, joinCodeInput="",
     quizQuestions=[], quizMyAnswers={}, quizTimerInterval=null,
@@ -4725,6 +4727,7 @@ function renderHome(){
     return `
     <div style="min-height:100vh;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
       <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;position:absolute;top:20px;left:20px;border-color:#444;color:#888;font-size:13px">${esc(t("common.back"))}</button>
+      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.3px;margin-bottom:10px">${esc(currentLeague.name)}</div>
       <div style="width:60px;height:60px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;margin-bottom:14px">${esc(u.namn[0])}</div>
       <div style="font-size:20px;font-weight:600;color:#fff;margin-bottom:4px">${esc(u.namn)}</div>
       <div style="font-size:13px;color:#888;margin-bottom:24px">${esc(t("login.enterPin"))}</div>
@@ -4761,6 +4764,7 @@ function renderHome(){
     return `
     <div style="min-height:100vh;background:#1f1f1f;padding:24px">
       <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">${esc(t("common.back"))}</button>
+      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">${esc(currentLeague.name)}</div>
       <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:16px">${esc(t("login.choosePlayer"))}</div>
       <input id="user-search" type="search" placeholder="${esc(t("login.searchPlaceholder"))}" oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#2a2a2a;border:0.5px solid #555;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
       <div id="user-list-label" style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">${isShowingRecent?esc(t("login.recentOnDevice")):esc(t("login.searchResults"))}</div>
@@ -8638,29 +8642,49 @@ function renderAdminTab(){
   if(!adminOk){
     return `<div style="max-width:300px;margin:0 auto">
       <div style="font-weight:500;font-size:16px;margin-bottom:16px">🔒 Admin</div>
+      <label class="fg-label">E-post</label>
+      <input class="fg-input" id="admin-email" type="email" autocomplete="username" value="${esc(SUPER_ADMIN_EMAIL)}" style="margin-bottom:12px"/>
       <label class="fg-label">Lösenord</label>
-      <input class="fg-input" id="admin-pwd" type="password" onkeydown="if(event.key==='Enter') window._doAdminLogin()"/>
+      <input class="fg-input" id="admin-pwd" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter') window._doAdminLogin()"/>
       ${errMsg?`<div style="color:#A32D2D;font-size:12px;margin-top:4px">${esc(errMsg)}</div>`:""}
       <button class="fg-btn" onclick="window._doAdminLogin()" style="margin-top:12px">Logga in</button>
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
   const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["teampages","📰 Lagsidor"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["pending","⏳ Väntande spelare"],["stod","❤️ Stöd oss"],["trial","⏳ Provperiod"]];
-  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["push","🔔 Notiser"]];
-  const adminSections=adminLevel==="super"?[...catOmgang,...catUppsattning,...catAnvandare]:[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["players","👤 Spelare"],["import","📥 Importera"]];
-
+  const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["permissions","🔑 Behörigheter"],["push","🔔 Notiser"]];
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
 
-  const adminNavHtml = adminLevel==="super" ? `
-    <div class="fg-card" style="padding:8px">
-      <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">OMGÅNG</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px">${catOmgang.map(tabBtn).join("")}</div>
-      <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">UPPSÄTTNING</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:14px">${catUppsattning.map(tabBtn).join("")}</div>
-      <div style="font-size:10px;font-weight:600;color:var(--color-text-secondary);padding:2px 4px 6px;letter-spacing:.5px">ANVÄNDARE</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">${catAnvandare.map(tabBtn).join("")}</div>
-    </div>` :
-    `<div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${adminSections.map(tabBtn).join("")}</div>`;
+  // Snabbväljare för serie – alltid synlig oavsett vilken flik man står i,
+  // så man aldrig behöver leta upp en lista för att hoppa mellan serier.
+  // Superadmin ser alla serier; en semi-admin ser bara de serier hen fått
+  // någon behörighet i alls (kan vara fler än en).
+  const canQuickSwitch = adminLevel==="super" || adminPermLeagues.length>1;
+  const quickSwitchHtml = canQuickSwitch ? `<div class="fg-card" style="padding:10px;margin-bottom:8px;position:relative">
+    <input id="admin-quick-switch" placeholder="🔍 Byt serie – sök namn…" oninput="window._adminQuickSwitchSearch&&window._adminQuickSwitchSearch()" autocomplete="off" style="width:100%;padding:9px 10px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:13px;background:var(--color-background-secondary);color:var(--color-text-primary);box-sizing:border-box"/>
+    <div id="admin-quick-switch-results" style="position:absolute;left:10px;right:10px;top:44px;z-index:20;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:8px;max-height:260px;overflow-y:auto;display:none;box-shadow:0 4px 14px rgba(0,0,0,.12)"></div>
+  </div>`:"";
+
+  let adminSections, adminNavHtml;
+  if(adminLevel==="super"){
+    const catList=[{id:"omgang",label:"OMGÅNG",items:catOmgang},{id:"uppsattning",label:"UPPSÄTTNING",items:catUppsattning},{id:"anvandare",label:"ANVÄNDARE",items:catAnvandare}];
+    if(!adminNavGroup) adminNavGroup=catList.find(c=>c.items.some(([id])=>id===adminSection))?.id||catList[0].id;
+    const activeCat=catList.find(c=>c.id===adminNavGroup)||catList[0];
+    const groupBtn=(cat)=>`<button data-act="admin-nav-group" data-group="${cat.id}" style="flex:1;padding:9px 4px;border-radius:8px;border:${adminNavGroup===cat.id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminNavGroup===cat.id?G_GREENL:"var(--color-background-primary)"};color:${adminNavGroup===cat.id?G_GREEN:"var(--color-text-secondary)"};font-size:11px;font-weight:${adminNavGroup===cat.id?600:400};cursor:pointer">${cat.label}</button>`;
+    adminSections=[...catOmgang,...catUppsattning,...catAnvandare];
+    adminNavHtml=`<div class="fg-card" style="padding:8px">
+      <div style="display:flex;gap:6px;margin-bottom:10px">${catList.map(groupBtn).join("")}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">${activeCat.items.map(tabBtn).join("")}</div>
+    </div>`;
+  } else {
+    // Semi-admin: bara flikarna kontot faktiskt fått behörighet till för
+    // den här specifika serien – ingen grupp-uppdelning behövs, listan är
+    // ändå kort.
+    const allCats=[...catOmgang,...catUppsattning,...catAnvandare];
+    adminSections=allCats.filter(([id])=>(adminAllowedSections||[]).includes(id));
+    adminNavHtml=`<div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${adminSections.map(tabBtn).join("")}</div>`;
+  }
+  adminNavHtml=quickSwitchHtml+adminNavHtml;
 
   let body="";
   if(adminSection==="round"){
@@ -9582,6 +9606,44 @@ Liverpool
       if(el) el.innerHTML=list.length?list.map(userRow).join(""):'<div style="font-size:13px;color:var(--color-text-secondary)">Inga spelare hittades.</div>';
       attachHandlers();
     };
+  } else if(adminSection==="permissions"){
+    if(adminLevel!=="super"){
+      body=`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">Bara superadmin kan hantera behörigheter.</div></div>`;
+    } else {
+      if(!window._adminAccountsCache){
+        sb.from("admins").select("user_id,email,level").then(({data})=>{window._adminAccountsCache=data||[];render();});
+      }
+      const accounts=(window._adminAccountsCache||[]).filter(a=>a.level!=="super");
+      const selectedId=adminPermSelectedUserId||(accounts[0]?accounts[0].user_id:"");
+      if(selectedId && adminPermSelectedUserId!==selectedId){
+        adminPermSelectedUserId=selectedId;
+        sb.from("admin_permissions").select("section").eq("user_id",selectedId).eq("league_id",currentLeague.id).then(({data})=>{
+          adminPermDraft=new Set((data||[]).map(r=>r.section));
+          render();
+        });
+      }
+      const allCats=[["🗓 Omgång",catOmgang],["🎛 Uppsättning",catUppsattning],["👥 Användare",catAnvandare.filter(([id])=>id!=="permissions")]];
+      const checkRow=([id,label])=>`<label style="display:flex;align-items:center;gap:8px;padding:6px 0;cursor:pointer">
+        <input type="checkbox" data-act="toggle-admin-perm" data-sec="${id}" ${adminPermDraft.has(id)?"checked":""} style="width:16px;height:16px"/>
+        <span style="font-size:13px">${label}</span>
+      </label>`;
+      body=`<div class="fg-card" style="background:var(--color-background-secondary)">
+        <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Ge ett admin-konto tillgång till specifika flikar – bara för <b>${esc(currentLeague.name)}</b>. Kontot behöver skapas i Supabase → Authentication → Users först (med en rad i "admins"-tabellen, level satt till t.ex. "admin" och gärna e-post ifylld).</div>
+      </div>
+      <div class="fg-card">
+        <label class="fg-label">Välj konto</label>
+        ${accounts.length?`<select id="admin-perm-user-select" data-act="admin-perm-select-user" style="width:100%;padding:10px;border-radius:8px;border:0.5px solid var(--color-border-secondary);font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);margin-bottom:14px">
+          ${accounts.map(a=>`<option value="${a.user_id}" ${a.user_id===selectedId?"selected":""}>${esc(a.email||a.user_id)}</option>`).join("")}
+        </select>
+        <div style="font-weight:500;margin-bottom:6px">Flikar för ${esc(currentLeague.name)}</div>
+        ${allCats.map(([label,items])=>`<div style="margin-bottom:10px">
+          <div style="font-size:11px;font-weight:600;color:var(--color-text-secondary);margin-bottom:2px;text-transform:uppercase">${label}</div>
+          ${items.map(checkRow).join("")}
+        </div>`).join("")}
+        <button class="fg-btn" data-act="save-admin-permissions" style="width:100%;margin-top:8px">Spara behörigheter</button>`
+        :`<div style="font-size:13px;color:var(--color-text-secondary)">Inga admin-konton hittades ännu (utöver superadmin). Skapa ett i Supabase → Authentication → Users, lägg till en rad i "admins"-tabellen (level = "admin", email ifylld), kom sen tillbaka hit.</div>`}
+      </div>`;
+    }
   } else if(adminSection==="passwords"){
     body=`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:6px">Byt lösenord</div>
@@ -11043,21 +11105,36 @@ function flash(m){errMsg=m;render();setTimeout(()=>{errMsg="";render();},2200);}
 function attachHandlers(){
   // Admin login – synkron fallback via window-funktion
   window._doAdminLogin=async function(){
+    const email=document.getElementById("admin-email")?.value.trim()||"";
     const pwd=document.getElementById("admin-pwd")?.value||"";
+    if(!email){ errMsg="Ange e-post."; render(); return; }
     errMsg="Loggar in…"; render();
     try{
-      // Försök som superadmin först, sedan vanlig admin
-      let {data,error}=await sb.auth.signInWithPassword({email:SUPER_ADMIN_EMAIL,password:pwd});
-      let level="super";
-      if(error){
-        ({data,error}=await sb.auth.signInWithPassword({email:ADMIN_EMAIL,password:pwd}));
-        level="admin";
-      }
-      if(error||!data?.user){ errMsg="Fel lösenord."; render(); return; }
+      const {data,error}=await sb.auth.signInWithPassword({email,password:pwd});
+      if(error||!data?.user){ errMsg="Fel e-post eller lösenord."; render(); return; }
       const {data:adminRow,error:adminErr}=await sb.from("admins").select("level").eq("user_id",data.user.id).maybeSingle();
       if(adminErr||!adminRow){ errMsg="Kontot saknar adminbehörighet."; await sb.auth.signOut(); render(); return; }
-      adminOk=true; adminLevel=adminRow.level;
-      errMsg=""; if(adminLevel!=="super") adminSection="round";
+      adminLevel=adminRow.level;
+      if(adminLevel==="super"){
+        adminAllowedSections=null; adminPermLeagues=[];
+      } else {
+        // Semi-admin: hämta exakt vilka flikar kontot fått för DEN HÄR
+        // serien, plus vilka andra serier kontot överhuvudtaget har någon
+        // behörighet i (för den begränsade snabbväljaren).
+        const {data:perms,error:permErr}=await sb.from("admin_permissions").select("section,league_id").eq("user_id",data.user.id);
+        if(permErr){ errMsg="Kunde inte läsa behörigheter: "+permErr.message; await sb.auth.signOut(); render(); return; }
+        const forThisLeague=(perms||[]).filter(p=>p.league_id===currentLeague.id).map(p=>p.section);
+        if(!forThisLeague.length){
+          errMsg="Det här kontot har ingen adminbehörighet för den här serien. Be en superadmin ge dig tillgång under 🔑 Behörigheter.";
+          await sb.auth.signOut();
+          render();
+          return;
+        }
+        adminAllowedSections=forThisLeague;
+        adminPermLeagues=[...new Set((perms||[]).map(p=>p.league_id))];
+      }
+      adminOk=true;
+      errMsg=""; adminSection=adminLevel==="super"?"round":adminAllowedSections[0];
       const correctRound=Number(adminDefaultRound());
       if(correctRound!==cfg.omg){
         cfg={...cfg,omg:correctRound};
@@ -11068,6 +11145,28 @@ function attachHandlers(){
     render();
   };
 
+  window._adminQuickSwitchSearch=function(){
+    clearTimeout(window._adminQsTimer);
+    window._adminQsTimer=setTimeout(async()=>{
+      const q=(document.getElementById("admin-quick-switch")?.value||"").trim().toLowerCase();
+      const resultsEl=document.getElementById("admin-quick-switch-results");
+      if(!resultsEl) return;
+      if(!q){ resultsEl.style.display="none"; resultsEl.innerHTML=""; return; }
+      let candidates=[];
+      if(adminLevel==="super"){
+        if(!window._allLeaguesCache){ try{ window._allLeaguesCache=await fetchAllLeagues(); }catch(e){ window._allLeaguesCache=[]; } }
+        candidates=window._allLeaguesCache||[];
+      } else {
+        if(!window._allLeaguesCache){ try{ window._allLeaguesCache=await fetchAllLeagues(); }catch(e){ window._allLeaguesCache=[]; } }
+        candidates=(window._allLeaguesCache||[]).filter(l=>adminPermLeagues.includes(l.id));
+      }
+      const matches=candidates.filter(l=>l.name.toLowerCase().includes(q)&&l.id!==currentLeague.id).slice(0,8);
+      if(!matches.length){ resultsEl.style.display="block"; resultsEl.innerHTML=`<div style="padding:10px 12px;font-size:12px;color:var(--color-text-secondary)">Ingen match.</div>`; return; }
+      resultsEl.style.display="block";
+      resultsEl.innerHTML=matches.map(l=>`<button data-act="admin-quick-jump" data-id="${l.id}" style="display:block;width:100%;text-align:left;padding:10px 12px;border:none;border-bottom:0.5px solid var(--color-border-tertiary);background:none;cursor:pointer;font-size:13px;color:var(--color-text-primary)">${esc(l.name)}${l.season?` <span style="color:var(--color-text-secondary);font-size:11px">(${esc(String(l.season))})</span>`:""}</button>`).join("");
+      attachHandlers();
+    },250);
+  };
   window._exportTable=function(){
     // Samla ligadata
     let getPts,title;
@@ -11766,6 +11865,7 @@ function attachHandlers(){
       if(currentLeague&&currentLeague.id===id){
         // Raderade serien vi stod i – hoppa tillbaka till serieväljaren
         currentLeague=null; currentUser=null; appMode=null; adminOk=false;
+        adminAllowedSections=null; adminPermLeagues=[]; adminNavGroup=null;
         users=[]; TEAMS=[]; players=[]; rounds={};
         leagues=await fetchLeagues();
         if(!leagues.length){
@@ -11778,6 +11878,64 @@ function attachHandlers(){
         return;
       }
       flash(`✓ "${name}" borttagen permanent.`);
+      render();
+    }
+    else if(act==="admin-nav-group"){
+      adminNavGroup=el.dataset.group;
+      render();
+    }
+    else if(act==="admin-perm-select-user"){
+      const sel=document.getElementById("admin-perm-user-select");
+      adminPermSelectedUserId=sel?sel.value:"";
+      render(); // triggern i body kör själva hämtningen
+    }
+    else if(act==="toggle-admin-perm"){
+      const sec=el.dataset.sec;
+      if(adminPermDraft.has(sec)) adminPermDraft.delete(sec); else adminPermDraft.add(sec);
+      render();
+    }
+    else if(act==="save-admin-permissions"){
+      if(!adminPermSelectedUserId){flash("Inget konto valt.");return;}
+      try{
+        await sb.from("admin_permissions").delete().eq("user_id",adminPermSelectedUserId).eq("league_id",currentLeague.id);
+        const rows=[...adminPermDraft].map(section=>({user_id:adminPermSelectedUserId,league_id:currentLeague.id,section}));
+        if(rows.length){
+          const {error}=await sb.from("admin_permissions").insert(rows);
+          if(error){flash("Fel: "+error.message+" (har du kört SQL:en som skapar admin_permissions-tabellen?)");return;}
+        }
+        flash(`✓ Behörigheter sparade för ${esc(currentLeague.name)}!`);
+      }catch(e){flash("Fel: "+e.message);}
+      render();
+    }
+    else if(act==="admin-quick-jump"){
+      const id=Number(el.dataset.id);
+      const target=(window._allLeaguesCache||[]).find(l=>l.id===id);
+      if(!target)return;
+      if(adminLevel!=="super" && !adminPermLeagues.includes(id)){ flash("Du har ingen behörighet i den serien."); return; }
+      const root2=document.getElementById("fg-root");
+      root2.innerHTML='<div class="fg-loading">Byter serie…</div>';
+      currentLeague=target;
+      TEAMS=await fetchTeams();
+      players=await fetchPlayers();
+      users=await fetchUsers();
+      rounds=await fetchRounds();
+      cfg=await fetchConfig();
+      try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal,rankFantasySquads,rankFantasyAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds(),fetchRankFantasySquads(),fetchAllRankFantasyTipsAllRounds()]);}catch(e){console.error(e);}
+      try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
+      try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
+      try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
+      if(adminLevel==="super"){
+        adminSection="round"; adminNavGroup="omgang";
+      } else {
+        // Semi-admin: flikarna kan skilja sig åt per serie – hämta om.
+        try{
+          const {data:auth}=await sb.auth.getUser();
+          const {data:perms}=await sb.from("admin_permissions").select("section").eq("user_id",auth.user.id).eq("league_id",id);
+          adminAllowedSections=(perms||[]).map(p=>p.section);
+          adminSection=adminAllowedSections[0]||"round";
+        }catch(e){console.error(e);}
+      }
+      flash(`✓ Nu jobbar du med "${target.name}"`);
       render();
     }
     else if(act==="jump-to-league"){
@@ -11816,7 +11974,7 @@ function attachHandlers(){
       cfg={omg:1,registrationOpen:true,ligatippLocked:false,quizEnabled:false,fantasyEnabled:true,tippEnabled:true,snabbastEnabled:true,maljaktenEnabled:true,ligatippEnabled:true,totalRounds:26};
       allPrivateLeagues=[]; // ny säsong har inga privata ligor ännu
       await sb.from("app_config").insert({league_id:league.id,active_round:1,registration_open:true});
-      adminOk=false; screen="home"; homeMode="start";
+      adminOk=false; adminAllowedSections=null; adminPermLeagues=[]; adminNavGroup=null; screen="home"; homeMode="start";
       sb.auth.signOut().catch(()=>{});
       flash("✓ Säsong "+newLabel+" startad! Välkommen till den nya säsongen.");
     }
