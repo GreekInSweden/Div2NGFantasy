@@ -2554,7 +2554,7 @@ const TRANSLATIONS={
     "modeselect.missingModesPrefix":"Du har inte lagt in allt för omgång {round} än:",
     "modeselect.trialDaysLeftSingular":"⏳ {days} dag kvar av din gratis provperiod",
     "modeselect.trialDaysLeftPlural":"⏳ {days} dagar kvar av din gratis provperiod",
-    "modeselect.trialAppliesAll":"Gäller över alla våra serier du spelar i",
+    "modeselect.trialAppliesAll":"Gäller över alla våra serier du spelar i","modeselect.trialPriceNotice":"Kostar {price} kr när provperioden är slut",
     "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Bygg ditt 4-3-3-lag och tävla i ligatabellen",
     "modeselect.mode.tipp.title":"Tippa resultat","modeselect.mode.tipp.desc":"Gissa rätt resultat i matchen",
     "modeselect.mode.ligatipp.title":"Tippa serien","modeselect.mode.ligatipp.desc":"Tippa tabellen vid halvtid och säsongsslut",
@@ -3129,7 +3129,7 @@ const TRANSLATIONS={
     "modeselect.missingModesPrefix":"You haven't filled in everything for round {round} yet:",
     "modeselect.trialDaysLeftSingular":"⏳ {days} day left of your free trial",
     "modeselect.trialDaysLeftPlural":"⏳ {days} days left of your free trial",
-    "modeselect.trialAppliesAll":"Applies across all our series you play in",
+    "modeselect.trialAppliesAll":"Applies across all our series you play in","modeselect.trialPriceNotice":"Costs {price} kr once the trial period ends",
     "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Build your 4-3-3 team and compete on the league table",
     "modeselect.mode.tipp.title":"Predict the Result","modeselect.mode.tipp.desc":"Guess the correct match result",
     "modeselect.mode.ligatipp.title":"Predict the League","modeselect.mode.ligatipp.desc":"Predict the table at halfway and season end",
@@ -3704,7 +3704,7 @@ const TRANSLATIONS={
     "modeselect.missingModesPrefix":"Δεν έχεις συμπληρώσει τα πάντα για τον γύρο {round} ακόμα:",
     "modeselect.trialDaysLeftSingular":"⏳ {days} ημέρα απομένει από τη δωρεάν δοκιμή σου",
     "modeselect.trialDaysLeftPlural":"⏳ {days} ημέρες απομένουν από τη δωρεάν δοκιμή σου",
-    "modeselect.trialAppliesAll":"Ισχύει σε όλες τις σειρές στις οποίες παίζεις",
+    "modeselect.trialAppliesAll":"Ισχύει σε όλες τις σειρές στις οποίες παίζεις","modeselect.trialPriceNotice":"Κοστίζει {price} kr μόλις τελειώσει η δοκιμαστική περίοδος",
     "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Φτιάξε την ομάδα σου 4-3-3 και διαγωνίσου στη βαθμολογία",
     "modeselect.mode.tipp.title":"Πρόβλεψε το Αποτέλεσμα","modeselect.mode.tipp.desc":"Μάντεψε το σωστό αποτέλεσμα του αγώνα",
     "modeselect.mode.ligatipp.title":"Πρόβλεψε το Πρωτάθλημα","modeselect.mode.ligatipp.desc":"Πρόβλεψε τον πίνακα στα μισά και στο τέλος της σεζόν",
@@ -4418,6 +4418,7 @@ function renderModeSelect(){
       return `<div class="fg-card" style="width:100%;max-width:380px;background:#eef6ff;border:0.5px solid #2563eb;margin-bottom:16px;text-align:center">
         <div style="font-size:13px;color:#2563eb;font-weight:500">${esc(t(daysLeft!==1?"modeselect.trialDaysLeftPlural":"modeselect.trialDaysLeftSingular",{days:daysLeft}))}</div>
         <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${esc(t("modeselect.trialAppliesAll"))}</div>
+        ${cfg.trialPrice?`<div style="font-size:11px;color:#2563eb;margin-top:4px;font-weight:500">${t("modeselect.trialPriceNotice",{price:cfg.trialPrice})}</div>`:""}
       </div>`;
     })()}
     <div style="width:100%;max-width:380px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
