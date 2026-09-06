@@ -2555,6 +2555,7 @@ const TRANSLATIONS={
     "modeselect.trialDaysLeftSingular":"⏳ {days} dag kvar av din gratis provperiod",
     "modeselect.trialDaysLeftPlural":"⏳ {days} dagar kvar av din gratis provperiod",
     "modeselect.trialAppliesAll":"Gäller över alla våra serier du spelar i","modeselect.trialPriceNotice":"Kostar {price} kr när provperioden är slut",
+    "modeselect.trialPricingLine":"Gratis i {days} dagar – därefter {price} kr för säsongen ut.","modeselect.trialOnePaymentAllSeries":"En betalning = tillgång till alla serier.",
     "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Bygg ditt 4-3-3-lag och tävla i ligatabellen",
     "modeselect.mode.tipp.title":"Tippa resultat","modeselect.mode.tipp.desc":"Gissa rätt resultat i matchen",
     "modeselect.mode.ligatipp.title":"Tippa serien","modeselect.mode.ligatipp.desc":"Tippa tabellen vid halvtid och säsongsslut",
@@ -3130,6 +3131,7 @@ const TRANSLATIONS={
     "modeselect.trialDaysLeftSingular":"⏳ {days} day left of your free trial",
     "modeselect.trialDaysLeftPlural":"⏳ {days} days left of your free trial",
     "modeselect.trialAppliesAll":"Applies across all our series you play in","modeselect.trialPriceNotice":"Costs {price} kr once the trial period ends",
+    "modeselect.trialPricingLine":"Free for {days} days – then {price} kr for the rest of the season.","modeselect.trialOnePaymentAllSeries":"One payment = access to all series.",
     "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Build your 4-3-3 team and compete on the league table",
     "modeselect.mode.tipp.title":"Predict the Result","modeselect.mode.tipp.desc":"Guess the correct match result",
     "modeselect.mode.ligatipp.title":"Predict the League","modeselect.mode.ligatipp.desc":"Predict the table at halfway and season end",
@@ -3705,6 +3707,7 @@ const TRANSLATIONS={
     "modeselect.trialDaysLeftSingular":"⏳ {days} ημέρα απομένει από τη δωρεάν δοκιμή σου",
     "modeselect.trialDaysLeftPlural":"⏳ {days} ημέρες απομένουν από τη δωρεάν δοκιμή σου",
     "modeselect.trialAppliesAll":"Ισχύει σε όλες τις σειρές στις οποίες παίζεις","modeselect.trialPriceNotice":"Κοστίζει {price} kr μόλις τελειώσει η δοκιμαστική περίοδος",
+    "modeselect.trialPricingLine":"Δωρεάν για {days} ημέρες – μετά {price} kr για την υπόλοιπη σεζόν.","modeselect.trialOnePaymentAllSeries":"Μία πληρωμή = πρόσβαση σε όλες τις σειρές.",
     "modeselect.mode.fantasy.title":"Fantasy","modeselect.mode.fantasy.desc":"Φτιάξε την ομάδα σου 4-3-3 και διαγωνίσου στη βαθμολογία",
     "modeselect.mode.tipp.title":"Πρόβλεψε το Αποτέλεσμα","modeselect.mode.tipp.desc":"Μάντεψε το σωστό αποτέλεσμα του αγώνα",
     "modeselect.mode.ligatipp.title":"Πρόβλεψε το Πρωτάθλημα","modeselect.mode.ligatipp.desc":"Πρόβλεψε τον πίνακα στα μισά και στο τέλος της σεζόν",
@@ -4412,13 +4415,10 @@ function renderModeSelect(){
     })()}
     ${(()=>{
       if(!cfg.trialEnabled||!currentUser||currentUser.paid||!currentUser.trialStartedAt) return "";
-      const daysSince=(Date.now()-new Date(currentUser.trialStartedAt).getTime())/(1000*60*60*24);
-      const daysLeft=Math.max(0,Math.ceil((cfg.trialDays||14)-daysSince));
       if(isTrialExpired(currentUser)) return "";
       return `<div class="fg-card" style="width:100%;max-width:380px;background:#eef6ff;border:0.5px solid #2563eb;margin-bottom:16px;text-align:center">
-        <div style="font-size:13px;color:#2563eb;font-weight:500">${esc(t(daysLeft!==1?"modeselect.trialDaysLeftPlural":"modeselect.trialDaysLeftSingular",{days:daysLeft}))}</div>
-        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${esc(t("modeselect.trialAppliesAll"))}</div>
-        ${cfg.trialPrice?`<div style="font-size:11px;color:#2563eb;margin-top:4px;font-weight:500">${t("modeselect.trialPriceNotice",{price:cfg.trialPrice})}</div>`:""}
+        <div style="font-size:13px;color:#2563eb;font-weight:500">${esc(t("modeselect.trialPricingLine",{days:cfg.trialDays||14,price:cfg.trialPrice||0}))}</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${esc(t("modeselect.trialOnePaymentAllSeries"))}</div>
       </div>`;
     })()}
     <div style="width:100%;max-width:380px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -11435,6 +11435,19 @@ function attachHandlers(){
       if(!/^[0-9]{5}$/.test(pin)){errMsg="PIN-koden måste vara exakt 5 siffror.";render();return;}
       if(users.find(u=>u.namn.toLowerCase()===namn.toLowerCase())){errMsg="Namnet finns redan.";render();return;}
       errMsg="Registrerar…";render();
+      // Snabbkollen ovan litar bara på den lokala listan i webbläsaren, som kan
+      // vara förlegad (t.ex. om admin-panelen stått öppen i en annan flik).
+      // Fråga databasen direkt en gång till precis innan vi skriver, så vi
+      // aldrig kan skapa en dubblett även om den lokala listan halkat efter.
+      try{
+        const {data:existingInDb}=await sb.from("fantasy_users").select("id").eq("league_id",currentLeague.id).ilike("namn",namn).maybeSingle();
+        if(existingInDb){
+          errMsg="Namnet finns redan.";
+          try{ users=await fetchUsers(); }catch(e){console.error(e);}
+          render();
+          return;
+        }
+      }catch(e){console.error("Kunde inte verifiera namn mot databasen:",e);}
       let recognized=false;
       try{ recognized=!!(await findMatchingAccountAcrossLeagues(namn,pin)); }catch(e){console.error(e);}
       const ny={id:Math.random().toString(36).slice(2,10),namn,picks:{GK:[],DEF:[],MID:[],FW:[]},kapten:null,paid:false,join_round:cfg.omg||1};
