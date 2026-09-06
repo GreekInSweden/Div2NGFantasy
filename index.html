@@ -2281,6 +2281,30 @@ function plPts(player,rd){
   p+=goals*POS_PTS[player.pos].goal;
   return p;
 }
+// Spelarens EGNA Fantasy-poäng för säsongen – summan av plPts() över alla
+// publicerade omgångar. Oberoende av vem som faktiskt valt spelaren i sitt
+// lag; det här är den "råa" prestationspoängen enligt Fantasy-reglerna.
+function playerSeasonFantasyPts(player){
+  return Object.keys(rounds).reduce((s,r)=>{
+    const rd=rounds[r];
+    return rd.results_published?s+plPts(player,rd):s;
+  },0);
+}
+function playerSeasonGoals(player){
+  return Object.keys(rounds).reduce((s,r)=>{
+    const rd=rounds[r];
+    return (rd.results_published&&rd.goals&&rd.goals[player.id])?s+rd.goals[player.id]:s;
+  },0);
+}
+// Topplista över alla spelare i HELA serien, oavsett lag, efter säsongens
+// Fantasy-poäng – för Serien-landningssidan.
+function computeTopPlayersSeason(limit){
+  return players
+    .map(p=>({player:p,pts:playerSeasonFantasyPts(p),goals:playerSeasonGoals(p)}))
+    .filter(r=>r.pts>0)
+    .sort((a,b)=>b.pts-a.pts||b.goals-a.goals||a.player.namn.localeCompare(b.player.namn,"sv"))
+    .slice(0,limit||10);
+}
 function userRoundPts(u,r){
   if(!u)return 0;
   const rd=rounds[String(r)];
@@ -2563,7 +2587,7 @@ const TRANSLATIONS={
     "serie.backToTable":"← Tillbaka till tabellen","serie.teamLatestResultTitle":"📅 Senaste resultat","serie.teamUpcomingTitle":"🔜 Kommande match",
     "serie.writerSectionTitle":"Nyheter från laget","serie.squadTitle":"👥 Truppen","serie.staffLabel":"Ledare",
     "serie.gkLabel":"Målvakter","serie.defLabel":"Försvar","serie.midLabel":"Mittfältare","serie.fwLabel":"Forwards",
-    "serie.noSquadYet":"Ingen trupp inlagd ännu.",
+    "serie.noSquadYet":"Ingen trupp inlagd ännu.","serie.topPlayersTitle":"⭐ Bästa spelarna (Fantasy-poäng)",
     "tabs.hof":"Hall of Fame","tabs.standings":"Ställningar","tabs.profil":"Profil","tabs.stod":"Stöd oss",
     "header.suffix.tipp":" · Tipp","header.suffix.ligatipp":" · Tippa serien","header.suffix.snabbast":" · Snabbast",
     "header.suffix.maljakten":" · Måljakten","header.suffix.matchfokus":" · Matchexperten",
@@ -3131,7 +3155,7 @@ const TRANSLATIONS={
     "serie.backToTable":"← Back to table","serie.teamLatestResultTitle":"📅 Latest result","serie.teamUpcomingTitle":"🔜 Upcoming match",
     "serie.writerSectionTitle":"News from the team","serie.squadTitle":"👥 Squad","serie.staffLabel":"Staff",
     "serie.gkLabel":"Goalkeepers","serie.defLabel":"Defenders","serie.midLabel":"Midfielders","serie.fwLabel":"Forwards",
-    "serie.noSquadYet":"No squad added yet.",
+    "serie.noSquadYet":"No squad added yet.","serie.topPlayersTitle":"⭐ Top players (Fantasy points)",
     "tabs.hof":"Hall of Fame","tabs.standings":"Standings","tabs.profil":"Profile","tabs.stod":"Support us",
     "header.suffix.tipp":" · Predict","header.suffix.ligatipp":" · Predict the League","header.suffix.snabbast":" · Fastest Wins",
     "header.suffix.maljakten":" · Goal Hunt","header.suffix.matchfokus":" · Match Expert",
@@ -3699,7 +3723,7 @@ const TRANSLATIONS={
     "serie.backToTable":"← Πίσω στον πίνακα","serie.teamLatestResultTitle":"📅 Τελευταίο αποτέλεσμα","serie.teamUpcomingTitle":"🔜 Επόμενος αγώνας",
     "serie.writerSectionTitle":"Νέα από την ομάδα","serie.squadTitle":"👥 Ομάδα","serie.staffLabel":"Τεχνικό επιτελείο",
     "serie.gkLabel":"Τερματοφύλακες","serie.defLabel":"Αμυντικοί","serie.midLabel":"Μέσοι","serie.fwLabel":"Επιθετικοί",
-    "serie.noSquadYet":"Δεν έχει προστεθεί ομάδα ακόμα.",
+    "serie.noSquadYet":"Δεν έχει προστεθεί ομάδα ακόμα.","serie.topPlayersTitle":"⭐ Κορυφαίοι παίκτες (πόντοι Fantasy)",
     "tabs.hof":"Hall of Fame","tabs.standings":"Βαθμολογίες","tabs.profil":"Προφίλ","tabs.stod":"Στήριξέ μας",
     "header.suffix.tipp":" · Πρόβλεψη","header.suffix.ligatipp":" · Πρόβλεψε το Πρωτάθλημα","header.suffix.snabbast":" · Ο Πιο Γρήγορος",
     "header.suffix.maljakten":" · Κυνήγι Γκολ","header.suffix.matchfokus":" · Ειδικός Αγώνα",
@@ -8224,6 +8248,18 @@ function renderSerieTab(){
       <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${esc(tm.writer_text)}</div>
     </button>`).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noNewsYet"))}</div>`;
 
+  // Bästa spelarna – säsongens Fantasy-poäng, oavsett lag
+  const topPlayers=computeTopPlayersSeason(10);
+  const medals=["🥇","🥈","🥉"];
+  const topPlayersHtml=topPlayers.length?topPlayers.map((row,i)=>{
+    const team=TEAMS.find(tm=>tm.id===row.player.teamId);
+    return `<button data-act="view-team-page" data-id="${row.player.teamId}" style="display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;text-align:left;cursor:pointer;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <span style="width:22px;text-align:center;font-size:13px">${i<3?medals[i]:i+1}</span>
+      <div style="flex:1"><div style="font-size:13px;font-weight:500">${esc(row.player.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(team?team.name:"")}</div></div>
+      <div style="font-weight:600;color:${G_GREEN}">${row.pts} p</div>
+    </button>`;
+  }).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div>`;
+
   return `
   <div style="font-weight:500;font-size:16px;margin-bottom:12px">${esc(t("serie.title",{league:currentLeague.name}))}</div>
 
@@ -8248,6 +8284,11 @@ function renderSerieTab(){
         <tbody>${tableRows}</tbody>
       </table>
     </div>`:`<div style="font-size:13px;color:var(--color-text-secondary);text-align:center;padding:10px">${esc(t("serie.noResultsYet"))}</div>`}
+  </div>
+
+  <div class="fg-card">
+    <div style="font-weight:500;margin-bottom:8px">${esc(t("serie.topPlayersTitle"))}</div>
+    ${topPlayersHtml}
   </div>
 
   <div class="fg-card">
@@ -8337,7 +8378,9 @@ function renderTeamPage(){
   </div>`:"";
 
   const squadGroup=(pos,label)=>{
-    const list=players.filter(p=>p.teamId===team.id&&p.pos===pos);
+    const list=players.filter(p=>p.teamId===team.id&&p.pos===pos)
+      .map(p=>({...p,seasonPts:playerSeasonFantasyPts(p)}))
+      .sort((a,b)=>b.seasonPts-a.seasonPts||a.namn.localeCompare(b.namn,"sv"));
     if(!list.length) return "";
     return `<div style="margin-bottom:16px">
       <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px">${esc(label)}</div>
@@ -8345,6 +8388,7 @@ function renderTeamPage(){
         ${list.map(p=>`<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;text-align:center">
           ${avatar(p)}
           <div style="font-size:11px;font-weight:500;line-height:1.3">${esc(p.namn)}</div>
+          ${p.seasonPts>0?`<div style="font-size:10px;color:${G_GREEN};font-weight:600">${p.seasonPts} p</div>`:""}
         </div>`).join("")}
       </div>
     </div>`;
