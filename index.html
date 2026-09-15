@@ -21,7 +21,7 @@
   })();
 </script>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#1a1a1a">
+<meta name="theme-color" content="#1c2118">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Div2NG Play">
@@ -35,7 +35,7 @@
   --color-background-tertiary:#f5f5f3;
   --color-border-tertiary:#e5e5e3;
   --color-border-secondary:#cccccc;
-  --color-text-primary:#1a1a1a;
+  --color-text-primary:#1c2118;
   --color-text-secondary:#6b6b6b;
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -52,14 +52,14 @@ body{font-family:var(--font-sans);background:var(--color-background-tertiary);co
 input,select,button{font-family:inherit}
 input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-card{background:var(--color-background-primary);border-radius:10px;border:0.5px solid var(--color-border-tertiary);padding:1rem 1.25rem;margin-bottom:10px}
-.fg-btn{background:#c1272d;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:500;cursor:pointer;width:100%}
+.fg-btn{background:#2f6b3f;color:#fff;border:none;border-radius:6px;padding:10px 18px;font-size:14px;font-weight:500;cursor:pointer;width:100%}
 .fg-outbtn{background:none;border:0.5px solid var(--color-border-secondary);border-radius:6px;padding:10px 18px;font-size:14px;cursor:pointer;color:var(--color-text-primary);width:auto}
 .fg-input{width:100%;padding:9px 11px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:14px;background:var(--color-background-primary);color:var(--color-text-primary);box-sizing:border-box}
 .fg-label{font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;display:block}
-.fg-top{background:#1a1a1a;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
+.fg-top{background:#1c2118;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10}
 .fg-topbar-tabs{background:var(--color-background-primary);border-bottom:0.5px solid var(--color-border-tertiary);display:flex;position:sticky;top:52px;z-index:9}
 .fg-tabbtn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px 6px;border:none;background:none;cursor:pointer;color:var(--color-text-secondary);font-size:10px;gap:2px}
-.fg-tabbtn.active{color:#c1272d;border-bottom:2px solid #c1272d}
+.fg-tabbtn.active{color:#2f6b3f;border-bottom:2px solid #2f6b3f}
 .fg-posbadge{border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:500;flex-shrink:0}
 .fg-mrow{display:grid;grid-template-columns:minmax(0,1fr) 48px 14px 48px minmax(0,1fr) 24px;gap:6px;align-items:center;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary)}
 .fg-mrow select{font-size:11px;padding:8px 4px;min-width:0;width:100%;max-width:100%;text-overflow:ellipsis}
@@ -69,7 +69,7 @@ input:focus,select:focus{outline:2px solid #1a6b3c;outline-offset:1px}
 .fg-mscore::-webkit-outer-spin-button,.fg-mscore::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .fg-adm-tab{padding:8px 4px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer}
 .fg-loading{display:flex;align-items:center;justify-content:center;min-height:100vh;color:var(--color-text-secondary);font-size:14px}
-.fg-ticker-wrap{overflow:hidden;background:#1a1a1a;padding:8px 0;white-space:nowrap;position:sticky;top:90px;z-index:8}
+.fg-ticker-wrap{overflow:hidden;background:#1c2118;padding:8px 0;white-space:nowrap;position:sticky;top:90px;z-index:8}
 .fg-ticker-track{display:inline-flex;animation:fg-ticker-scroll 30s linear infinite}
 .fg-ticker-track span{padding:0 32px;color:#fff;font-size:13px;font-weight:500;white-space:nowrap}
 @keyframes fg-ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -149,7 +149,7 @@ function modeIntroLink(mode){
   return `<button data-act="show-mode-intro" data-mode="${mode}" style="background:none;border:none;color:var(--color-text-secondary);font-size:11px;cursor:pointer;padding:0;text-decoration:underline;margin-bottom:10px;display:inline-block">${esc(t("modeintro.viewAgainLink"))}</button>`;
 }
 const POS_PTS={GK:{clean:6,goal:10},DEF:{clean:4,goal:7},MID:{clean:2,goal:5},FW:{clean:1,goal:5}};
-const G_GREEN="#c1272d",G_GREENL="#fce8e8",G_GOLD="#b45309",G_GOLDL="#fef3c7";
+const G_GREEN="#2f6b3f",G_GREENL="#e9f2ea",G_GOLD="#a5741f",G_GOLDL="#faf0dc";
 // Push API-nyckel – behövs i klienten för att kunna skicka notiser
 window.PUSH_API_KEY="Mammapappa80Push";
 const VAPID_PUBLIC_KEY='BKgiwiepvmZ5LErgA8hAtbE7UQQzphjUA8StPslVG-ivFiTBdMPrJcHyHW5-yNvASexf3KoZV5gEym1kGYzZ-5E';
@@ -1040,7 +1040,7 @@ window.saveMåljakten=async function(){
     if(idxG>=0)måljaktenAllTipsGlobal[idxG]={...måljaktenAllTipsGlobal[idxG],picks:[...måljaktenDraft]};
     else måljaktenAllTipsGlobal=[...måljaktenAllTipsGlobal,{user_id:currentUser.id,round_num:cfg.omg,picks:[...måljaktenDraft]}];
     myRoundStatus={...myRoundStatus,maljakten:true};
-    if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
+    if(statusEl)statusEl.innerHTML='<span style="color:#1c2118;font-weight:500">✓ Tips sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
@@ -2364,7 +2364,7 @@ window.saveSnabbast=async function(){
     if(existingG>=0) snabbastAllTipsGlobal[existingG]={...snabbastAllTipsGlobal[existingG],picks:[...snabbastDraft]};
     else snabbastAllTipsGlobal=[...snabbastAllTipsGlobal,{user_id:currentUser.id,round_num:cfg.omg,picks:[...snabbastDraft]}];
     myRoundStatus={...myRoundStatus,snabbast:true};
-    if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tips sparat!</span>';
+    if(statusEl)statusEl.innerHTML='<span style="color:#1c2118;font-weight:500">✓ Tips sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
@@ -2421,7 +2421,7 @@ window.saveLigatipp=async function(){
     const error=await upsertLigatipp(half,full);
     if(error){if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+error.message+'</span>';return;}
     ligatipp=Object.assign({},ligatipp||{},{halfTip:half,fullTip:full});
-    if(statusEl)statusEl.innerHTML='<span style="color:#1a1a1a;font-weight:500">✓ Tipset är sparat!</span>';
+    if(statusEl)statusEl.innerHTML='<span style="color:#1c2118;font-weight:500">✓ Tipset är sparat!</span>';
   }catch(e){
     if(statusEl)statusEl.innerHTML='<span style="color:#c1272d">Fel: '+e.message+'</span>';
   }
@@ -4393,11 +4393,11 @@ function renderModeSelect(){
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#fff">
     <div style="text-align:center;margin-bottom:28px">
-      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;color:#1a1a1a;margin-bottom:6px">${esc(currentLeague.name)}</div>
+      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;color:#1c2118;margin-bottom:6px">${esc(currentLeague.name)}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
-        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
-        <div style="height:1.5px;width:110px;background:#c1272d"></div>
-        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
+        <div style="height:1.5px;width:110px;background:#2f6b3f"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
       </div>
       <div style="font-size:10px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
     </div>
@@ -4582,7 +4582,7 @@ function renderLeagues(){
     const lg=leagues.find(l=>l.id===pendingCrossLeagueUser.league_id);
     return `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-      <div style="width:64px;height:64px;background:#c1272d;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingCrossLeagueUser.namn[0])}</div>
+      <div style="width:64px;height:64px;background:#2f6b3f;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingCrossLeagueUser.namn[0])}</div>
       <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingCrossLeagueUser.namn}))}</div>
       <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.crossleague.subtitle",{league:lg?lg.name:""}))}</div>
       <div style="width:100%;max-width:300px">
@@ -4648,9 +4648,9 @@ window._doLeagueSearch=function(){
     <div style="text-align:center;margin-bottom:8px">
       <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:30px;color:var(--color-text-primary);margin-bottom:6px">${esc(getAppName())}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
-        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
-        <div style="height:1.5px;width:110px;background:#c1272d"></div>
-        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
+        <div style="height:1.5px;width:110px;background:#2f6b3f"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
       </div>
       <div style="font-size:10px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
     </div>
@@ -4700,7 +4700,7 @@ window._doEntrySearch=function(){
       const assignedHtml=assigned.map(u=>{
         const lg=leagues.find(l=>l.id===u.league_id);
         return `<button data-act="entry-pick-user" data-id="${u.id}" data-league-id="${u.league_id}" data-namn="${esc(u.namn)}" class="fg-card" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
-          <div style="width:36px;height:36px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc(u.namn[0])}</div>
+          <div style="width:36px;height:36px;border-radius:50%;background:#2f6b3f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;flex-shrink:0">${esc(u.namn[0])}</div>
           <div style="flex:1"><div style="font-weight:500;font-size:14px">${esc(u.namn)}</div><div style="font-size:11px;color:var(--color-text-secondary)">${esc(lg?lg.name:"")}</div></div>
           <span style="color:var(--color-text-secondary)">›</span>
         </button>`;
@@ -4725,13 +4725,13 @@ function renderHome(){
   if(homeMode==="pin"){
     const u=pendingLoginUser;
     return `
-    <div style="min-height:100vh;background:#1a1a1a;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
-      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;position:absolute;top:20px;left:20px;border-color:#444;color:#888;font-size:13px">${esc(t("common.back"))}</button>
+    <div style="min-height:100vh;background:#1c2118;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+      <button class="fg-outbtn" data-act="show-login" style="align-self:flex-start;position:absolute;top:20px;left:20px;border-color:#3d4536;color:#888;font-size:13px">${esc(t("common.back"))}</button>
       <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.3px;margin-bottom:10px">${esc(currentLeague.name)}</div>
-      <div style="width:60px;height:60px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;margin-bottom:14px">${esc(u.namn[0])}</div>
+      <div style="width:60px;height:60px;border-radius:50%;background:#2f6b3f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:24px;margin-bottom:14px">${esc(u.namn[0])}</div>
       <div style="font-size:20px;font-weight:600;color:#fff;margin-bottom:4px">${esc(u.namn)}</div>
       <div style="font-size:13px;color:#888;margin-bottom:24px">${esc(t("login.enterPin"))}</div>
-      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" style="max-width:180px;text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:8px;background:#2a2a2a;border-color:#444;color:#fff" autofocus/>
+      <input class="fg-input" id="login-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" style="max-width:180px;text-align:center;font-size:24px;letter-spacing:8px;margin-bottom:8px;background:#262d20;border-color:#3d4536;color:#fff" autofocus/>
       ${loginErr?`<div style="color:#ff6b6b;font-size:12px;margin-bottom:8px">${esc(loginErr)}</div>`:""}
       <button class="fg-btn" data-act="submit-pin" style="max-width:220px;margin-top:10px">${esc(t("common.loginButtonArrow"))}</button>
     </div>`;
@@ -4746,7 +4746,7 @@ function renderHome(){
     const isShowingRecent=!searchQ;
     const makeList=(us,searching)=>us.map(u=>`
       <button data-act="ask-pin" data-id="${u.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;background:#222;border:0.5px solid #333;border-radius:10px;cursor:pointer;text-align:left;width:100%;margin-bottom:8px">
-        <div style="width:40px;height:40px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(u.namn[0])}</div>
+        <div style="width:40px;height:40px;border-radius:50%;background:#2f6b3f;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(u.namn[0])}</div>
         <div style="flex:1;color:#fff;font-weight:500;font-size:15px">${esc(u.namn)}</div>
         <span style="color:#555;font-size:20px">›</span>
       </button>`).join("")||(searching
@@ -4762,11 +4762,11 @@ function renderHome(){
       attachHandlers();
     };
     return `
-    <div style="min-height:100vh;background:#1f1f1f;padding:24px">
+    <div style="min-height:100vh;background:#1c2118;padding:24px">
       <button data-act="show-start" style="background:none;border:none;color:#888;cursor:pointer;font-size:13px;margin-bottom:20px">${esc(t("common.back"))}</button>
       <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">${esc(currentLeague.name)}</div>
       <div style="font-family:Georgia,serif;font-style:italic;font-size:22px;color:#fff;margin-bottom:16px">${esc(t("login.choosePlayer"))}</div>
-      <input id="user-search" type="search" placeholder="${esc(t("login.searchPlaceholder"))}" oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#2a2a2a;border:0.5px solid #555;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
+      <input id="user-search" type="search" placeholder="${esc(t("login.searchPlaceholder"))}" oninput="window._refreshUserList&&window._refreshUserList()" autocomplete="off" autocorrect="off" style="width:100%;padding:12px 14px;background:#262d20;border:0.5px solid #4a5240;border-radius:10px;color:#fff;font-size:15px;margin-bottom:14px;box-sizing:border-box"/>
       <div id="user-list-label" style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">${isShowingRecent?esc(t("login.recentOnDevice")):esc(t("login.searchResults"))}</div>
       <div id="user-list-login">${makeList(filteredUsers,!!searchQ)}</div>
     </div>`;
@@ -4779,7 +4779,7 @@ function renderHome(){
   for(let i=0;i<tickerTeams.length;i+=2){
     const a=tickerTeams[i],b=tickerTeams[(i+1)%tickerTeams.length];
     const h=Math.floor(Math.random()*4),g=Math.floor(Math.random()*4);
-    matchups.push(`${a} <span style="color:#c1272d;font-weight:700;margin:0 6px">${h}–${g}</span> ${b}`);
+    matchups.push(`${a} <span style="color:#2f6b3f;font-weight:700;margin:0 6px">${h}–${g}</span> ${b}`);
   }
   const tickerHtml=matchups.map(m=>`<span style="padding:0 28px;white-space:nowrap">${m}</span>`).join("");
 
@@ -4802,20 +4802,20 @@ function renderHome(){
   ];
   const modes=allModes.filter(m=>m.on);
   const modeCards=modes.map(m=>`
-    <div style="background:#2d2d2d;border:0.5px solid #444;border-radius:10px;padding:14px 12px">
+    <div style="background:#262d20;border:0.5px solid #3d4536;border-radius:10px;padding:14px 12px">
       <div style="font-size:22px;margin-bottom:6px">${m.ico}</div>
       <div style="font-size:13px;font-weight:600;color:#fff;margin-bottom:3px">${m.title}</div>
       <div style="font-size:11px;color:#aaa;line-height:1.4">${m.desc}</div>
     </div>`).join("");
 
   return `
-  <div style="min-height:100vh;background:#1f1f1f;display:flex;flex-direction:column">
+  <div style="min-height:100vh;background:#1c2118;display:flex;flex-direction:column">
 
     <!-- Topbar -->
-    <div style="background:#111;padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #2a2a2a">
-      <svg width="12" height="12" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
+    <div style="background:#161b12;padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:0.5px solid #33392b">
+      <svg width="12" height="12" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
       <span style="font-family:Georgia,serif;font-style:italic;font-size:17px;color:#fff;letter-spacing:-0.2px">${esc(currentLeague.name)}</span>
-      <span style="font-size:11px;letter-spacing:.25em;color:#c1272d;font-weight:600;margin-left:2px">PLAY</span>
+      <span style="font-size:11px;letter-spacing:.25em;color:#2f6b3f;font-weight:600;margin-left:2px">PLAY</span>
     </div>
 
     <!-- Hero -->
@@ -4824,9 +4824,9 @@ function renderHome(){
         ${esc(currentLeague.name)}
       </div>
       <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px">
-        <div style="height:1px;width:50px;background:#c1272d"></div>
-        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg>
-        <div style="height:1px;width:50px;background:#c1272d"></div>
+        <div style="height:1px;width:50px;background:#2f6b3f"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
+        <div style="height:1px;width:50px;background:#2f6b3f"></div>
       </div>
       ${(cfg.trialEnabled&&cfg.trialPrice)?`<div style="display:inline-block;background:#1f1515;border:0.5px solid #3a2020;border-radius:20px;padding:7px 16px;font-size:12px;color:#ddd">${t("home.trialPricingBadge",{days:cfg.trialDays||14,price:cfg.trialPrice})}</div>`:""}
     </div>
@@ -4985,7 +4985,7 @@ function renderModeIntro(){
         <div style="display:flex;align-items:center;gap:16px">
           <div style="width:46px;height:46px;border-radius:50%;background:${G_GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700">A</div>
           <div style="font-weight:700;color:var(--color-text-secondary);font-size:14px">VS</div>
-          <div style="width:46px;height:46px;border-radius:50%;background:#c1272d;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700">B</div>
+          <div style="width:46px;height:46px;border-radius:50%;background:#2f6b3f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700">B</div>
         </div>
         <div style="font-size:22px">🏆</div>
       </div>`;
@@ -5075,7 +5075,7 @@ function renderChipCard(){
         <div style="font-size:13px;font-weight:500">${esc(c.label)}${active?esc(t("pick.chipActiveSuffix")):used?esc(t("pick.chipUsedSuffix")):''}</div>
         <div style="font-size:11px;color:var(--color-text-secondary)">${esc(c.desc)}</div>
       </div>
-      <button data-act="${active?'deactivate-chip':'activate-chip'}" data-chip="${c.id}" ${disabled?"disabled":""} style="background:${active?'#e6a817':'#1a1a1a'};color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:500;cursor:${disabled?'not-allowed':'pointer'};white-space:nowrap;opacity:${disabled?0.4:1}">${active?esc(t("pick.chipCancel")):used?esc(t("pick.chipUsed")):esc(t("pick.chipUse"))}</button>
+      <button data-act="${active?'deactivate-chip':'activate-chip'}" data-chip="${c.id}" ${disabled?"disabled":""} style="background:${active?'#e6a817':'#1c2118'};color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:500;cursor:${disabled?'not-allowed':'pointer'};white-space:nowrap;opacity:${disabled?0.4:1}">${active?esc(t("pick.chipCancel")):used?esc(t("pick.chipUsed")):esc(t("pick.chipUse"))}</button>
     </div>`;
   }).join("");
   return `<div class="fg-card" style="margin-bottom:10px">
@@ -5765,10 +5765,10 @@ function renderInstallGuide(){
   const appName=getAppName();
   const backAct = installGuideFrom==="home" ? "install-back-home" : "install-back-leagues";
 
-  const tabBtn=(id,label)=>`<button data-act="install-tab" data-tab="${id}" style="flex:1;padding:10px 6px;border:none;border-bottom:2px solid ${installGuideTab===id?"#c1272d":"transparent"};background:none;color:${installGuideTab===id?"var(--color-text-primary)":"var(--color-text-secondary)"};font-weight:${installGuideTab===id?600:400};font-size:13px;cursor:pointer">${label}</button>`;
+  const tabBtn=(id,label)=>`<button data-act="install-tab" data-tab="${id}" style="flex:1;padding:10px 6px;border:none;border-bottom:2px solid ${installGuideTab===id?"#2f6b3f":"transparent"};background:none;color:${installGuideTab===id?"var(--color-text-primary)":"var(--color-text-secondary)"};font-weight:${installGuideTab===id?600:400};font-size:13px;cursor:pointer">${label}</button>`;
 
   const step=(n,text)=>`<div style="display:flex;gap:10px;margin-bottom:12px">
-    <div style="width:22px;height:22px;border-radius:50%;background:#c1272d;color:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">${n}</div>
+    <div style="width:22px;height:22px;border-radius:50%;background:#2f6b3f;color:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600">${n}</div>
     <div style="font-size:13px;color:var(--color-text-secondary);line-height:1.6;padding-top:2px">${text}</div>
   </div>`;
 
@@ -5854,14 +5854,14 @@ function renderMain(){
   const allRoundKeys=Object.keys(rounds).map(Number).sort((a,b)=>a-b);
   const showRoundStrip=appMode!=="statistik"&&appMode!=="ligatipp"&&appMode!=="hof"&&appMode!=="standings"&&allRoundKeys.length>0;
   const roundStrip=showRoundStrip?`
-    <div style="background:#1a1a1a;padding:6px 12px 8px">
+    <div style="background:#1c2118;padding:6px 12px 8px">
       <div style="display:grid;grid-template-columns:repeat(13,1fr);gap:3px">
       ${Array.from({length:cfg.totalRounds||26},(_,i)=>i+1).map(r=>{
         const rd=rounds[String(r)];
         const isActive=r===cfg.omg;
         if(!rd) return `<div style="height:26px;border-radius:5px;background:#333;opacity:0.3"></div>`;
         const bg=isActive?"#fff":rd.results_published?"#2d5a2d":isRoundLocked(rd)?"#5a1a1a":"#333";
-        const col=isActive?"#1a1a1a":rd.results_published?"#a8e6a8":isRoundLocked(rd)?"#ffaaaa":"#aaa";
+        const col=isActive?"#1c2118":rd.results_published?"#a8e6a8":isRoundLocked(rd)?"#ffaaaa":"#aaa";
         return `<button data-act="user-jump-round" data-r="${r}" style="height:26px;border-radius:5px;border:none;background:${bg};color:${col};font-size:11px;font-weight:${isActive?700:500};cursor:pointer;width:100%">${r}</button>`;
       }).join("")}
       </div>
@@ -5910,7 +5910,7 @@ function renderMain(){
 
   return `
   <div style="min-height:100vh">
-    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#c1272d"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?esc(t("header.suffix.tipp")):appMode==="ligatipp"?esc(t("header.suffix.ligatipp")):appMode==="snabbast"?esc(t("header.suffix.snabbast")):appMode==="måljakten"?esc(t("header.suffix.maljakten")):appMode==="matchfokus"?esc(t("header.suffix.matchfokus")):""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="main-tab" data-tab="adm" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">${esc(t("common.adminLock"))}</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">${esc(t("common.switchLeague"))}</button></div>
+    <div class="fg-top"><svg width="14" height="14" viewBox="0 0 10 10" style="flex-shrink:0"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg><span style="font-weight:500;flex:1;font-family:Georgia,serif;font-style:italic">${esc(currentLeague.name)}${appMode==="tipp"?esc(t("header.suffix.tipp")):appMode==="ligatipp"?esc(t("header.suffix.ligatipp")):appMode==="snabbast"?esc(t("header.suffix.snabbast")):appMode==="måljakten"?esc(t("header.suffix.maljakten")):appMode==="matchfokus"?esc(t("header.suffix.matchfokus")):""}</span>${currentLeague.season?`<span style="font-size:10px;color:rgba(255,255,255,0.5);margin-right:8px">${esc(String(currentLeague.season))}</span>`:""}<button data-act="main-tab" data-tab="adm" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0;margin-right:8px">${esc(t("common.adminLock"))}</button><button data-act="switch-league" style="background:none;border:none;color:#fff;cursor:pointer;font-size:11px;text-decoration:underline;opacity:.85;padding:0">${esc(t("common.switchLeague"))}</button></div>
     <div class="fg-topbar-tabs">${tabs}</div>
     ${announcements.length?`<div class="fg-ticker-wrap"><div class="fg-ticker-track">${announcements.map(a=>`<span>📢 ${esc(a.message)}</span>`).join("")}${announcements.map(a=>`<span>📢 ${esc(a.message)}</span>`).join("")}</div></div>`:""}
     ${roundStrip}
@@ -6313,7 +6313,7 @@ function renderSnabbastTab(){
         <tr style="border-top:0.5px solid var(--color-border-tertiary)"><td style="padding:4px 0">${esc(t("snabbast.place4to7"))}</td><td style="text-align:right;font-weight:500">${esc(t("snabbast.place4to7Pts"))}</td></tr>
       </tbody>
     </table>
-    <div style="background:#fce8e8;border-radius:6px;padding:10px 12px;font-size:12px;color:#1a1a1a;line-height:1.6">
+    <div style="background:#fce8e8;border-radius:6px;padding:10px 12px;font-size:12px;color:#1c2118;line-height:1.6">
       ${t("snabbast.importantNote")}
     </div>
   </div>
@@ -7949,7 +7949,7 @@ function renderStreakTab(){
       const h=TEAMS.find(t=>t.id===m?.hId),a=TEAMS.find(t=>t.id===m?.aId);
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary);font-size:13px">
         <div style="flex:1">${esc(h?.name||"")} – ${esc(a?.name||"")}</div>
-        <span style="font-weight:600;background:#1a1a1a;color:#fff;border-radius:4px;padding:2px 8px">${sign}</span>
+        <span style="font-weight:600;background:#1c2118;color:#fff;border-radius:4px;padding:2px 8px">${sign}</span>
       </div>`}).join("");
     return `${streakBar}
     <div class="fg-card" style="background:${S_GREENL};border:1px solid ${S_GREEN}">
@@ -7977,7 +7977,7 @@ function renderStreakTab(){
       <div style="font-size:11px;color:#999;margin:8px 0;font-family:monospace">
         cfg.omg=${cfg.omg} · rounds=${Object.keys(rounds).join(",")} · rd=${rd?esc(t("streak.debugExists")):esc(t("streak.debugMissing"))}
       </div>
-      <button data-act="streak-reload" style="background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px">${esc(t("streak.reloadMatches"))}</button>
+      <button data-act="streak-reload" style="background:#1c2118;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px">${esc(t("streak.reloadMatches"))}</button>
     </div>`;
   }
 
@@ -8208,7 +8208,7 @@ function renderTeamPitchView(u,r){
         return `<div style="width:108px;text-align:center">
           <div style="background:#fff;border-radius:9px;padding:10px 6px;box-shadow:0 1px 4px rgba(0,0,0,0.25);position:relative;min-height:56px;display:flex;flex-direction:column;justify-content:center">
             ${isCap?`<div style="position:absolute;top:-7px;right:-7px;background:${G_GOLD};color:#fff;border-radius:50%;width:20px;height:20px;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700">C</div>`:""}
-            <div style="font-size:12.5px;font-weight:600;color:#1a1a1a;line-height:1.3;word-break:break-word">${esc(pl.namn)}</div>
+            <div style="font-size:12.5px;font-weight:600;color:#1c2118;line-height:1.3;word-break:break-word">${esc(pl.namn)}</div>
             <div style="font-size:10.5px;color:#888;line-height:1.25;margin-top:3px;word-break:break-word">${esc(team?team.name:"")}</div>
           </div>
           <div style="margin-top:5px;font-size:12px;font-weight:700;color:#fff;background:rgba(0,0,0,0.35);border-radius:10px;padding:2px 9px;display:inline-block">${resultsShown?(isCap?pts*2:pts):"–"}p</div>
@@ -8555,7 +8555,7 @@ function renderOmgTab(){
     } else {
       bg=hasAnyTip?"#fff3e0":"var(--color-background-primary)";
       col=hasAnyTip?"#e65100":"var(--color-text-secondary)";
-      border=isActive?"#1a1a1a":(hasAnyTip?"#e65100":"var(--color-border-secondary)");
+      border=isActive?"#1c2118":(hasAnyTip?"#e65100":"var(--color-border-secondary)");
     }
 
     return `<button data-act="toggle-round" data-r="${n}" style="aspect-ratio:1;border-radius:8px;border:1.5px solid ${border};background:${bg};color:${col};font-size:13px;font-weight:${isActive?700:500};cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center">
@@ -8756,7 +8756,7 @@ function renderAdminTab(){
           <div style="flex:1">
             <div style="font-size:12px;font-weight:500;color:${isPublished?'#92400e':'var(--color-text-secondary)'}">${isPublished?'Poäng räknas':'Resultat ej klara'}</div>
           </div>
-          <button data-act="publish-results" style="background:${isPublished?'#fff':'#1a1a1a'};color:${isPublished?'#92400e':'#fff'};border:${isPublished?'0.5px solid #92400e':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isPublished?'Ångra':'Resultat klara'}</button>
+          <button data-act="publish-results" style="background:${isPublished?'#fff':'#1c2118'};color:${isPublished?'#92400e':'#fff'};border:${isPublished?'0.5px solid #92400e':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isPublished?'Ångra':'Resultat klara'}</button>
         </div>
       </div>
       ${isLocked
@@ -8832,7 +8832,7 @@ function renderAdminTab(){
         <div style="display:flex;gap:6px;align-items:center;background:var(--color-background-secondary);border-radius:8px;padding:8px 10px;margin-bottom:10px">
           <span style="font-size:12px;flex-shrink:0">Sätt lag för alla:</span>
           <select id="pimport-setall-select" style="flex:1;padding:6px 4px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;background:var(--color-background-primary);color:var(--color-text-primary)">${teamOpts(null)}</select>
-          <button data-act="pimport-setall-team" style="background:#1a1a1a;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap">Använd</button>
+          <button data-act="pimport-setall-team" style="background:#1c2118;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;white-space:nowrap">Använd</button>
         </div>
         ${rows}
         <div style="display:flex;gap:8px;margin-top:12px">
@@ -8891,7 +8891,7 @@ function renderAdminTab(){
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Använd den här för en helt ny serie, eller för att lägga till ett enstaka lag.</div>
       <div style="display:flex;gap:8px">
         <input class="fg-input" id="new-team-name" placeholder="Lagnamn" style="flex:1;min-width:0"/>
-        <button data-act="add-team" style="background:#c1272d;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;width:auto;flex-shrink:0;white-space:nowrap">Lägg till</button>
+        <button data-act="add-team" style="background:#2f6b3f;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;width:auto;flex-shrink:0;white-space:nowrap">Lägg till</button>
       </div>
     </div>
     <div class="fg-card">
@@ -9098,8 +9098,8 @@ function renderAdminTab(){
 
     // Sub-navigation
     const subNav=`<div style="display:flex;gap:6px;margin-bottom:12px">
-      <button onclick="window._privligaTab='active';render()" style="background:${!showHistory?'#1a1a1a':'var(--color-background-secondary)'};color:${!showHistory?'#fff':'var(--color-text-secondary)'};border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">Aktiva ligor</button>
-      <button onclick="window._privligaTab='history';render()" style="background:${showHistory?'#1a1a1a':'var(--color-background-secondary)'};color:${showHistory?'#fff':'var(--color-text-secondary)'};border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">📚 Historik</button>
+      <button onclick="window._privligaTab='active';render()" style="background:${!showHistory?'#1c2118':'var(--color-background-secondary)'};color:${!showHistory?'#fff':'var(--color-text-secondary)'};border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">Aktiva ligor</button>
+      <button onclick="window._privligaTab='history';render()" style="background:${showHistory?'#1c2118':'var(--color-background-secondary)'};color:${showHistory?'#fff':'var(--color-text-secondary)'};border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:500;cursor:pointer">📚 Historik</button>
     </div>`;
 
     if(showHistory){
@@ -9188,7 +9188,7 @@ function renderAdminTab(){
           <div style="font-weight:500">${cfg.quizEnabled?'✅ Quiz är aktiverat':'⏸ Quiz är dolt för användare'}</div>
           <div style="font-size:12px;color:var(--color-text-secondary);margin-top:2px">${cfg.quizEnabled?'Syns på väljarskärmen':'Syns bara för dig som admin'}</div>
         </div>
-        <button data-act="toggle-quiz" style="background:${cfg.quizEnabled?'#fff':'#1a1a1a'};color:${cfg.quizEnabled?'#1a6b3c':'#fff'};border:${cfg.quizEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
+        <button data-act="toggle-quiz" style="background:${cfg.quizEnabled?'#fff':'#1c2118'};color:${cfg.quizEnabled?'#1a6b3c':'#fff'};border:${cfg.quizEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
           ${cfg.quizEnabled?'Dölj quiz':'Aktivera quiz'}
         </button>
       </div>
@@ -9302,7 +9302,7 @@ function renderAdminTab(){
           <div style="font-weight:500;font-size:13px">${name}</div>
           <div style="font-size:11px;color:var(--color-text-secondary)">${cfg[cfgKey]?"Synlig för användare":"Dold för användare"}</div>
         </div>
-        <button data-act="toggle-mode" data-key="${dbKey}" data-cfg="${cfgKey}" style="background:${cfg[cfgKey]?"#1a1a1a":"var(--color-background-secondary)"};color:${cfg[cfgKey]?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg[cfgKey]?"#1a1a1a":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
+        <button data-act="toggle-mode" data-key="${dbKey}" data-cfg="${cfgKey}" style="background:${cfg[cfgKey]?"#1c2118":"var(--color-background-secondary)"};color:${cfg[cfgKey]?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg[cfgKey]?"#1c2118":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
           ${cfg[cfgKey]?"Dölj":"Aktivera"}
         </button>
       </div>`).join("");
@@ -9320,7 +9320,7 @@ function renderAdminTab(){
           <div style="font-weight:500;font-size:13px">English</div>
           <div style="font-size:11px;color:var(--color-text-secondary)">${cfg.langEnEnabled?"Synligt för användare":"Dolt för användare"}</div>
         </div>
-        <button data-act="toggle-mode" data-key="lang_en_enabled" data-cfg="langEnEnabled" style="background:${cfg.langEnEnabled?"#1a1a1a":"var(--color-background-secondary)"};color:${cfg.langEnEnabled?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg.langEnEnabled?"#1a1a1a":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
+        <button data-act="toggle-mode" data-key="lang_en_enabled" data-cfg="langEnEnabled" style="background:${cfg.langEnEnabled?"#1c2118":"var(--color-background-secondary)"};color:${cfg.langEnEnabled?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg.langEnEnabled?"#1c2118":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
           ${cfg.langEnEnabled?"Dölj":"Aktivera"}
         </button>
       </div>
@@ -9330,7 +9330,7 @@ function renderAdminTab(){
           <div style="font-weight:500;font-size:13px">Ελληνικά</div>
           <div style="font-size:11px;color:var(--color-text-secondary)">${cfg.langGrEnabled?"Synligt för användare":"Dolt för användare"}</div>
         </div>
-        <button data-act="toggle-mode" data-key="lang_gr_enabled" data-cfg="langGrEnabled" style="background:${cfg.langGrEnabled?"#1a1a1a":"var(--color-background-secondary)"};color:${cfg.langGrEnabled?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg.langGrEnabled?"#1a1a1a":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
+        <button data-act="toggle-mode" data-key="lang_gr_enabled" data-cfg="langGrEnabled" style="background:${cfg.langGrEnabled?"#1c2118":"var(--color-background-secondary)"};color:${cfg.langGrEnabled?"#fff":"var(--color-text-secondary)"};border:0.5px solid ${cfg.langGrEnabled?"#1c2118":"var(--color-border-secondary)"};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">
           ${cfg.langGrEnabled?"Dölj":"Aktivera"}
         </button>
       </div>
@@ -9495,7 +9495,7 @@ Liverpool
     body=`<div class="fg-card" style="background:${cfg.stodEnabled?'#e8f5ee':'var(--color-background-primary)'}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:500">${cfg.stodEnabled?'✅ Stöd oss-knappen är synlig':'⏸ Stöd oss-knappen är dold'}</div>
-        <button data-act="toggle-stod" style="background:${cfg.stodEnabled?'#fff':'#1a1a1a'};color:${cfg.stodEnabled?'#1a6b3c':'#fff'};border:${cfg.stodEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
+        <button data-act="toggle-stod" style="background:${cfg.stodEnabled?'#fff':'#1c2118'};color:${cfg.stodEnabled?'#1a6b3c':'#fff'};border:${cfg.stodEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
           ${cfg.stodEnabled?'Dölj':'Visa för användare'}
         </button>
       </div>
@@ -9530,14 +9530,14 @@ Liverpool
     ${swishPreviewUrl?`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:8px">Förhandsvisning – Swish</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Så här ser knappen ut för svenska användare (klicka för att testa att länken öppnar Swish korrekt på din mobil):</div>
-      <a href="${esc(swishPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a1a1a;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
+      <a href="${esc(swishPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1c2118;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
         ❤️ ${swishButtonLabel(cfg.stodAmount)}
       </a>
     </div>`:`<div class="fg-card" style="background:#fffbeb"><div style="font-size:12px;color:#92400e">Fyll i ett Swish-nummer ovan för att se en förhandsvisning av Swish-knappen.</div></div>`}
     ${paypalPreviewUrl?`<div class="fg-card">
       <div style="font-weight:500;margin-bottom:8px">Förhandsvisning – PayPal</div>
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px">Så här ser knappen ut för engelska/grekiska användare:</div>
-      <a href="${esc(paypalPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1a1a1a;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
+      <a href="${esc(paypalPreviewUrl)}" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:#1c2118;color:#fff;border-radius:8px;padding:14px;text-decoration:none;font-weight:600">
         ❤️ ${paypalButtonLabel(cfg.stodPaypalAmount)}
       </a>
     </div>`:`<div class="fg-card" style="background:#fffbeb"><div style="font-size:12px;color:#92400e">Fyll i ett PayPal.me-handle ovan för att se en förhandsvisning av PayPal-knappen.</div></div>`}`;
@@ -9563,16 +9563,16 @@ Liverpool
             ${u.paid?'<span style="color:'+G_GREEN+';font-weight:600">✓ Betald</span>':!u.trialStartedAt?'Inget delat konto ännu – undantagen':expired?'<span style="color:#A32D2D;font-weight:600">Provperiod slut</span>':`${daysLeft} dag${daysLeft!==1?"ar":""} kvar av provperioden (gäller alla serier)`}
           </div>
         </div>
-        <button data-act="toggle-user-paid" data-id="${u.id}" data-paid="${u.paid?"0":"1"}" style="background:${u.paid?'#fff':'#1a1a1a'};color:${u.paid?'#A32D2D':'#fff'};border:${u.paid?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap">
+        <button data-act="toggle-user-paid" data-id="${u.id}" data-paid="${u.paid?"0":"1"}" style="background:${u.paid?'#fff':'#1c2118'};color:${u.paid?'#A32D2D':'#fff'};border:${u.paid?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap">
           ${u.paid?"Ångra":"Markera betald"}
         </button>
       </div>`;
     };
-    const filterBtn=(key,label)=>`<button data-act="trial-filter" data-filter="${key}" style="background:${trialFilter===key?'#1a1a1a':'none'};color:${trialFilter===key?'#fff':'var(--color-text-secondary)'};border:0.5px solid ${trialFilter===key?'#1a1a1a':'var(--color-border-secondary)'};border-radius:20px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">${label}</button>`;
+    const filterBtn=(key,label)=>`<button data-act="trial-filter" data-filter="${key}" style="background:${trialFilter===key?'#1c2118':'none'};color:${trialFilter===key?'#fff':'var(--color-text-secondary)'};border:0.5px solid ${trialFilter===key?'#1c2118':'var(--color-border-secondary)'};border-radius:20px;padding:6px 12px;font-size:12px;font-weight:500;cursor:pointer">${label}</button>`;
     body=`<div class="fg-card" style="background:${cfg.trialEnabled?'#e8f5ee':'var(--color-background-primary)'}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
         <div style="font-weight:500">${cfg.trialEnabled?'✅ Provperiod aktiv':'⏸ Provperiod avstängd'}</div>
-        <button data-act="toggle-trial" style="background:${cfg.trialEnabled?'#fff':'#1a1a1a'};color:${cfg.trialEnabled?'#1a6b3c':'#fff'};border:${cfg.trialEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
+        <button data-act="toggle-trial" style="background:${cfg.trialEnabled?'#fff':'#1c2118'};color:${cfg.trialEnabled?'#1a6b3c':'#fff'};border:${cfg.trialEnabled?'0.5px solid #1a6b3c':'none'};border-radius:6px;padding:8px 14px;font-size:13px;font-weight:500;cursor:pointer">
           ${cfg.trialEnabled?'Stäng av':'Aktivera'}
         </button>
       </div>
@@ -10007,7 +10007,7 @@ Liverpool
       </div>
       <div style="display:flex;gap:8px">
         <input class="fg-input" id="new-announcement-text" placeholder="Skriv ett meddelande..." style="flex:1"/>
-        <button data-act="add-announcement" style="background:#c1272d;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0">Lägg till</button>
+        <button data-act="add-announcement" style="background:#2f6b3f;color:#fff;border:none;border-radius:6px;padding:9px 16px;font-size:14px;font-weight:500;cursor:pointer;flex-shrink:0">Lägg till</button>
       </div>
     </div>
     <div class="fg-card">
@@ -11188,11 +11188,11 @@ function attachHandlers(){
     const ctx=canvas.getContext("2d");
 
     // Bakgrund
-    ctx.fillStyle="#1a1a1a";
+    ctx.fillStyle="#1c2118";
     ctx.fillRect(0,0,W,H);
 
     // Header
-    ctx.fillStyle="#c1272d";
+    ctx.fillStyle="#2f6b3f";
     ctx.fillRect(0,0,W,headerH);
     ctx.fillStyle="#fff";
     ctx.font="bold 18px Georgia";
@@ -11209,7 +11209,7 @@ function attachHandlers(){
     sorted.forEach((u,i)=>{
       const y=headerH+padY+i*rowH;
       // Alternerande bakgrund
-      ctx.fillStyle=i%2===0?"#222":"#1e1e1e";
+      ctx.fillStyle=i%2===0?"#232a1c":"#1c2118";
       ctx.fillRect(padX,y,W-padX*2,rowH-2);
 
       // Placering
@@ -11226,7 +11226,7 @@ function attachHandlers(){
 
       // Poäng
       ctx.font="bold 16px Arial";
-      ctx.fillStyle="#c1272d";
+      ctx.fillStyle="#2f6b3f";
       ctx.textAlign="right";
       ctx.fillText(String(getPts(u))+" p",W-padX-4,y+27);
 
