@@ -30,8 +30,8 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --color-background-primary:#fdfbf5;
-  --color-background-secondary:#f2ede1;
+  --color-background-primary:#f8f2e4;
+  --color-background-secondary:#efe8d8;
   --color-background-tertiary:#f2ede1;
   --color-border-tertiary:#e5ddc8;
   --color-border-secondary:#c9bfa8;
@@ -226,7 +226,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
     rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyDraftRound=null, rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
     modeIntroShowing=null, modeIntroPendingScreen=null, modeIntroPendingTab=null,
-    teamPagesSelectedId=null, teamPagesStaffDraft="", teamPagesWriterDraft="",
+    teamPagesSelectedId=null, teamPagesStaffDraft="", teamPagesWriterDraft="", memberOverviewSearch="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     adminAllowedSections=null, adminPermLeagues=[], adminNavGroup=null,
@@ -8655,7 +8655,7 @@ function renderAdminTab(){
     </div>`;
   }
   const catOmgang=[["round","🗓 Omgång"],["goals","⚽ Mål"],["snabbast","⚡ Snabbast"],["ligatipp","📊 Tippa serien"],["matchfokus","⚽ Matchexperten"],["duellen","🥊 Duellen"],["lts","💀 Last Team Standing"],["quiz","🧠 Quiz"]];
-  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["teampages","📰 Lagsidor"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["stod","❤️ Stöd oss"]];
+  const catUppsattning=[["spelformer","🎛 Spelformer"],["players","👤 Spelare"],["teams","🏟 Lag"],["teampages","📰 Lagsidor"],["import","📥 Importera"],["privliga","🔒 Privata ligor"],["hof","🏆 Hall of Fame"],["season","🔄 Säsong"],["activeleagues","⭐ Aktiva serier"],["leagues","🌍 Alla serier"],["memberoverview","📊 Medlemsöversikt"],["stod","❤️ Stöd oss"]];
   const catAnvandare=[["users","👥 Användare"],["statistik","📊 Användarstatistik"],["aktivitet","🟢 Aktivitet"],["pending","⏳ Väntande spelare"],["trial","⏳ Provperiod"],["inbox","📬 Inbox"],["meddelanden","📢 Meddelanden"],["sponsorer","🤝 Sponsorer"],["passwords","🔑 Lösenord"],["permissions","🔑 Behörigheter"],["push","🔔 Notiser"]];
   const tabBtn=([id,l])=>`<button data-act="admin-section" data-sec="${id}" class="fg-adm-tab" style="border:${adminSection===id?`1.5px solid ${G_GREEN}`:"0.5px solid var(--color-border-secondary)"};background:${adminSection===id?G_GREENL:"var(--color-background-primary)"};color:${adminSection===id?G_GREEN:"var(--color-text-secondary)"};text-align:left;width:100%">${l}</button>`;
 
@@ -9411,6 +9411,40 @@ Liverpool
       <input class="fg-input" id="new-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
       <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
     </div>`;
+  } else if(adminSection==="memberoverview"){
+    const allLeaguesData=window._allLeaguesCache||[];
+    const userCounts=window._leagueUserCountsCache||{};
+    if(!window._allLeaguesCache){ fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();}); }
+    if(!window._leagueUserCountsCache){ fetchLeagueUserCounts().then(d=>{window._leagueUserCountsCache=d;render();}); }
+    const q=(memberOverviewSearch||"").toLowerCase();
+    const rows=allLeaguesData
+      .map(l=>({...l,count:userCounts[l.id]||0}))
+      .filter(l=>!q||l.name.toLowerCase().includes(q))
+      .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,"sv"));
+    const totalPlayers=rows.reduce((s,l)=>s+l.count,0);
+    const totalLeagues=rows.length;
+    const thresholdRow=l=>{
+      const warn=l.count<5;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:13px;color:var(--color-text-primary)">${esc(l.name)} ${l.id===currentLeague.id?'<span style="font-size:11px;color:var(--color-text-secondary)">(nuvarande)</span>':""}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${l.hidden?"🔒 Dold":"Synlig"}${l.admin_active?" · ⭐ Aktiv":""}${l.season?" · "+esc(String(l.season)):""}</div>
+        </div>
+        <div style="font-weight:700;font-size:16px;color:${warn?"#A32D2D":S_GREEN}">${l.count}</div>
+        ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
+      </div>`;
+    };
+    body=`<div class="fg-card" style="background:var(--color-background-secondary)">
+        <div style="display:flex;gap:16px">
+          <div><div style="font-size:20px;font-weight:700">${totalLeagues}</div><div style="font-size:11px;color:var(--color-text-secondary)">serier</div></div>
+          <div><div style="font-size:20px;font-weight:700">${totalPlayers}</div><div style="font-size:11px;color:var(--color-text-secondary)">spelare totalt</div></div>
+        </div>
+      </div>
+      <div class="fg-card">
+        <input class="fg-input" id="member-overview-search" placeholder="🔍 Sök serie…" value="${esc(memberOverviewSearch||"")}" oninput="window._memberOverviewSearch&&window._memberOverviewSearch()" style="margin-bottom:10px"/>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">Sorterat efter flest spelare. Röd siffra = under 5 spelare.</div>
+        <div id="member-overview-list">${rows.map(thresholdRow).join("")||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier hittades.</div>'}</div>
+      </div>`;
   } else if(adminSection==="leagues"||adminSection==="activeleagues"){
     const allLeaguesData=window._allLeaguesCache||[];
     const userCounts=window._leagueUserCountsCache||{};
@@ -11149,6 +11183,31 @@ function attachHandlers(){
     render();
   };
 
+  window._memberOverviewSearch=function(){
+    memberOverviewSearch=document.getElementById("member-overview-search")?.value||"";
+    const listEl=document.getElementById("member-overview-list");
+    if(!listEl) return;
+    const allLeaguesData=window._allLeaguesCache||[];
+    const userCounts=window._leagueUserCountsCache||{};
+    const q=memberOverviewSearch.toLowerCase();
+    const rows=allLeaguesData
+      .map(l=>({...l,count:userCounts[l.id]||0}))
+      .filter(l=>!q||l.name.toLowerCase().includes(q))
+      .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,"sv"));
+    const thresholdRow=l=>{
+      const warn=l.count<5;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:13px;color:var(--color-text-primary)">${esc(l.name)} ${l.id===currentLeague.id?'<span style="font-size:11px;color:var(--color-text-secondary)">(nuvarande)</span>':""}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${l.hidden?"🔒 Dold":"Synlig"}${l.admin_active?" · ⭐ Aktiv":""}${l.season?" · "+esc(String(l.season)):""}</div>
+        </div>
+        <div style="font-weight:700;font-size:16px;color:${warn?"#A32D2D":S_GREEN}">${l.count}</div>
+        ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
+      </div>`;
+    };
+    listEl.innerHTML=rows.map(thresholdRow).join("")||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier hittades.</div>';
+    attachHandlers();
+  };
   window._adminQuickSwitchSearch=function(){
     clearTimeout(window._adminQsTimer);
     window._adminQsTimer=setTimeout(async()=>{
