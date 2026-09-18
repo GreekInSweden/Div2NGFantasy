@@ -96,6 +96,18 @@ async function sha256(str){
 }
 // Hasha PIN med user-id som salt (unikt per användare) – jämförs sedan server-side via RPC
 async function hashPin(pin,userId){ return sha256(pin+"|"+userId); }
+// Tolkar svaret från verify_pin/verify_account_pin (som nu inkluderar
+// spärrinformation) till ett meddelande att visa spelaren.
+function pinResultMessage(result){
+  if(!result) return "Något gick fel, försök igen.";
+  if(result.success) return "";
+  if(result.locked){
+    const mins=Math.max(1,Math.ceil((result.retry_after_seconds||600)/60));
+    return `För många felaktiga försök. Vänta ${mins} minut${mins===1?"":"er"} innan du försöker igen.`;
+  }
+  if(result.attempts_left!=null) return `Fel PIN-kod. ${result.attempts_left} försök kvar innan kontot spärras tillfälligt.`;
+  return "Fel PIN-kod.";
+}
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -383,8 +395,8 @@ async function registerInOtherLeague(leagueId,namn,rawPin){
       if(candidates&&candidates.length){
         for(const cand of candidates){
           const hash=await hashPin(rawPin,cand.id);
-          const {data:match}=await sb.rpc("verify_account_pin",{p_account_id:cand.id,p_pin_hash:hash});
-          if(match){ await sb.from("fantasy_users").update({account_id:cand.id}).eq("id",newId); break; }
+          const {data:result}=await sb.rpc("verify_account_pin",{p_account_id:cand.id,p_pin_hash:hash});
+          if(result&&result.success){ await sb.from("fantasy_users").update({account_id:cand.id}).eq("id",newId); break; }
         }
       }
     }catch(e){console.error("registerInOtherLeague account-link error:",e);}
@@ -577,8 +589,8 @@ async function ensureAccountLink(u,rawPin){
     if(candidates&&candidates.length){
       for(const cand of candidates){
         const hash=await hashPin(rawPin,cand.id);
-        const {data:match}=await sb.rpc("verify_account_pin",{p_account_id:cand.id,p_pin_hash:hash});
-        if(match){
+        const {data:result}=await sb.rpc("verify_account_pin",{p_account_id:cand.id,p_pin_hash:hash});
+        if(result&&result.success){
           await sb.from("fantasy_users").update({account_id:cand.id}).eq("id",u.id);
           return {accountId:cand.id,trialStartedAt:cand.trial_started_at||null};
         }
@@ -602,8 +614,8 @@ async function findMatchingAccountAcrossLeagues(namn,pin){
   for(const row of data){
     try{
       const hash=await hashPin(pin,row.id);
-      const {data:match}=await sb.rpc("verify_pin",{p_user_id:row.id,p_pin_hash:hash});
-      if(match) return row;
+      const {data:result}=await sb.rpc("verify_pin",{p_user_id:row.id,p_pin_hash:hash});
+      if(result&&result.success) return row;
     }catch(e){console.error(e);}
   }
   return null;
@@ -11387,8 +11399,8 @@ function attachHandlers(){
       try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
       try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
         const inputHash=await hashPin(pin,pendingCrossLeagueUser.id);
-        const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
-        if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
+        const {data:result,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingCrossLeagueUser.id,p_pin_hash:inputHash});
+        if(verr||!result||!result.success){loginErr=verr?"Något gick fel, försök igen.":pinResultMessage(result);render();return;}
         const u=users.find(x=>x.id===pendingCrossLeagueUser.id);
         if(!u){loginErr="Kunde inte hitta kontot.";render();return;}
         currentUser=u; pendingCrossLeagueUser=null; loginErr="";
@@ -11451,8 +11463,8 @@ function attachHandlers(){
       loginErr="Loggar in…";render();
       try{
         const inputHash=await hashPin(pin,pendingUnassignedUser.id);
-        const {data:match,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingUnassignedUser.id,p_pin_hash:inputHash});
-        if(verr||!match){loginErr="Fel PIN-kod.";render();return;}
+        const {data:result,error:verr}=await sb.rpc("verify_pin",{p_user_id:pendingUnassignedUser.id,p_pin_hash:inputHash});
+        if(verr||!result||!result.success){loginErr=verr?"Något gick fel, försök igen.":pinResultMessage(result);render();return;}
         const {data:full}=await sb.from("fantasy_users").select("id,namn,requested_league_name").eq("id",pendingUnassignedUser.id).maybeSingle();
         currentUser=full||{id:pendingUnassignedUser.id,namn:pendingUnassignedUser.namn};
         pendingUnassignedUser=null; loginErr="";
@@ -11571,14 +11583,14 @@ function attachHandlers(){
     else if(act==="submit-pin"){
       const val=document.getElementById("login-pin").value.trim();
       const u=pendingLoginUser;
-      let match=false;
+      let result=null;
       try{
         const inputHash=await hashPin(val,u.id);
         const {data,error}=await sb.rpc("verify_pin",{p_user_id:u.id,p_pin_hash:inputHash});
         if(error){console.error(error);}
-        match=!!data;
+        result=data;
       }catch(e){console.error("Hash error:",e);}
-      if(match){
+      if(result&&result.success){
         currentUser=u; pendingLoginUser=null; loginErr="";
         addRecentUserId(u.id);
         try{
@@ -11588,7 +11600,7 @@ function attachHandlers(){
         }catch(e){console.error(e);}
         screen="mode"; try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];} loadMyRoundStatus().then(render); render();
       } else {
-        loginErr="Fel PIN-kod."; render();
+        loginErr=pinResultMessage(result); render();
       }
     }
     else if(act==="submit-reg"){
@@ -11680,8 +11692,8 @@ function attachHandlers(){
       // Verifiera att PIN faktiskt stämmer mot det egna kontot innan vi registrerar
       // med den i andra serier – annars kan man av misstag skapa konton med fel PIN.
       const inputHash=await hashPin(pin,currentUser.id);
-      const {data:pinOk}=await sb.rpc("verify_pin",{p_user_id:currentUser.id,p_pin_hash:inputHash});
-      if(!pinOk){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(t("profile.joinMoreWrongPin"))+'</span>'; return; }
+      const {data:result}=await sb.rpc("verify_pin",{p_user_id:currentUser.id,p_pin_hash:inputHash});
+      if(!result||!result.success){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">'+esc(pinResultMessage(result))+'</span>'; return; }
       if(statusEl) statusEl.textContent=t("investerare.saving");
       const results=await Promise.all(ids.map(id=>registerInOtherLeague(id,currentUser.namn,pin)));
       const failed=results.filter(r=>r.error);
@@ -13569,32 +13581,17 @@ function attachHandlers(){
 // ── Init ──────────────────────────────────────────────────────────────────
 (async function init(){
   leagues=await fetchLeagues();
-  // Om inga aktiva ligor, hämta alla och ta den senaste
+  // Om inga aktiva ligor, hämta alla och ta den senaste (används bara om
+  // administratören inte gjort NÅGON serie synlig än – en driftssituation,
+  // inte ett normalt läge).
   if(!leagues.length){
     const {data}=await sb.from("leagues").select("*").order("id",{ascending:false}).limit(1);
     if(data?.length) leagues=data;
   }
-  if(leagues.length===1){
-    currentLeague=leagues[0];
-    TEAMS=await fetchTeams();
-    players=await fetchPlayers();
-    users=await fetchUsers();
-    rounds=await fetchRounds();
-    cfg=await fetchConfig();
-    try{[snabbastAllTipsGlobal,måljaktenAllTipsGlobal,matchfokusAllTipsGlobal,malregnAllTipsGlobal,jubelAllTipsGlobal,investerareAllTipsGlobal,anytimeAllTipsGlobal,rankFantasySquads,rankFantasyAllTipsGlobal]=await Promise.all([fetchAllSnabbastTipsAllRounds(),fetchAllMåljaktenTipsAllRounds(),fetchAllMatchfokusTipsAllRounds(),fetchAllMalregnTipsAllRounds(),fetchAllJubelTipsAllRounds(),fetchAllInvesterareTipsAllRounds(),fetchAllAnytimeTipsAllRounds(),fetchRankFantasySquads(),fetchAllRankFantasyTipsAllRounds()]);}catch(e){console.error(e);}
-      try{sponsors=await fetchSponsors();}catch(e){console.error(e);}
-      try{announcements=await fetchAnnouncements();}catch(e){console.error(e);}
-    if(tryAutoLoginViaAccount()){
-      presenceSessionId=null; startPresenceHeartbeat();
-      screen="mode";
-      try{allPrivateLeagues=await fetchPrivateLeagues();}catch(e){allPrivateLeagues=[];}
-      loadMyRoundStatus().then(render);
-    } else {
-      screen="home";
-    }
-  } else {
-    screen="leagues";
-  }
+  // Visar alltid val-skärmen, oavsett hur många serier som är synliga – en
+  // spelare ska aldrig hamna i en serie utan att aktivt ha valt den, även
+  // om det för tillfället bara finns en enda synlig serie.
+  screen="leagues";
   render();
   updateCountdownEls();
   setInterval(updateCountdownEls,30000);
