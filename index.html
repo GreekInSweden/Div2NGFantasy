@@ -3055,6 +3055,7 @@ const TRANSLATIONS={
     "entrySearch.searching":"Söker…","entrySearch.noMatch":"Ingen match hittades.","entrySearch.error":"Något gick fel, försök igen.",
     "landing.searchLeaguesPlaceholder":"🔍 Sök serie (t.ex. Div4 Göteborg)…",
     "landing.otherSeriesGroup":"Övriga serier","landing.noLeaguesMatch":"Ingen serie matchade sökningen.",
+    "landing.damerSuffix":"Damer",
     "landing.waitingForMembers":"⏳ {count}/{goal} medlemmar anmälda – väntar på fler innan serien blir aktiv",
   },
   en:{
@@ -3636,6 +3637,7 @@ const TRANSLATIONS={
     "entrySearch.searching":"Searching…","entrySearch.noMatch":"No match found.","entrySearch.error":"Something went wrong, please try again.",
     "landing.searchLeaguesPlaceholder":"🔍 Search series (e.g. Div4 Gothenburg)…",
     "landing.otherSeriesGroup":"Other series","landing.noLeaguesMatch":"No series matched your search.",
+    "landing.damerSuffix":"Women",
     "landing.waitingForMembers":"⏳ {count}/{goal} members signed up – waiting for more before the series becomes active",
   },
   gr:{
@@ -4217,6 +4219,7 @@ const TRANSLATIONS={
     "entrySearch.searching":"Αναζήτηση…","entrySearch.noMatch":"Δεν βρέθηκε αντιστοιχία.","entrySearch.error":"Κάτι πήγε στραβά, δοκίμασε ξανά.",
     "landing.searchLeaguesPlaceholder":"🔍 Αναζήτηση σειράς (π.χ. Div4 Gothenburg)…",
     "landing.otherSeriesGroup":"Άλλες σειρές","landing.noLeaguesMatch":"Καμία σειρά δεν ταιριάζει με την αναζήτηση.",
+    "landing.damerSuffix":"Γυναικών",
     "landing.waitingForMembers":"⏳ {count}/{goal} μέλη έχουν εγγραφεί – περιμένουμε περισσότερους πριν ενεργοποιηθεί η σειρά",
   }
 };
@@ -4678,13 +4681,19 @@ function renderLeagueGroups(list){
   const order=[];
   list.forEach(l=>{
     const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-    const key=m?`Div${m[1]}`:t("landing.otherSeriesGroup");
+    const isDam=/\bdam(er)?\b/i.test(l.name);
+    const key=m?`Div${m[1]}${isDam?" "+t("landing.damerSuffix"):""}`:t("landing.otherSeriesGroup");
     if(!groups[key]){groups[key]=[];order.push(key);}
     groups[key].push(l);
   });
   order.sort((a,b)=>{
-    const na=a.match(/^Div(\d+)$/), nb=b.match(/^Div(\d+)$/);
-    if(na&&nb) return Number(na[1])-Number(nb[1]);
+    const na=a.match(/^Div(\d+)/), nb=b.match(/^Div(\d+)/);
+    if(na&&nb){
+      const diff=Number(na[1])-Number(nb[1]);
+      if(diff!==0) return diff;
+      const aDam=a.includes(t("landing.damerSuffix")), bDam=b.includes(t("landing.damerSuffix"));
+      return aDam===bDam?0:(aDam?1:-1);
+    }
     if(na) return -1;
     if(nb) return 1;
     return a.localeCompare(b);
@@ -9616,13 +9625,19 @@ Div3 Nordvästra Götaland
     const groups={}; const order=[];
     listData.forEach(l=>{
       const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-      const key=m?`Div${m[1]}`:"Övriga serier";
+      const isDam=/\bdam(er)?\b/i.test(l.name);
+      const key=m?`Div${m[1]}${isDam?" Damer":""}`:"Övriga serier";
       if(!groups[key]){groups[key]=[];order.push(key);}
       groups[key].push(l);
     });
     order.sort((a,b)=>{
-      const na=a.match(/^Div(\d+)$/), nb=b.match(/^Div(\d+)$/);
-      if(na&&nb) return Number(na[1])-Number(nb[1]);
+      const na=a.match(/^Div(\d+)/), nb=b.match(/^Div(\d+)/);
+      if(na&&nb){
+        const diff=Number(na[1])-Number(nb[1]);
+        if(diff!==0) return diff;
+        const aDam=a.includes("Damer"), bDam=b.includes("Damer");
+        return aDam===bDam?0:(aDam?1:-1);
+      }
       if(na) return -1;
       if(nb) return 1;
       return a.localeCompare(b,"sv");
@@ -11383,13 +11398,19 @@ function attachHandlers(){
     const groups={}; const order=[];
     listData.forEach(l=>{
       const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-      const key=m?`Div${m[1]}`:"Övriga serier";
+      const isDam=/\bdam(er)?\b/i.test(l.name);
+      const key=m?`Div${m[1]}${isDam?" Damer":""}`:"Övriga serier";
       if(!groups[key]){groups[key]=[];order.push(key);}
       groups[key].push(l);
     });
     order.sort((a,b)=>{
-      const na=a.match(/^Div(\d+)$/), nb=b.match(/^Div(\d+)$/);
-      if(na&&nb) return Number(na[1])-Number(nb[1]);
+      const na=a.match(/^Div(\d+)/), nb=b.match(/^Div(\d+)/);
+      if(na&&nb){
+        const diff=Number(na[1])-Number(nb[1]);
+        if(diff!==0) return diff;
+        const aDam=a.includes("Damer"), bDam=b.includes("Damer");
+        return aDam===bDam?0:(aDam?1:-1);
+      }
       if(na) return -1;
       if(nb) return 1;
       return a.localeCompare(b,"sv");
