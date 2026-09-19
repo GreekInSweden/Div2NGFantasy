@@ -4687,11 +4687,12 @@ function renderLeagues(){
 function groupLeaguesByPrefix(list){
   const groups={}; const order=[];
   list.forEach(l=>{
-    const divM=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-    const pfM=l.name.match(/^([pf])\s*(\d+)/i);
+    const name=l.name||""; // skydd mot en enstaka trasig/namnlös post
+    const divM=name.match(/^div(?:ision)?\.?\s*(\d+)/i);
+    const pfM=name.match(/^([pf])\s*(\d+)/i);
     let key;
     if(divM){
-      const isDam=/\bdam(er)?\b/i.test(l.name);
+      const isDam=/\bdam(er)?\b/i.test(name);
       key=`Div${divM[1]}${isDam?" "+t("landing.damerSuffix"):""}`;
     } else if(pfM){
       key=`${pfM[1].toUpperCase()}${pfM[2]}`;
