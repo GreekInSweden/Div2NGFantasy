@@ -9534,8 +9534,12 @@ Div3 Nordvästra Götaland
         <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
         <div style="margin-top:4px">${groups[key].map(leagueRow).join("")}</div>
       </details>`).join("");
+    const bulkDeleteArea=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+      <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier som matchar sökningen</button>
+    </div>`:"";
     const searchBox=`<div class="fg-card">
       <input class="fg-input" id="admin-league-search" placeholder="🔍 Sök serie…" value="${esc(adminLeagueSearch||"")}" oninput="window._adminLeagueSearch&&window._adminLeagueSearch()"/>
+      <div id="admin-league-bulk-delete-area">${bulkDeleteArea}</div>
     </div>`;
     body=isActiveView
       ? `<div class="fg-card" style="background:var(--color-background-secondary)">
@@ -11297,6 +11301,12 @@ function attachHandlers(){
       </details>`).join("");
     listEl.innerHTML=groupedHtml||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier matchade sökningen.</div>`;
     if(countEl) countEl.textContent=listData.length;
+    const bulkDeleteEl=document.getElementById("admin-league-bulk-delete-area");
+    if(bulkDeleteEl){
+      bulkDeleteEl.innerHTML=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+        <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier som matchar sökningen</button>
+      </div>`:"";
+    }
     attachHandlers();
   };
   window._memberOverviewSearch=function(){
@@ -11964,6 +11974,35 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
       myRoundStatus={...myRoundStatus,quiz:true};
+      render();
+    }
+    else if(act==="bulk-delete-leagues"){
+      const allLeaguesData=window._allLeaguesCache||[];
+      const isActiveView=adminSection==="activeleagues";
+      const q=(adminLeagueSearch||"").toLowerCase();
+      const matches=allLeaguesData
+        .filter(l=>isActiveView?l.admin_active:!l.admin_active)
+        .filter(l=>!q||l.name.toLowerCase().includes(q))
+        .filter(l=>l.id!==currentLeague.id);
+      if(!matches.length){ flash("Inga serier matchar sökningen (eller bara den du står i just nu, som skyddas från massradering – ta bort den separat om du verkligen vill)."); return; }
+      const nameList=matches.map(l=>l.name).slice(0,20).join("\n")+(matches.length>20?`\n… och ${matches.length-20} till`:"");
+      if(!confirm(`Radera dessa ${matches.length} serier permanent? Detta tar bort ALLA lag, spelare, poäng och all historik i varenda en av dem:\n\n${nameList}`))return;
+      if(!confirm(`Sista chansen – ${matches.length} serier och all deras data raderas för alltid och går inte att återställa. Fortsätta?`))return;
+      el.textContent="Raderar…"; el.disabled=true;
+      let deleted=0; const failed=[];
+      for(const l of matches){
+        try{
+          const {error}=await deleteLeagueCompletely(l.id);
+          if(error){ failed.push(l.name+" ("+error.message+")"); continue; }
+          deleted++;
+          el.textContent=`Raderar… ${deleted}/${matches.length} klara`;
+        }catch(e){ failed.push(l.name+" ("+e.message+")"); }
+      }
+      window._allLeaguesCache=null; window._leagueUserCountsCache=null;
+      adminLeagueSearch="";
+      flash(failed.length
+        ? `✓ ${deleted} serier raderade. ${failed.length} misslyckades: ${failed.join(", ")}`
+        : `✓ Alla ${deleted} serier raderade.`);
       render();
     }
     else if(act==="bulk-create-leagues"){
