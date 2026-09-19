@@ -9428,6 +9428,24 @@ Liverpool
       <label class="fg-label">Antal tomma lag (används bara om inga lag listades ovan)</label>
       <input class="fg-input" id="new-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
       <button class="fg-btn" data-act="create-league">Skapa dold serie</button>
+    </div>
+    <div class="fg-card">
+      <div style="font-weight:500;margin-bottom:4px">📥 Massimport av serier</div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:12px;line-height:1.6">
+        Skapa flera serier på en gång – t.ex. alla Div2- och Div3-serier i landet. Alla skapas <b>dolda</b> med samma säsong och samma antal tomma lag (döp om dem sen under 🏟 Lag för varje serie). Går inte att lista specifika lagnamn här eftersom de skiljer sig åt per serie – lägg till dem separat efteråt.
+      </div>
+      <label class="fg-label">Serienamn – ett per rad</label>
+      <textarea id="bulk-league-names" rows="8" placeholder="Div2 Norra Götaland
+Div2 Södra Götaland
+Div2 Norra Svealand
+Div3 Nordvästra Götaland
+..." autocomplete="off" style="width:100%;padding:8px;border:0.5px solid var(--color-border-secondary);border-radius:6px;font-size:12px;font-family:monospace;resize:vertical;background:var(--color-background-primary);box-sizing:border-box;margin-bottom:10px"></textarea>
+      <label class="fg-label">Säsong (gäller alla i listan)</label>
+      <input class="fg-input" id="bulk-league-season" type="text" placeholder="t.ex. 2027" value="${esc(String(curYear))}" style="margin-bottom:10px"/>
+      <label class="fg-label">Antal tomma lag per serie</label>
+      <input class="fg-input" id="bulk-league-team-count" type="number" min="2" value="12" style="margin-bottom:14px"/>
+      <div id="bulk-league-status" style="font-size:13px;margin-bottom:8px;min-height:18px"></div>
+      <button class="fg-btn" data-act="bulk-create-leagues">Skapa alla serier</button>
     </div>`;
   } else if(adminSection==="memberoverview"){
     const allLeaguesData=window._allLeaguesCache||[];
@@ -11867,6 +11885,38 @@ function attachHandlers(){
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
       myRoundStatus={...myRoundStatus,quiz:true};
       render();
+    }
+    else if(act==="bulk-create-leagues"){
+      const namesRaw=document.getElementById("bulk-league-names").value.trim();
+      const season=document.getElementById("bulk-league-season").value.trim();
+      const teamCount=Number(document.getElementById("bulk-league-team-count").value)||12;
+      const statusEl=document.getElementById("bulk-league-status");
+      const names=[...new Set(namesRaw.split("\n").map(n=>n.trim()).filter(Boolean))];
+      if(!names.length){ if(statusEl) statusEl.innerHTML='<span style="color:#A32D2D">Lista minst en serie, en per rad.</span>'; return; }
+      if(statusEl) statusEl.textContent=`Skapar ${names.length} serier…`;
+      const seasonSlugPart=season.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"");
+      let created=0; const failed=[];
+      for(const name of names){
+        const slug=name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"")+"-"+seasonSlugPart;
+        try{
+          const {data,error}=await sb.from("leagues").insert({name,slug,season,is_current:true,hidden:true,admin_active:false}).select().single();
+          if(error){ failed.push(name+" ("+error.message+")"); continue; }
+          const emptyTeams=Array.from({length:teamCount}).map((_,i)=>({name:`Lag ${i+1}`,league_id:data.id}));
+          await sb.from("teams").insert(emptyTeams);
+          created++;
+          if(statusEl) statusEl.textContent=`Skapar… ${created}/${names.length} klara`;
+        }catch(e){ failed.push(name+" ("+e.message+")"); }
+      }
+      window._allLeaguesCache=null; window._leagueUserCountsCache=null;
+      if(statusEl){
+        statusEl.innerHTML=failed.length
+          ? `<span style="color:#A32D2D">✓ ${created} serier skapade. ${failed.length} misslyckades: ${esc(failed.join(", "))}</span>`
+          : `<span style="color:${S_GREEN};font-weight:500">✓ Alla ${created} serier skapade (dolda)! Hitta dem under 🌍 Alla serier.</span>`;
+      }
+      // Ingen render() här medvetet – annars nollställs statusrutan direkt
+      // eftersom den inte har någon egen state-variabel bakom sig. Cachen är
+      // redan rensad ovan så "Alla serier"-listan hämtas färsk nästa gång du
+      // faktiskt går dit.
     }
     else if(act==="create-league"){
       const name=document.getElementById("new-league-name").value.trim();
