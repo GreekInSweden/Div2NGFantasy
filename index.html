@@ -238,7 +238,7 @@ let players=[], users=[], rounds={}, cfg={omg:1}, currentUser=null, screen="leag
     rankFantasySquads=[], rankFantasyAllTipsGlobal=[], rankFantasyPickState={picks:{GK:[],DEF:[],MID:[],FW:[]}},
     rankFantasyFormationDraft=null, rankFantasyRankingDraft=[], rankFantasyDraftRound=null, rankFantasyPickPos="GK", rankFantasyPickErr="", rankFantasyPickInfo="", rankFantasyTeamFilter="",
     modeIntroShowing=null, modeIntroPendingScreen=null, modeIntroPendingTab=null,
-    teamPagesSelectedId=null, teamPagesStaffDraft="", teamPagesWriterDraft="", memberOverviewSearch="",
+    teamPagesSelectedId=null, teamPagesStaffDraft="", teamPagesWriterDraft="", memberOverviewSearch="", adminLeagueSearch="",
     måljaktenMyTips={}, måljaktenAllTips=[], måljaktenDraft=[], måljaktenAllTipsGlobal=[],
     userSelectedRound=null, adminLevel=null,
     adminAllowedSections=null, adminPermLeagues=[], adminNavGroup=null,
@@ -9492,7 +9492,10 @@ Div3 Nordvästra Götaland
       fetchLeagueUserCounts().then(d=>{window._leagueUserCountsCache=d;render();});
     }
     const isActiveView=adminSection==="activeleagues";
-    const listData=isActiveView?allLeaguesData.filter(l=>l.admin_active):allLeaguesData.filter(l=>!l.admin_active);
+    const q=(adminLeagueSearch||"").toLowerCase();
+    const listData=allLeaguesData
+      .filter(l=>isActiveView?l.admin_active:!l.admin_active)
+      .filter(l=>!q||l.name.toLowerCase().includes(q));
     const leagueRow=l=>`
       <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap">
         <div style="flex:1;min-width:150px">
@@ -9509,21 +9512,47 @@ Div3 Nordvästra Götaland
         <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
       </div>`;
-    const seasonRows=listData.map(leagueRow).join("");
+    // Gruppera per division (Div2/Div3/Div4 osv), samma mönster som på den
+    // publika landningssidan – annars blir listan helt oöverskådlig när
+    // antalet serier växer till hundratals.
+    const groups={}; const order=[];
+    listData.forEach(l=>{
+      const m=l.name.match(/^Div\s*(\d+)/i);
+      const key=m?`Div${m[1]}`:"Övriga serier";
+      if(!groups[key]){groups[key]=[];order.push(key);}
+      groups[key].push(l);
+    });
+    order.sort((a,b)=>{
+      const na=a.match(/^Div(\d+)$/), nb=b.match(/^Div(\d+)$/);
+      if(na&&nb) return Number(na[1])-Number(nb[1]);
+      if(na) return -1;
+      if(nb) return 1;
+      return a.localeCompare(b,"sv");
+    });
+    const groupedHtml=order.map(key=>`
+      <details ${q?"open":""} style="margin-bottom:8px">
+        <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
+        <div style="margin-top:4px">${groups[key].map(leagueRow).join("")}</div>
+      </details>`).join("");
+    const searchBox=`<div class="fg-card">
+      <input class="fg-input" id="admin-league-search" placeholder="🔍 Sök serie…" value="${esc(adminLeagueSearch||"")}" oninput="window._adminLeagueSearch&&window._adminLeagueSearch()"/>
+    </div>`;
     body=isActiveView
       ? `<div class="fg-card" style="background:var(--color-background-secondary)">
           <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här ser du bara de serier du markerat som ⭐ Aktiva. Markerar du en som "under uppbyggnad" igen flyttas den tillbaka till "🌍 Alla serier".</div>
         </div>
+        ${searchBox}
         <div class="fg-card">
-          <div style="font-weight:500;margin-bottom:8px">⭐ Aktiva serier (${listData.length})</div>
-          ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier markerade som aktiva ännu. Gå till "🌍 Alla serier" och klicka "⭐ Markera som aktiv" på de serier som är igång.</div>`}
+          <div style="font-weight:500;margin-bottom:8px">⭐ Aktiva serier (<span id="admin-league-count">${listData.length}</span>)</div>
+          <div id="admin-leagues-list">${groupedHtml||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier markerade som aktiva ännu. Gå till "🌍 Alla serier" och klicka "⭐ Markera som aktiv" på de serier som är igång.</div>`}</div>
         </div>`
       : `<div class="fg-card" style="background:var(--color-background-secondary)">
           <div style="font-size:12px;color:var(--color-text-secondary);line-height:1.5">Här ser du serier som fortfarande byggs upp bakom kulisserna. Markerar du en som ⭐ Aktiv flyttas den till "⭐ Aktiva serier" och försvinner härifrån.</div>
         </div>
+        ${searchBox}
         <div class="fg-card">
-          <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier – under uppbyggnad (${listData.length})</div>
-          ${seasonRows||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier under uppbyggnad just nu – allt du har är markerat som aktivt. Se "⭐ Aktiva serier".</div>`}
+          <div style="font-weight:500;margin-bottom:8px">🌍 Alla serier – under uppbyggnad (<span id="admin-league-count">${listData.length}</span>)</div>
+          <div id="admin-leagues-list">${groupedHtml||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier under uppbyggnad just nu – allt du har är markerat som aktivt. Se "⭐ Aktiva serier".</div>`}</div>
         </div>`;
   } else if(adminSection==="pending"){
     const pendingUsers=window._pendingUnassignedCache||[];
@@ -11219,6 +11248,57 @@ function attachHandlers(){
     render();
   };
 
+  window._adminLeagueSearch=function(){
+    adminLeagueSearch=document.getElementById("admin-league-search")?.value||"";
+    const listEl=document.getElementById("admin-leagues-list");
+    const countEl=document.getElementById("admin-league-count");
+    if(!listEl) return;
+    const allLeaguesData=window._allLeaguesCache||[];
+    const userCounts=window._leagueUserCountsCache||{};
+    const isActiveView=adminSection==="activeleagues";
+    const q=adminLeagueSearch.toLowerCase();
+    const listData=allLeaguesData
+      .filter(l=>isActiveView?l.admin_active:!l.admin_active)
+      .filter(l=>!q||l.name.toLowerCase().includes(q));
+    const leagueRow=l=>`
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:0.5px solid var(--color-border-tertiary);flex-wrap:wrap">
+        <div style="flex:1;min-width:150px">
+          <div style="font-weight:500;font-size:13px;color:var(--color-text-primary)">${esc(l.name)} <span style="font-weight:400;color:var(--color-text-secondary)">(${userCounts[l.id]||0} spelare)</span></div>
+          <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:4px">${l.id===currentLeague.id?"👉 Du jobbar med den här nu":""}</div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <input data-act="league-season-input" data-id="${l.id}" value="${esc(String(l.season||""))}" style="font-size:11px;padding:4px 6px;border:0.5px solid var(--color-border-secondary);border-radius:4px;width:90px;background:var(--color-background-primary);color:var(--color-text-primary)"/>
+            <button data-act="save-league-season" data-id="${l.id}" style="background:none;border:0.5px solid var(--color-border-secondary);border-radius:4px;padding:4px 8px;font-size:10px;cursor:pointer;color:var(--color-text-secondary)">Spara säsong</button>
+          </div>
+        </div>
+        ${l.hidden?`<span style="background:#f0f0f0;color:#888;border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">🔒 Dold</span>`:`<span style="background:${G_GREENL};color:${S_GREEN};border-radius:20px;padding:2px 8px;font-size:11px;font-weight:500">Synlig</span>`}
+        <button data-act="toggle-league-active" data-id="${l.id}" data-active="${l.admin_active?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.admin_active?"⭐ Markera som under uppbyggnad":"⭐ Markera som aktiv"}</button>
+        <button data-act="toggle-league-hidden" data-id="${l.id}" data-hidden="${l.hidden?"0":"1"}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">${l.hidden?"Gör synlig":"Dölj"}</button>
+        <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
+        ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
+      </div>`;
+    const groups={}; const order=[];
+    listData.forEach(l=>{
+      const m=l.name.match(/^Div\s*(\d+)/i);
+      const key=m?`Div${m[1]}`:"Övriga serier";
+      if(!groups[key]){groups[key]=[];order.push(key);}
+      groups[key].push(l);
+    });
+    order.sort((a,b)=>{
+      const na=a.match(/^Div(\d+)$/), nb=b.match(/^Div(\d+)$/);
+      if(na&&nb) return Number(na[1])-Number(nb[1]);
+      if(na) return -1;
+      if(nb) return 1;
+      return a.localeCompare(b,"sv");
+    });
+    const groupedHtml=order.map(key=>`
+      <details ${q?"open":""} style="margin-bottom:8px">
+        <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
+        <div style="margin-top:4px">${groups[key].map(leagueRow).join("")}</div>
+      </details>`).join("");
+    listEl.innerHTML=groupedHtml||`<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier matchade sökningen.</div>`;
+    if(countEl) countEl.textContent=listData.length;
+    attachHandlers();
+  };
   window._memberOverviewSearch=function(){
     memberOverviewSearch=document.getElementById("member-overview-search")?.value||"";
     const listEl=document.getElementById("member-overview-list");
