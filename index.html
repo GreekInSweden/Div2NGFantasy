@@ -4615,7 +4615,7 @@ function renderLeagueGroups(list){
   const groups={};
   const order=[];
   list.forEach(l=>{
-    const m=l.name.match(/^Div\s*(\d+)/i);
+    const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
     const key=m?`Div${m[1]}`:t("landing.otherSeriesGroup");
     if(!groups[key]){groups[key]=[];order.push(key);}
     groups[key].push(l);
@@ -9517,7 +9517,7 @@ Div3 Nordvästra Götaland
     // antalet serier växer till hundratals.
     const groups={}; const order=[];
     listData.forEach(l=>{
-      const m=l.name.match(/^Div\s*(\d+)/i);
+      const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
       const key=m?`Div${m[1]}`:"Övriga serier";
       if(!groups[key]){groups[key]=[];order.push(key);}
       groups[key].push(l);
@@ -11278,7 +11278,7 @@ function attachHandlers(){
       </div>`;
     const groups={}; const order=[];
     listData.forEach(l=>{
-      const m=l.name.match(/^Div\s*(\d+)/i);
+      const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
       const key=m?`Div${m[1]}`:"Övriga serier";
       if(!groups[key]){groups[key]=[];order.push(key);}
       groups[key].push(l);
