@@ -4639,38 +4639,6 @@ function renderModeSelect(){
   </div>`;
 }
 
-function renderLeagues(){
-  if(pendingUnassignedUser){
-    return `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-      <div style="width:64px;height:64px;background:#999;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingUnassignedUser.namn[0])}</div>
-      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingUnassignedUser.namn}))}</div>
-      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.enterPin"))}</div>
-      <div style="width:100%;max-width:300px">
-        <label class="fg-label">${esc(t("common.pinCode"))}</label>
-        <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
-        ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
-        <button class="fg-btn" data-act="submit-unassigned-pin" style="margin-bottom:8px">${esc(t("common.loginButtonArrow"))}</button>
-        <button class="fg-outbtn" data-act="entry-cancel-unassigned-pin" style="width:100%">${esc(t("common.back"))}</button>
-      </div>
-    </div>`;
-  }
-  if(pendingCrossLeagueUser){
-    const lg=leagues.find(l=>l.id===pendingCrossLeagueUser.league_id);
-    return `
-    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
-      <div style="width:64px;height:64px;background:#2f6b3f;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingCrossLeagueUser.namn[0])}</div>
-      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingCrossLeagueUser.namn}))}</div>
-      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.crossleague.subtitle",{league:lg?lg.name:""}))}</div>
-      <div style="width:100%;max-width:300px">
-        <label class="fg-label">${esc(t("common.pinCode"))}</label>
-        <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
-        ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
-        <button class="fg-btn" data-act="submit-entry-pin" style="margin-bottom:8px">${esc(t("common.loginButtonArrow"))}</button>
-        <button class="fg-outbtn" data-act="entry-cancel-pin" style="width:100%">${esc(t("common.back"))}</button>
-      </div>
-    </div>`;
-  }
 // Grupperar serier efter divisionsnivå (Div2, Div3, Div4...) utplockat ur
 // namnet, med en "Övriga serier"-grupp för sådant som inte matchar mönstret
 // (Premier League, La Liga osv). Används både vid första renderingen och
@@ -4740,6 +4708,39 @@ function renderLeagueGroups(list){
     </details>`;
   }).join("");
 }
+
+function renderLeagues(){
+  if(pendingUnassignedUser){
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+      <div style="width:64px;height:64px;background:#999;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingUnassignedUser.namn[0])}</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingUnassignedUser.namn}))}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.enterPin"))}</div>
+      <div style="width:100%;max-width:300px">
+        <label class="fg-label">${esc(t("common.pinCode"))}</label>
+        <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
+        ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
+        <button class="fg-btn" data-act="submit-unassigned-pin" style="margin-bottom:8px">${esc(t("common.loginButtonArrow"))}</button>
+        <button class="fg-outbtn" data-act="entry-cancel-unassigned-pin" style="width:100%">${esc(t("common.back"))}</button>
+      </div>
+    </div>`;
+  }
+  if(pendingCrossLeagueUser){
+    const lg=leagues.find(l=>l.id===pendingCrossLeagueUser.league_id);
+    return `
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px">
+      <div style="width:64px;height:64px;background:#2f6b3f;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:26px;font-weight:600">${esc(pendingCrossLeagueUser.namn[0])}</div>
+      <div style="font-size:18px;font-weight:500;margin-bottom:4px;text-align:center">${esc(t("login.crossleague.greeting",{name:pendingCrossLeagueUser.namn}))}</div>
+      <div style="font-size:13px;color:var(--color-text-secondary);margin-bottom:20px;text-align:center">${esc(t("login.crossleague.subtitle",{league:lg?lg.name:""}))}</div>
+      <div style="width:100%;max-width:300px">
+        <label class="fg-label">${esc(t("common.pinCode"))}</label>
+        <input class="fg-input" id="entry-pin" type="password" inputmode="numeric" maxlength="5" placeholder="•••••" autofocus style="margin-bottom:10px"/>
+        ${loginErr?`<div style="color:#A32D2D;font-size:12px;margin-bottom:10px">${esc(loginErr)}</div>`:""}
+        <button class="fg-btn" data-act="submit-entry-pin" style="margin-bottom:8px">${esc(t("common.loginButtonArrow"))}</button>
+        <button class="fg-outbtn" data-act="entry-cancel-pin" style="width:100%">${esc(t("common.back"))}</button>
+      </div>
+    </div>`;
+  }
 window._doLeagueSearch=function(){
   const q=(document.getElementById("league-search")?.value||"").trim().toLowerCase();
   const resultsEl=document.getElementById("league-list-results");
