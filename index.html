@@ -9466,15 +9466,28 @@ Div3 Nordvästra Götaland
     const rows=allLeaguesData
       .map(l=>({...l,count:userCounts[l.id]||0}))
       .filter(l=>!q||l.name.toLowerCase().includes(q))
-      .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,"sv"));
+      .sort((a,b)=>{
+        // Serier redo att sättas upp (nått 5, men inte markerade som aktiva
+        // än) hamnar högst upp – det är precis de du behöver agera på.
+        const aReady=a.count>=5&&!a.admin_active, bReady=b.count>=5&&!b.admin_active;
+        if(aReady!==bReady) return aReady?-1:1;
+        return b.count-a.count||a.name.localeCompare(b.name,"sv");
+      });
     const totalPlayers=rows.reduce((s,l)=>s+l.count,0);
     const totalLeagues=rows.length;
+    const readyCount=rows.filter(l=>l.count>=5&&!l.admin_active).length;
     const thresholdRow=l=>{
+      const ready=l.count>=5&&!l.admin_active;
       const warn=l.count<5;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      let statusHtml;
+      if(ready) statusHtml=`<div style="font-size:11px;color:${S_GREEN};font-weight:600;margin-top:2px">✅ Redo att sättas upp!</div>`;
+      else if(warn) statusHtml=`<div style="font-size:11px;color:#a5741f;margin-top:2px">⏳ Väntar på fler (behöver ${5-l.count} till)</div>`;
+      else statusHtml="";
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary);${ready?`background:${G_GREENL};border-radius:6px;padding-left:8px`:""}">
         <div style="flex:1">
           <div style="font-weight:500;font-size:13px;color:var(--color-text-primary)">${esc(l.name)} ${l.id===currentLeague.id?'<span style="font-size:11px;color:var(--color-text-secondary)">(nuvarande)</span>':""}</div>
           <div style="font-size:11px;color:var(--color-text-secondary)">${l.hidden?"🔒 Dold":"Synlig"}${l.admin_active?" · ⭐ Aktiv":""}${l.season?" · "+esc(String(l.season)):""}</div>
+          ${statusHtml}
         </div>
         <div style="font-weight:700;font-size:16px;color:${warn?"#A32D2D":S_GREEN}">${l.count}</div>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
@@ -9484,11 +9497,12 @@ Div3 Nordvästra Götaland
         <div style="display:flex;gap:16px">
           <div><div style="font-size:20px;font-weight:700">${totalLeagues}</div><div style="font-size:11px;color:var(--color-text-secondary)">serier</div></div>
           <div><div style="font-size:20px;font-weight:700">${totalPlayers}</div><div style="font-size:11px;color:var(--color-text-secondary)">spelare totalt</div></div>
+          ${readyCount?`<div><div style="font-size:20px;font-weight:700;color:${S_GREEN}">${readyCount}</div><div style="font-size:11px;color:var(--color-text-secondary)">✅ redo att sättas upp</div></div>`:""}
         </div>
       </div>
       <div class="fg-card">
         <input class="fg-input" id="member-overview-search" placeholder="🔍 Sök serie…" value="${esc(memberOverviewSearch||"")}" oninput="window._memberOverviewSearch&&window._memberOverviewSearch()" style="margin-bottom:10px"/>
-        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">Sorterat efter flest spelare. Röd siffra = under 5 spelare.</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-bottom:8px">Serier redo att sättas upp (nått 5 medlemmar, inte markerade ⭐ Aktiv än) visas överst med grön bakgrund – lägg din tid där. Röd siffra = under 5, inte värt att bygga ut ännu.</div>
         <div id="member-overview-list">${rows.map(thresholdRow).join("")||'<div style="font-size:13px;color:var(--color-text-secondary)">Inga serier hittades.</div>'}</div>
       </div>`;
   } else if(adminSection==="leagues"||adminSection==="activeleagues"){
@@ -11333,13 +11347,23 @@ function attachHandlers(){
     const rows=allLeaguesData
       .map(l=>({...l,count:userCounts[l.id]||0}))
       .filter(l=>!q||l.name.toLowerCase().includes(q))
-      .sort((a,b)=>b.count-a.count||a.name.localeCompare(b.name,"sv"));
+      .sort((a,b)=>{
+        const aReady=a.count>=5&&!a.admin_active, bReady=b.count>=5&&!b.admin_active;
+        if(aReady!==bReady) return aReady?-1:1;
+        return b.count-a.count||a.name.localeCompare(b.name,"sv");
+      });
     const thresholdRow=l=>{
+      const ready=l.count>=5&&!l.admin_active;
       const warn=l.count<5;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      let statusHtml;
+      if(ready) statusHtml=`<div style="font-size:11px;color:${S_GREEN};font-weight:600;margin-top:2px">✅ Redo att sättas upp!</div>`;
+      else if(warn) statusHtml=`<div style="font-size:11px;color:#a5741f;margin-top:2px">⏳ Väntar på fler (behöver ${5-l.count} till)</div>`;
+      else statusHtml="";
+      return `<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:0.5px solid var(--color-border-tertiary);${ready?`background:${G_GREENL};border-radius:6px;padding-left:8px`:""}">
         <div style="flex:1">
           <div style="font-weight:500;font-size:13px;color:var(--color-text-primary)">${esc(l.name)} ${l.id===currentLeague.id?'<span style="font-size:11px;color:var(--color-text-secondary)">(nuvarande)</span>':""}</div>
           <div style="font-size:11px;color:var(--color-text-secondary)">${l.hidden?"🔒 Dold":"Synlig"}${l.admin_active?" · ⭐ Aktiv":""}${l.season?" · "+esc(String(l.season)):""}</div>
+          ${statusHtml}
         </div>
         <div style="font-weight:700;font-size:16px;color:${warn?"#A32D2D":S_GREEN}">${l.count}</div>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-outbtn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
