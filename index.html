@@ -3050,7 +3050,8 @@ const TRANSLATIONS={
     "entrySearch.waitingForLeague":"⏳ Väntar på serie",
     "entrySearch.searching":"Söker…","entrySearch.noMatch":"Ingen match hittades.","entrySearch.error":"Något gick fel, försök igen.",
     "landing.searchLeaguesPlaceholder":"🔍 Sök serie (t.ex. Div4 Göteborg)…",
-    "landing.otherSeriesGroup":"Övriga serier","landing.noLeaguesMatch":"Ingen serie matchade sökningen."
+    "landing.otherSeriesGroup":"Övriga serier","landing.noLeaguesMatch":"Ingen serie matchade sökningen.",
+    "landing.waitingForMembers":"⏳ {count}/{goal} medlemmar anmälda – väntar på fler innan serien blir aktiv",
   },
   en:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -3626,7 +3627,8 @@ const TRANSLATIONS={
     "entrySearch.waitingForLeague":"⏳ Waiting for series",
     "entrySearch.searching":"Searching…","entrySearch.noMatch":"No match found.","entrySearch.error":"Something went wrong, please try again.",
     "landing.searchLeaguesPlaceholder":"🔍 Search series (e.g. Div4 Gothenburg)…",
-    "landing.otherSeriesGroup":"Other series","landing.noLeaguesMatch":"No series matched your search."
+    "landing.otherSeriesGroup":"Other series","landing.noLeaguesMatch":"No series matched your search.",
+    "landing.waitingForMembers":"⏳ {count}/{goal} members signed up – waiting for more before the series becomes active",
   },
   gr:{
     "lang.name.sv":"Svenska","lang.name.en":"English","lang.name.gr":"Ελληνικά",
@@ -4202,7 +4204,8 @@ const TRANSLATIONS={
     "entrySearch.waitingForLeague":"⏳ Αναμονή σειράς",
     "entrySearch.searching":"Αναζήτηση…","entrySearch.noMatch":"Δεν βρέθηκε αντιστοιχία.","entrySearch.error":"Κάτι πήγε στραβά, δοκίμασε ξανά.",
     "landing.searchLeaguesPlaceholder":"🔍 Αναζήτηση σειράς (π.χ. Div4 Gothenburg)…",
-    "landing.otherSeriesGroup":"Άλλες σειρές","landing.noLeaguesMatch":"Καμία σειρά δεν ταιριάζει με την αναζήτηση."
+    "landing.otherSeriesGroup":"Άλλες σειρές","landing.noLeaguesMatch":"Καμία σειρά δεν ταιριάζει με την αναζήτηση.",
+    "landing.waitingForMembers":"⏳ {count}/{goal} μέλη έχουν εγγραφεί – περιμένουμε περισσότερους πριν ενεργοποιηθεί η σειρά",
   }
 };
 function t(key,vars){
@@ -4629,12 +4632,19 @@ function renderLeagueGroups(list){
   });
   return order.map(key=>{
     const items=groups[key];
-    const rows=items.map(l=>`
+    const counts=window._leagueUserCountsCache||{};
+    const rows=items.map(l=>{
+      const count=counts[l.id]||0;
+      const waiting=count<5;
+      return `
       <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:0.5px solid var(--color-border-tertiary);margin-bottom:8px">
         <div style="width:40px;height:40px;border-radius:10px;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-size:18px">🏆</div>
-        <div style="flex:1"><div style="font-weight:500;font-size:15px;color:var(--color-text-primary)">${esc(l.name)}</div></div>
+        <div style="flex:1">
+          <div style="font-weight:500;font-size:15px;color:var(--color-text-primary)">${esc(l.name)}</div>
+          ${waiting?`<div style="font-size:11px;color:#a5741f;margin-top:2px">${esc(t("landing.waitingForMembers",{count,goal:5}))}</div>`:""}
+        </div>
         <span style="color:var(--color-text-secondary)">›</span>
-      </button>`).join("");
+      </button>`;}).join("");
     return `<details open style="margin-bottom:10px;text-align:left">
       <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${items.length})</span></summary>
       <div style="margin-top:6px">${rows}</div>
@@ -9534,7 +9544,9 @@ Div3 Nordvästra Götaland
         <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
         <div style="margin-top:4px">${groups[key].map(leagueRow).join("")}</div>
       </details>`).join("");
-    const bulkDeleteArea=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+    const bulkDeleteArea=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px">
+      <button data-act="bulk-show-leagues" class="fg-outbtn" style="width:100%">👁 Gör alla ${listData.length} synliga</button>
+      <button data-act="bulk-hide-leagues" class="fg-outbtn" style="width:100%">🔒 Dölj alla ${listData.length}</button>
       <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier som matchar sökningen</button>
     </div>`:"";
     const searchBox=`<div class="fg-card">
@@ -11303,7 +11315,9 @@ function attachHandlers(){
     if(countEl) countEl.textContent=listData.length;
     const bulkDeleteEl=document.getElementById("admin-league-bulk-delete-area");
     if(bulkDeleteEl){
-      bulkDeleteEl.innerHTML=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary)">
+      bulkDeleteEl.innerHTML=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px">
+        <button data-act="bulk-show-leagues" class="fg-outbtn" style="width:100%">👁 Gör alla ${listData.length} synliga</button>
+        <button data-act="bulk-hide-leagues" class="fg-outbtn" style="width:100%">🔒 Dölj alla ${listData.length}</button>
         <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier som matchar sökningen</button>
       </div>`:"";
     }
@@ -11974,6 +11988,24 @@ function attachHandlers(){
       if(error){flash("Fel: "+error.message);return;}
       quizMyAnswers={...quizMyAnswers,[qid]:ans};
       myRoundStatus={...myRoundStatus,quiz:true};
+      render();
+    }
+    else if(act==="bulk-show-leagues"||act==="bulk-hide-leagues"){
+      const makeHidden=act==="bulk-hide-leagues";
+      const allLeaguesData=window._allLeaguesCache||[];
+      const isActiveView=adminSection==="activeleagues";
+      const q=(adminLeagueSearch||"").toLowerCase();
+      const matches=allLeaguesData
+        .filter(l=>isActiveView?l.admin_active:!l.admin_active)
+        .filter(l=>!q||l.name.toLowerCase().includes(q));
+      if(!matches.length){ flash("Inga serier matchar sökningen."); return; }
+      if(!confirm(`${makeHidden?"Dölja":"Göra synliga"} ${matches.length} serier som matchar "${q}"?\n\n${matches.map(l=>l.name).slice(0,20).join(", ")}${matches.length>20?` … och ${matches.length-20} till`:""}`))return;
+      el.textContent=makeHidden?"Döljer…":"Gör synliga…"; el.disabled=true;
+      const ids=matches.map(l=>l.id);
+      const {error}=await sb.from("leagues").update({hidden:makeHidden}).in("id",ids);
+      if(error){flash("Fel: "+error.message);el.disabled=false;return;}
+      window._allLeaguesCache=allLeaguesData.map(l=>ids.includes(l.id)?{...l,hidden:makeHidden}:l);
+      flash(`✓ ${matches.length} serier är nu ${makeHidden?"dolda":"synliga för alla"}!`);
       render();
     }
     else if(act==="bulk-delete-leagues"){
@@ -13768,6 +13800,12 @@ function attachHandlers(){
   // om det för tillfället bara finns en enda synlig serie.
   screen="leagues";
   render();
+  // Hämtas i bakgrunden – används för att visa "X/5 medlemmar" på serier som
+  // ännu inte nått tröskeln, direkt på den publika serielistan.
+  fetchLeagueUserCounts().then(counts=>{
+    window._leagueUserCountsCache=counts;
+    if(screen==="leagues") render();
+  }).catch(e=>console.error(e));
   updateCountdownEls();
   setInterval(updateCountdownEls,30000);
   window._debugMaljakten=function(){
