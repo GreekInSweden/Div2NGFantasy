@@ -2608,6 +2608,10 @@ const TRANSLATIONS={
     "header.suffix.tipp":" · Tipp","header.suffix.ligatipp":" · Tippa serien","header.suffix.snabbast":" · Snabbast",
     "header.suffix.maljakten":" · Måljakten","header.suffix.matchfokus":" · Matchexperten",
     "common.adminLock":"🔒 Admin","common.switchLeague":"Byt serie",
+    "waitingroom.waitingTitle":"Serien väntar på fler medlemmar","waitingroom.waitingDesc":"Vi öppnar spelet så fort minst 5 spelare anmält sig i den här serien. Bjud in lagkompisar för att komma igång snabbare!",
+    "waitingroom.membersNeeded":"{n} till behövs","waitingroom.inviteHint":"Dela länken till bonnboll.se med dina lagkompisar!",
+    "waitingroom.thresholdReachedTitle":"5 medlemmar nått – serien aktiveras snart!","waitingroom.thresholdReachedDesc":"Vi förbereder allt (lag, spelare, omgångar) just nu. Kom tillbaka snart!",
+    "waitingroom.activatesIn":"Aktiveras om",
     "pos.GK":"Målvakt","pos.DEF":"Försvarare","pos.MID":"Mittfältare","pos.FW":"Forward",
     "common.round":"Omgång {n}","common.total":"Totalt",
     "hemtab.myTeam":"Mitt lag (4-3-3)","hemtab.editShort":"✏ Byt","hemtab.editTeamButton":"✏️ Ändra mitt lag",
@@ -3185,6 +3189,10 @@ const TRANSLATIONS={
     "header.suffix.tipp":" · Predict","header.suffix.ligatipp":" · Predict the League","header.suffix.snabbast":" · Fastest Wins",
     "header.suffix.maljakten":" · Goal Hunt","header.suffix.matchfokus":" · Match Expert",
     "common.adminLock":"🔒 Admin","common.switchLeague":"Switch series",
+    "waitingroom.waitingTitle":"The series is waiting for more members","waitingroom.waitingDesc":"We open the game as soon as at least 5 players have signed up for this series. Invite teammates to get started faster!",
+    "waitingroom.membersNeeded":"{n} more needed","waitingroom.inviteHint":"Share the bonnboll.se link with your teammates!",
+    "waitingroom.thresholdReachedTitle":"5 members reached – the series activates soon!","waitingroom.thresholdReachedDesc":"We're preparing everything (teams, players, rounds) right now. Check back soon!",
+    "waitingroom.activatesIn":"Activates in",
     "pos.GK":"Goalkeeper","pos.DEF":"Defender","pos.MID":"Midfielder","pos.FW":"Forward",
     "common.round":"Round {n}","common.total":"Total",
     "hemtab.myTeam":"My team (4-3-3)","hemtab.editShort":"✏ Edit","hemtab.editTeamButton":"✏️ Edit my team",
@@ -3762,6 +3770,10 @@ const TRANSLATIONS={
     "header.suffix.tipp":" · Πρόβλεψη","header.suffix.ligatipp":" · Πρόβλεψε το Πρωτάθλημα","header.suffix.snabbast":" · Ο Πιο Γρήγορος",
     "header.suffix.maljakten":" · Κυνήγι Γκολ","header.suffix.matchfokus":" · Ειδικός Αγώνα",
     "common.adminLock":"🔒 Διαχείριση","common.switchLeague":"Αλλαγή σειράς",
+    "waitingroom.waitingTitle":"Η σειρά περιμένει περισσότερα μέλη","waitingroom.waitingDesc":"Ανοίγουμε το παιχνίδι μόλις εγγραφούν τουλάχιστον 5 παίκτες σε αυτή τη σειρά. Προσκάλεσε συμπαίκτες για να ξεκινήσετε πιο γρήγορα!",
+    "waitingroom.membersNeeded":"χρειάζονται {n} ακόμα","waitingroom.inviteHint":"Μοιράσου τον σύνδεσμο bonnboll.se με τους συμπαίκτες σου!",
+    "waitingroom.thresholdReachedTitle":"5 μέλη συμπληρώθηκαν – η σειρά ενεργοποιείται σύντομα!","waitingroom.thresholdReachedDesc":"Ετοιμάζουμε τα πάντα (ομάδες, παίκτες, γύρους) αυτή τη στιγμή. Έλα ξανά σύντομα!",
+    "waitingroom.activatesIn":"Ενεργοποιείται σε",
     "pos.GK":"Τερματοφύλακας","pos.DEF":"Αμυντικός","pos.MID":"Μέσος","pos.FW":"Επιθετικός",
     "common.round":"Γύρος {n}","common.total":"Σύνολο",
     "hemtab.myTeam":"Η ομάδα μου (4-3-3)","hemtab.editShort":"✏ Αλλαγή","hemtab.editTeamButton":"✏️ Επεξεργασία ομάδας μου",
@@ -4404,7 +4416,54 @@ function render(){
   }
 }
 
+// Visas istället för spelmenyn tills serien nått 5 medlemmar och sedan gått
+// igenom sin 24-timmars aktiveringsperiod.
+function renderLeagueWaitingRoom(memberCount,unlocksAt){
+  const reachedThreshold=memberCount>=5;
+  return `
+  <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#eae1cc;text-align:center">
+    <div style="margin-bottom:28px">
+      <div style="font-family:Georgia,'Times New Roman',serif;font-style:italic;font-size:24px;color:#1c2118;margin-bottom:6px">${esc(currentLeague.name)}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:6px">
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
+        <div style="height:1.5px;width:110px;background:#2f6b3f"></div>
+        <svg width="8" height="8" viewBox="0 0 10 10"><polygon points="5,0 10,5 5,10 0,5" fill="#2f6b3f"/></svg>
+      </div>
+      <div style="font-size:10px;letter-spacing:0.3em;color:#555;font-weight:500">PLAY</div>
+    </div>
+    <div style="font-size:16px;color:var(--color-text-secondary);margin-bottom:20px">${esc(t("modeselect.greeting",{name:currentUser.namn}))}</div>
+    ${reachedThreshold?`
+      <div style="font-size:40px;margin-bottom:10px">✅</div>
+      <div style="font-size:19px;font-weight:600;margin-bottom:10px;max-width:340px">${esc(t("waitingroom.thresholdReachedTitle"))}</div>
+      <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:20px;max-width:340px;line-height:1.6">${esc(t("waitingroom.thresholdReachedDesc"))}</div>
+      <div class="fg-card" style="padding:18px 24px;margin-bottom:20px">
+        <div style="font-size:11px;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.3px;margin-bottom:4px">${esc(t("waitingroom.activatesIn"))}</div>
+        <div data-countdown-deadline="${unlocksAt.toISOString()}" style="font-size:22px;font-weight:700;color:${G_GREEN}">${esc(formatCountdown(unlocksAt.toISOString()))}</div>
+      </div>
+    `:`
+      <div style="font-size:40px;margin-bottom:10px">⚽</div>
+      <div style="font-size:19px;font-weight:600;margin-bottom:10px;max-width:340px">${esc(t("waitingroom.waitingTitle"))}</div>
+      <div style="font-size:14px;color:var(--color-text-secondary);margin-bottom:20px;max-width:340px;line-height:1.6">${esc(t("waitingroom.waitingDesc"))}</div>
+      <div class="fg-card" style="padding:18px 24px;margin-bottom:8px;width:100%;max-width:300px">
+        <div style="font-size:28px;font-weight:700;color:${G_GREEN};margin-bottom:6px">${memberCount} / 5</div>
+        <div style="height:8px;border-radius:4px;background:var(--color-border-tertiary);overflow:hidden">
+          <div style="height:100%;width:${Math.min(100,memberCount/5*100)}%;background:${G_GREEN}"></div>
+        </div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-top:8px">${esc(t("waitingroom.membersNeeded",{n:Math.max(0,5-memberCount)}))}</div>
+      </div>
+      <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:20px;max-width:300px">${esc(t("waitingroom.inviteHint"))}</div>
+    `}
+    <button data-act="switch-league" class="fg-outbtn">${esc(t("common.switchLeague"))}</button>
+  </div>`;
+}
 function renderModeSelect(){
+  // Insläppsspärr: serien måste ha minst 5 medlemmar, och därefter gått
+  // igenom en 24-timmars aktiveringsperiod, innan spelet öppnas. Skapar en
+  // anledning för tidiga medlemmar att bjuda in fler för att komma igång.
+  const memberCount=users.length;
+  const unlocksAt=currentLeague.unlocks_at?new Date(currentLeague.unlocks_at):null;
+  const isUnlocked=memberCount>=5 && unlocksAt && new Date()>=unlocksAt;
+  if(!isUnlocked) return renderLeagueWaitingRoom(memberCount,unlocksAt);
   return `
   <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;background:#eae1cc">
     <div style="text-align:center;margin-bottom:28px">
@@ -8698,6 +8757,21 @@ function renderAdminTab(){
   </div>`:"";
 
   let adminSections, adminNavHtml;
+  // Banner: serier som passerat 5-medlemmarsgränsen (nedräkningen har
+  // startat eller redan gått ut) men ännu inte markerats ⭐ Aktiv – dvs
+  // "du behöver sätta upp den här nu". Bara för superadmin eftersom det
+  // rör hela plattformen, inte en enskild serie.
+  let activationBannerHtml="";
+  if(adminLevel==="super"){
+    if(!window._allLeaguesCache){ fetchAllLeagues().then(d=>{window._allLeaguesCache=d;render();}); }
+    const needsSetup=(window._allLeaguesCache||[]).filter(l=>l.unlocks_at&&!l.admin_active);
+    if(needsSetup.length){
+      activationBannerHtml=`<button data-act="admin-section" data-sec="memberoverview" style="display:block;width:100%;text-align:left;background:${G_GREENL};border:1px solid ${G_GREEN};border-radius:8px;padding:10px 14px;margin-bottom:10px;cursor:pointer">
+        <div style="font-weight:600;font-size:13px;color:${S_GREEN}">🔔 ${needsSetup.length} serie${needsSetup.length===1?"":"r"} har nått 5 medlemmar och väntar på att sättas upp!</div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${esc(needsSetup.slice(0,4).map(l=>l.name).join(", "))}${needsSetup.length>4?` +${needsSetup.length-4} till`:""} – klicka för detaljer</div>
+      </button>`;
+    }
+  }
   if(adminLevel==="super"){
     const catList=[{id:"omgang",label:"OMGÅNG",items:catOmgang},{id:"uppsattning",label:"UPPSÄTTNING",items:catUppsattning},{id:"anvandare",label:"ANVÄNDARE",items:catAnvandare}];
     if(!adminNavGroup) adminNavGroup=catList.find(c=>c.items.some(([id])=>id===adminSection))?.id||catList[0].id;
@@ -8716,7 +8790,7 @@ function renderAdminTab(){
     adminSections=allCats.filter(([id])=>(adminAllowedSections||[]).includes(id));
     adminNavHtml=`<div class="fg-card" style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">${adminSections.map(tabBtn).join("")}</div>`;
   }
-  adminNavHtml=quickSwitchHtml+adminNavHtml;
+  adminNavHtml=activationBannerHtml+quickSwitchHtml+adminNavHtml;
 
   let body="";
   if(adminSection==="round"){
