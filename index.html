@@ -4675,29 +4675,49 @@ function renderLeagues(){
 // namnet, med en "Övriga serier"-grupp för sådant som inte matchar mönstret
 // (Premier League, La Liga osv). Används både vid första renderingen och
 // live när man skriver i sökrutan – därför en egen funktion.
-function renderLeagueGroups(list){
-  if(!list.length) return `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("landing.noLeaguesMatch"))}</div>`;
-  const groups={};
-  const order=[];
+// Delad grupperingslogik för serielistor – används av både den publika
+// landningssidan och adminpanelens "Alla serier"/"Aktiva serier". Extraherad
+// hit så vi bara behöver underhålla mönstren på ETT ställe (tidigare fanns
+// samma logik kopierad på tre ställen, vilket orsakade en bugg när Damer-
+// separationen bara gjordes på ett av dem).
+//
+// Ordning på grupper: Div-serier (herrar, sen damer) stigande nummer, sen
+// ungdomsserier (P före F, fallande ålder – P19, P17, P16, F19, F17, F16),
+// sist Övriga serier.
+function groupLeaguesByPrefix(list){
+  const groups={}; const order=[];
   list.forEach(l=>{
-    const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-    const isDam=/\bdam(er)?\b/i.test(l.name);
-    const key=m?`Div${m[1]}${isDam?" "+t("landing.damerSuffix"):""}`:t("landing.otherSeriesGroup");
+    const divM=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
+    const pfM=l.name.match(/^([pf])\s*(\d+)/i);
+    let key;
+    if(divM){
+      const isDam=/\bdam(er)?\b/i.test(l.name);
+      key=`Div${divM[1]}${isDam?" "+t("landing.damerSuffix"):""}`;
+    } else if(pfM){
+      key=`${pfM[1].toUpperCase()}${pfM[2]}`;
+    } else {
+      key=t("landing.otherSeriesGroup");
+    }
     if(!groups[key]){groups[key]=[];order.push(key);}
     groups[key].push(l);
   });
+  const rank=key=>{
+    const d=key.match(/^Div(\d+)/);
+    if(d) return [0,Number(d[1]),key.includes(t("landing.damerSuffix"))?1:0];
+    const pf=key.match(/^([PF])(\d+)/);
+    if(pf) return [1,pf[1]==="P"?0:1,-Number(pf[2])];
+    return [2,0,0];
+  };
   order.sort((a,b)=>{
-    const na=a.match(/^Div(\d+)/), nb=b.match(/^Div(\d+)/);
-    if(na&&nb){
-      const diff=Number(na[1])-Number(nb[1]);
-      if(diff!==0) return diff;
-      const aDam=a.includes(t("landing.damerSuffix")), bDam=b.includes(t("landing.damerSuffix"));
-      return aDam===bDam?0:(aDam?1:-1);
-    }
-    if(na) return -1;
-    if(nb) return 1;
-    return a.localeCompare(b);
+    const ra=rank(a), rb=rank(b);
+    for(let i=0;i<3;i++){ if(ra[i]!==rb[i]) return ra[i]-rb[i]; }
+    return a.localeCompare(b,"sv");
   });
+  return {groups,order};
+}
+function renderLeagueGroups(list){
+  if(!list.length) return `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("landing.noLeaguesMatch"))}</div>`;
+  const {groups,order}=groupLeaguesByPrefix(list);
   return order.map(key=>{
     const items=groups[key];
     const counts=window._leagueUserCountsCache||{};
@@ -9619,29 +9639,8 @@ Div3 Nordvästra Götaland
         <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
       </div>`;
-    // Gruppera per division (Div2/Div3/Div4 osv), samma mönster som på den
-    // publika landningssidan – annars blir listan helt oöverskådlig när
-    // antalet serier växer till hundratals.
-    const groups={}; const order=[];
-    listData.forEach(l=>{
-      const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-      const isDam=/\bdam(er)?\b/i.test(l.name);
-      const key=m?`Div${m[1]}${isDam?" Damer":""}`:"Övriga serier";
-      if(!groups[key]){groups[key]=[];order.push(key);}
-      groups[key].push(l);
-    });
-    order.sort((a,b)=>{
-      const na=a.match(/^Div(\d+)/), nb=b.match(/^Div(\d+)/);
-      if(na&&nb){
-        const diff=Number(na[1])-Number(nb[1]);
-        if(diff!==0) return diff;
-        const aDam=a.includes("Damer"), bDam=b.includes("Damer");
-        return aDam===bDam?0:(aDam?1:-1);
-      }
-      if(na) return -1;
-      if(nb) return 1;
-      return a.localeCompare(b,"sv");
-    });
+    // Gruppera per division/ungdomsserie – delad logik, se groupLeaguesByPrefix.
+    const {groups,order}=groupLeaguesByPrefix(listData);
     const groupedHtml=order.map(key=>`
       <details ${q?"open":""} style="margin-bottom:8px">
         <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
@@ -11395,26 +11394,7 @@ function attachHandlers(){
         <button data-act="delete-league" data-id="${l.id}" data-name="${esc(l.name)}" style="background:none;border:0.5px solid #A32D2D;color:#A32D2D;border-radius:6px;padding:6px 10px;font-size:11px;cursor:pointer;font-weight:500">Ta bort</button>
         ${l.id!==currentLeague.id?`<button data-act="jump-to-league" data-id="${l.id}" class="fg-btn" style="padding:6px 10px;font-size:11px">Hoppa till</button>`:""}
       </div>`;
-    const groups={}; const order=[];
-    listData.forEach(l=>{
-      const m=l.name.match(/^div(?:ision)?\.?\s*(\d+)/i);
-      const isDam=/\bdam(er)?\b/i.test(l.name);
-      const key=m?`Div${m[1]}${isDam?" Damer":""}`:"Övriga serier";
-      if(!groups[key]){groups[key]=[];order.push(key);}
-      groups[key].push(l);
-    });
-    order.sort((a,b)=>{
-      const na=a.match(/^Div(\d+)/), nb=b.match(/^Div(\d+)/);
-      if(na&&nb){
-        const diff=Number(na[1])-Number(nb[1]);
-        if(diff!==0) return diff;
-        const aDam=a.includes("Damer"), bDam=b.includes("Damer");
-        return aDam===bDam?0:(aDam?1:-1);
-      }
-      if(na) return -1;
-      if(nb) return 1;
-      return a.localeCompare(b,"sv");
-    });
+    const {groups,order}=groupLeaguesByPrefix(listData);
     const groupedHtml=order.map(key=>`
       <details ${q?"open":""} style="margin-bottom:8px">
         <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
