@@ -32,6 +32,9 @@ export default function AdminLayout({
             <Link href="/admin/auktioner" className="focus-ring text-sm text-paper hover:text-gold">
               Auktioner
             </Link>
+            <Link href="/admin/medlemmar" className="focus-ring text-sm text-paper hover:text-gold">
+              Medlemmar
+            </Link>
             <LogoutButton />
           </nav>
         </div>

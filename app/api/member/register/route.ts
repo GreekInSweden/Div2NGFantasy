@@ -6,10 +6,20 @@ import {
   MEMBER_SESSION_COOKIE,
   memberSessionCookieOptions,
 } from "@/lib/memberSession";
+import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const ip = getClientIp(req);
+  const withinIpLimit = await checkRateLimit(`register:ip:${ip}`, 5, 60 * 60);
+  if (!withinIpLimit) {
+    return NextResponse.json(
+      { error: "För många registreringar från samma nätverk. Försök igen senare." },
+      { status: 429 }
+    );
+  }
+
   const body = await req.json();
   const { name, email, phone, address, postalCode, city, password } = body as {
     name: string;
