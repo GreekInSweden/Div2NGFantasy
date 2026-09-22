@@ -11,12 +11,24 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, phone, address, postalCode, city } = body as {
+  const {
+    name,
+    phone,
+    address,
+    postalCode,
+    city,
+    contactMessenger,
+    contactWhatsapp,
+    contactOther,
+  } = body as {
     name: string;
     phone?: string;
     address?: string;
     postalCode?: string;
     city?: string;
+    contactMessenger?: string;
+    contactWhatsapp?: string;
+    contactOther?: string;
   };
 
   if (!name?.trim()) {
@@ -31,6 +43,9 @@ export async function POST(req: NextRequest) {
       address: address?.trim() || null,
       postal_code: postalCode?.trim() || null,
       city: city?.trim() || null,
+      contact_messenger: contactMessenger?.trim() || null,
+      contact_whatsapp: contactWhatsapp?.trim() || null,
+      contact_other: contactOther?.trim() || null,
     })
     .eq("id", member.id);
 

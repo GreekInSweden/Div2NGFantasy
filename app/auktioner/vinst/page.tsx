@@ -6,7 +6,7 @@ import Link from "next/link";
 import { AuctionWin } from "@/lib/types";
 import { rarityLabel } from "@/lib/rarity";
 import { variantLabel } from "@/lib/variant";
-import CardImage from "@/components/CardImage";
+import CardZoomImage from "@/components/CardZoomImage";
 
 export default function AuctionWinPage() {
   return (
@@ -120,7 +120,7 @@ function AuctionWinContent() {
 
       <div className="border border-line rounded-md p-4 bg-panel mb-8 flex gap-4">
         {win.imageUrl && (
-          <CardImage
+          <CardZoomImage
             src={win.imageUrl}
             alt={win.cardName}
             number={win.cardNumber}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/lib/CartContext";
 import { Member } from "@/lib/types";
+import { memberLabel } from "@/lib/memberLabel";
 
 export default function SiteHeader() {
   const { itemCount, subtotalSek } = useCart();
@@ -24,17 +25,29 @@ export default function SiteHeader() {
         </Link>
         <nav className="flex items-center gap-4">
           <Link
+            href="/lager"
+            className="focus-ring text-sm text-paper hover:text-gold"
+          >
+            Vårt lager
+          </Link>
+          <Link
             href="/auktioner"
             className="focus-ring text-sm text-paper hover:text-gold"
           >
             Auktioner
+          </Link>
+          <Link
+            href="/mest-eftertraktade"
+            className="focus-ring text-sm text-paper hover:text-gold hidden sm:inline"
+          >
+            Mest eftertraktade
           </Link>
           {member === undefined ? null : member ? (
             <Link
               href="/konto"
               className="focus-ring text-sm text-paper hover:text-gold"
             >
-              Medlem #{member.memberNumber}
+              {memberLabel(member.memberNumber, member.username)}
             </Link>
           ) : (
             <Link

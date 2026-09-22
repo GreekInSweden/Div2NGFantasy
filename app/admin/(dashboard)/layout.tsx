@@ -35,6 +35,12 @@ export default function AdminLayout({
             <Link href="/admin/medlemmar" className="focus-ring text-sm text-paper hover:text-gold">
               Medlemmar
             </Link>
+            <Link href="/admin/kortsok" className="focus-ring text-sm text-paper hover:text-gold">
+              Kortsök
+            </Link>
+            <Link href="/admin/anmalningar" className="focus-ring text-sm text-paper hover:text-gold">
+              Anmälningar
+            </Link>
             <LogoutButton />
           </nav>
         </div>

@@ -24,10 +24,11 @@ export default function MemberAdminActions({
   isLocked: boolean;
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState<"link" | "unlock" | null>(null);
+  const [loading, setLoading] = useState<"link" | "unlock" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [resetLink, setResetLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   async function handleGenerateLink() {
     setLoading("link");
@@ -68,6 +69,23 @@ export default function MemberAdminActions({
     router.refresh();
   }
 
+  async function handleDelete() {
+    setLoading("delete");
+    setError(null);
+    const supabase = createBrowserSupabase();
+    const { error: deleteError } = await supabase
+      .from("members")
+      .delete()
+      .eq("id", memberId);
+    setLoading(null);
+    if (deleteError) {
+      setError(deleteError.message);
+      setConfirmingDelete(false);
+      return;
+    }
+    router.refresh();
+  }
+
   function handleCopy() {
     if (!resetLink) return;
     navigator.clipboard.writeText(resetLink).then(() => setCopied(true));
@@ -91,6 +109,33 @@ export default function MemberAdminActions({
           >
             {loading === "unlock" ? "Låser upp…" : "Lås upp konto"}
           </button>
+        )}
+        {!confirmingDelete ? (
+          <button
+            onClick={() => setConfirmingDelete(true)}
+            disabled={loading !== null}
+            className="focus-ring text-xs rounded-sm border border-red-400/40 px-3 py-1.5 text-red-400 hover:border-red-400 disabled:opacity-50"
+          >
+            Radera medlem
+          </button>
+        ) : (
+          <span className="flex items-center gap-2">
+            <span className="text-xs text-red-400">Säker? Går inte att ångra.</span>
+            <button
+              onClick={handleDelete}
+              disabled={loading !== null}
+              className="focus-ring text-xs rounded-sm bg-red-400 text-ink font-semibold px-3 py-1.5 disabled:opacity-50"
+            >
+              {loading === "delete" ? "Raderar…" : "Ja, radera"}
+            </button>
+            <button
+              onClick={() => setConfirmingDelete(false)}
+              disabled={loading !== null}
+              className="focus-ring text-xs rounded-sm border border-line px-3 py-1.5 text-paper hover:border-gold disabled:opacity-50"
+            >
+              Avbryt
+            </button>
+          </span>
         )}
       </div>
       {error && <p className="text-xs text-red-400 mt-2">{error}</p>}

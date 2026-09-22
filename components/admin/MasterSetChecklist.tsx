@@ -5,7 +5,7 @@ import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { rarityLabel } from "@/lib/rarity";
 import { variantShortLabel } from "@/lib/variant";
 import { Rarity, Variant } from "@/lib/types";
-import CardImage from "@/components/CardImage";
+import CardZoomImage from "@/components/CardZoomImage";
 
 interface ChecklistCard {
   id: string;
@@ -186,7 +186,7 @@ export default function MasterSetChecklist({
               key={c.id}
               className="border border-line rounded-md p-3 bg-panel flex items-center gap-4"
             >
-              <CardImage
+              <CardZoomImage
                 src={c.imageUrl}
                 alt={c.name}
                 number={c.number}

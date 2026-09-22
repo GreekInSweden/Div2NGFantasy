@@ -52,7 +52,7 @@ export default async function SetPage({
   return (
     <div className="max-w-6xl mx-auto px-4 py-14">
       <div className="text-sm text-mute font-mono mb-2">
-        <Link href="/" className="hover:text-gold">
+        <Link href="/lager" className="hover:text-gold">
           Kategorier
         </Link>{" "}
         /{" "}

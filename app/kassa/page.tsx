@@ -98,7 +98,7 @@ export default function KassaPage() {
         </h1>
         <p className="text-mute mb-6">Hitta kort att lägga till först.</p>
         <Link
-          href="/"
+          href="/lager"
           className="focus-ring inline-block rounded-sm bg-gold text-ink font-semibold px-6 py-3"
         >
           Bläddra bland kort

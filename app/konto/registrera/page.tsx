@@ -15,7 +15,7 @@ export default function RegisterPage() {
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams.get("next") || "/konto";
+  const next = searchParams.get("next") || "/konto/portfolj";
 
   const [form, setForm] = useState({
     name: "",
@@ -24,6 +24,7 @@ function RegisterForm() {
     address: "",
     postalCode: "",
     city: "",
+    username: "",
     password: "",
   });
   const [submitting, setSubmitting] = useState(false);
@@ -37,19 +38,24 @@ function RegisterForm() {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const res = await fetch("/api/member/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    setSubmitting(false);
-    if (!res.ok) {
-      setError(data.error ?? "Något gick fel.");
-      return;
+    try {
+      const res = await fetch("/api/member/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? `Något gick fel (${res.status}).`);
+        setSubmitting(false);
+        return;
+      }
+      router.push(next);
+      router.refresh();
+    } catch {
+      setError("Kunde inte nå servern. Kontrollera internetuppkopplingen och försök igen.");
+      setSubmitting(false);
     }
-    router.push(next);
-    router.refresh();
   }
 
   return (
@@ -63,6 +69,18 @@ function RegisterForm() {
       </p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Namn" value={form.name} onChange={(v) => updateField("name", v)} required />
+        <div>
+          <Field
+            label="Användarnamn (visas istället för medlemsnummer vid bud)"
+            value={form.username}
+            onChange={(v) => updateField("username", v)}
+            required
+          />
+          <p className="text-xs text-mute mt-1">
+            3–20 tecken, bokstäver/siffror/_/-. Går inte att ändra själv
+            senare, så välj nåt du trivs med.
+          </p>
+        </div>
         <Field
           label="E-post"
           type="email"

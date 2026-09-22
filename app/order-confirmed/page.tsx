@@ -57,10 +57,10 @@ export default function OrderConfirmedPage({
       </p>
 
       <Link
-        href="/"
+        href="/lager"
         className="focus-ring inline-block rounded-sm border border-line px-6 py-3 text-paper hover:border-gold"
       >
-        Tillbaka till startsidan
+        Tillbaka till lagret
       </Link>
     </div>
   );

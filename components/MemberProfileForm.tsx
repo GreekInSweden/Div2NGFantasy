@@ -12,6 +12,9 @@ export default function MemberProfileForm({ member }: { member: MemberProfile })
     address: member.address ?? "",
     postalCode: member.postalCode ?? "",
     city: member.city ?? "",
+    contactMessenger: member.contactMessenger ?? "",
+    contactWhatsapp: member.contactWhatsapp ?? "",
+    contactOther: member.contactOther ?? "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,18 +30,23 @@ export default function MemberProfileForm({ member }: { member: MemberProfile })
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const res = await fetch("/api/member/profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-    const data = await res.json();
-    setSubmitting(false);
-    if (!res.ok) {
-      setError(data.error ?? "Något gick fel.");
-      return;
+    try {
+      const res = await fetch("/api/member/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      setSubmitting(false);
+      if (!res.ok) {
+        setError(data.error ?? `Något gick fel (${res.status}).`);
+        return;
+      }
+      setSaved(true);
+    } catch {
+      setSubmitting(false);
+      setError("Kunde inte nå servern. Kontrollera internetuppkopplingen och försök igen.");
     }
-    setSaved(true);
   }
 
   async function handleLogout() {
@@ -59,6 +67,16 @@ export default function MemberProfileForm({ member }: { member: MemberProfile })
           <span className="text-sm text-mute mb-1 block">E-post</span>
           <p className="text-paper">{member.email}</p>
         </div>
+        {member.username && (
+          <div>
+            <span className="text-sm text-mute mb-1 block">Användarnamn</span>
+            <p className="text-paper">{member.username}</p>
+            <p className="text-xs text-mute mt-0.5">
+              Valdes vid registreringen och går inte att ändra själv än —
+              hör av dig till oss om du vill byta.
+            </p>
+          </div>
+        )}
         <Field label="Telefon" value={form.phone} onChange={(v) => updateField("phone", v)} />
         <Field label="Adress" value={form.address} onChange={(v) => updateField("address", v)} />
         <div className="grid grid-cols-2 gap-4">
@@ -69,6 +87,35 @@ export default function MemberProfileForm({ member }: { member: MemberProfile })
           />
           <Field label="Ort" value={form.city} onChange={(v) => updateField("city", v)} />
         </div>
+
+        <div className="border-t border-line pt-4 mt-2">
+          <h3 className="text-sm font-medium text-paper mb-1">
+            Kontaktvägar för byten/köp mellan medlemmar
+          </h3>
+          <p className="text-xs text-mute mb-3">
+            Helt frivilligt, och dolt som standard. Fylls ett fält i visas
+            det bara för den andra medlemmen när ni faktiskt matchar på ett
+            kort — aldrig publikt på din profil.
+          </p>
+          <Field
+            label="Messenger"
+            value={form.contactMessenger}
+            onChange={(v) => updateField("contactMessenger", v)}
+          />
+          <div className="h-3" />
+          <Field
+            label="WhatsApp"
+            value={form.contactWhatsapp}
+            onChange={(v) => updateField("contactWhatsapp", v)}
+          />
+          <div className="h-3" />
+          <Field
+            label="Annat (t.ex. Snapchat, Discord, telefon)"
+            value={form.contactOther}
+            onChange={(v) => updateField("contactOther", v)}
+          />
+        </div>
+
         {error && <p className="text-sm text-red-400">{error}</p>}
         {saved && <p className="text-sm text-gold">Sparat ✓</p>}
         <button

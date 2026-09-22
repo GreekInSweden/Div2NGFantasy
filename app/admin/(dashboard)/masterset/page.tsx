@@ -2,6 +2,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { Rarity, Variant } from "@/lib/types";
 import { baseVariantByRarity, reverseHoloEligibleRarities } from "@/lib/rarity";
 import MasterSetChecklist from "@/components/admin/MasterSetChecklist";
+import SetPicker from "@/components/SetPicker";
 
 export const dynamic = "force-dynamic";
 
@@ -120,21 +121,7 @@ export default async function MasterSetPage({
         avkryssar det inte härifrån.
       </p>
 
-      <div className="flex flex-wrap gap-2 mb-8">
-        {sets.map((s) => (
-          <a
-            key={s.id}
-            href={`/admin/masterset?set=${s.slug}`}
-            className={`focus-ring text-xs rounded-sm border px-3 py-1.5 ${
-              s.slug === selectedSlug
-                ? "border-gold text-gold bg-gold/10"
-                : "border-line text-mute hover:border-mute"
-            }`}
-          >
-            {s.name}
-          </a>
-        ))}
-      </div>
+      <SetPicker sets={sets} selectedSlug={selectedSlug} baseHref="/admin/masterset" />
 
       {!selectedSet ? (
         <p className="text-mute">Inga set upplagda ännu.</p>

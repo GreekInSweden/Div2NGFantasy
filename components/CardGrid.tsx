@@ -6,8 +6,14 @@ import { rarityAccent, rarityLabel } from "@/lib/rarity";
 import CardModal from "@/components/CardModal";
 import CardImage from "@/components/CardImage";
 
-const rarityOptions: Rarity[] = [
+// Canonical display order for the rarity filter — only the rarities that
+// actually occur among the cards being shown are offered, so a Pokémon
+// set never shows Topps-only tiers ("Grundkort"/"Insert") and vice
+// versa, instead of a fixed list of every rarity across both card lines.
+const RARITY_ORDER: Rarity[] = [
   "common",
+  "rare",
+  "double_rare",
   "illustration_rare",
   "ultra_rare",
   "special_illustration_rare",
@@ -30,6 +36,11 @@ export default function CardGrid({
   const [query, setQuery] = useState("");
   const [rarityFilter, setRarityFilter] = useState<Rarity | "all">("all");
   const [onlyInStock, setOnlyInStock] = useState(false);
+
+  const rarityOptions = useMemo(() => {
+    const present = new Set(cards.map((c) => c.rarity));
+    return RARITY_ORDER.filter((r) => present.has(r));
+  }, [cards]);
 
   const filteredCards = useMemo(() => {
     const q = query.trim().toLowerCase();

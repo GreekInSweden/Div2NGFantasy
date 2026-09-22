@@ -23,8 +23,9 @@ export const rarityAccent: Record<Rarity, string> = {
   special_illustration_rare: "border-l-rare-special",
   mega_hyper_rare: "border-l-rare-gold",
   promo: "border-l-rare-promo",
-  base: "border-l-rare-common",
-  insert: "border-l-rare-illustration",
+  // Sportkort (Topps m.fl.) — egen palett, se tailwind.config.ts.
+  base: "border-l-sport-base",
+  insert: "border-l-sport-insert",
 };
 
 // The variant that IS a card's base/ordinary print, by rarity. Most

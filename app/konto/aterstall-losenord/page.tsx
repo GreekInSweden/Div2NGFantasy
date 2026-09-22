@@ -30,19 +30,24 @@ function ResetPasswordForm() {
       return;
     }
     setSubmitting(true);
-    const res = await fetch("/api/member/password-reset/confirm", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token, newPassword: password }),
-    });
-    const data = await res.json();
-    setSubmitting(false);
-    if (!res.ok) {
-      setError(data.error ?? "Något gick fel.");
-      return;
+    try {
+      const res = await fetch("/api/member/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, newPassword: password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? `Något gick fel (${res.status}).`);
+        setSubmitting(false);
+        return;
+      }
+      router.push("/konto");
+      router.refresh();
+    } catch {
+      setError("Kunde inte nå servern. Kontrollera internetuppkopplingen och försök igen.");
+      setSubmitting(false);
     }
-    router.push("/konto");
-    router.refresh();
   }
 
   if (!token) {

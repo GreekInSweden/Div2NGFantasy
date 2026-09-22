@@ -14,6 +14,20 @@ const LOCK_AFTER_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
+  try {
+    return await handleLogin(req);
+  } catch (err: any) {
+    // See the matching comment in register/route.ts — never let an
+    // uncaught exception fall through as a non-JSON 500, or the login
+    // button hangs on "Loggar in…" forever with no visible error.
+    return NextResponse.json(
+      { error: `Serverfel: ${err?.message ?? "okänt fel"}` },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleLogin(req: NextRequest) {
   const ip = getClientIp(req);
   // Caps how many login attempts total can come from one IP address —
   // catches a script trying many different accounts, on top of the
@@ -36,11 +50,25 @@ export async function POST(req: NextRequest) {
 
   const normalizedEmail = email.trim().toLowerCase();
 
-  const { data: member } = await supabaseAdmin
+  const { data: member, error: fetchError } = await supabaseAdmin
     .from("members")
-    .select("id, member_number, name, email, password_hash, failed_login_attempts, locked_until")
+    .select(
+      "id, member_number, name, email, username, password_hash, failed_login_attempts, locked_until"
+    )
     .eq("email", normalizedEmail)
     .maybeSingle();
+
+  // A real query failure (e.g. a column the code expects isn't in the
+  // database yet because a migration hasn't been run) must not be
+  // reported as "wrong password" — that's indistinguishable from a
+  // real login failure and just leaves someone stuck retyping a
+  // correct password forever. Surface it plainly instead.
+  if (fetchError) {
+    return NextResponse.json(
+      { error: `Serverfel vid inloggning: ${fetchError.message}` },
+      { status: 500 }
+    );
+  }
 
   if (member?.locked_until && new Date(member.locked_until) > new Date()) {
     const minutesLeft = Math.ceil(
@@ -82,6 +110,7 @@ export async function POST(req: NextRequest) {
       memberNumber: member.member_number,
       name: member.name,
       email: member.email,
+      username: member.username,
     },
   });
   res.cookies.set(MEMBER_SESSION_COOKIE, token, memberSessionCookieOptions);

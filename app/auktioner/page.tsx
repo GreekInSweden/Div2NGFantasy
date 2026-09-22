@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { AuctionListing, AuctionWin, Member } from "@/lib/types";
+import { memberLabel } from "@/lib/memberLabel";
 import { rarityLabel } from "@/lib/rarity";
 import { variantLabel } from "@/lib/variant";
 import CardImage from "@/components/CardImage";
@@ -16,22 +17,35 @@ export default function AuktionerPage() {
   const [member, setMember] = useState<Member | null | undefined>(undefined);
 
   const load = useCallback(async () => {
-    const res = await fetch("/api/auctions");
-    const data = await res.json();
-    if (data.auctions) setAuctions(data.auctions);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/auctions");
+      const data = await res.json();
+      if (data.auctions) setAuctions(data.auctions);
+    } catch {
+      // Transient network hiccup on a 20s poll — just try again next tick.
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   const checkWin = useCallback(async () => {
-    const res = await fetch("/api/auction-win");
-    const data = await res.json();
-    setWin(data.win ?? null);
+    try {
+      const res = await fetch("/api/auction-win");
+      const data = await res.json();
+      setWin(data.win ?? null);
+    } catch {
+      // Ignore — next poll will retry.
+    }
   }, []);
 
   const loadMember = useCallback(async () => {
-    const res = await fetch("/api/member/me");
-    const data = await res.json();
-    setMember(data.member ?? null);
+    try {
+      const res = await fetch("/api/member/me");
+      const data = await res.json();
+      setMember(data.member ?? null);
+    } catch {
+      setMember(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -120,7 +134,7 @@ export default function AuktionerPage() {
                 </div>
                 {a.leadingMemberNumber !== null && (
                   <div className="text-xs text-mute mt-1">
-                    Leder: Medlem #{a.leadingMemberNumber}
+                    Leder: {memberLabel(a.leadingMemberNumber, a.leadingUsername)}
                   </div>
                 )}
                 {!a.reserveMet && a.bidCount > 0 && (
@@ -176,27 +190,32 @@ function BidModal({
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-    const res = await fetch("/api/bid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        auctionId: auction.auctionId,
-        amountSek: amount,
-      }),
-    });
-    const data = await res.json();
-    setSubmitting(false);
-    if (!res.ok) {
-      setError(data.error ?? "Något gick fel.");
-      return;
+    try {
+      const res = await fetch("/api/bid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          auctionId: auction.auctionId,
+          amountSek: amount,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      setSubmitting(false);
+      if (!res.ok) {
+        setError(data.error ?? `Något gick fel (${res.status}).`);
+        return;
+      }
+      if (data.extendedEndsAt) {
+        setEndsAt(data.extendedEndsAt);
+        setExtended(true);
+      }
+      setSuccess(true);
+      onBidPlaced();
+      setTimeout(onClose, 1200);
+    } catch {
+      setSubmitting(false);
+      setError("Kunde inte nå servern. Kontrollera internetuppkopplingen och försök igen.");
     }
-    if (data.extendedEndsAt) {
-      setEndsAt(data.extendedEndsAt);
-      setExtended(true);
-    }
-    setSuccess(true);
-    onBidPlaced();
-    setTimeout(onClose, 1200);
   }
 
   return (
@@ -269,7 +288,7 @@ function BidModal({
               >
                 <span>
                   {i === 0 && "🏆 "}
-                  {b.memberNumber !== null ? `Medlem #${b.memberNumber}` : "Okänd medlem"}
+                  {memberLabel(b.memberNumber, b.username)}
                 </span>
                 <span className="font-mono">{b.amountSek} kr</span>
               </div>
@@ -328,7 +347,9 @@ function BidModal({
               disabled={submitting}
               className="focus-ring w-full rounded-sm bg-gold text-ink font-semibold py-3 disabled:opacity-50"
             >
-              {submitting ? "Skickar…" : `Buda som Medlem #${member.memberNumber}`}
+              {submitting
+                ? "Skickar…"
+                : `Buda som ${memberLabel(member.memberNumber, member.username)}`}
             </button>
           </form>
         )}

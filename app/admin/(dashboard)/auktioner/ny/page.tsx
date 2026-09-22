@@ -5,9 +5,13 @@ export const dynamic = "force-dynamic";
 
 export default async function NewAuctionPage() {
   const supabase = createServerSupabase();
+  // Only real shop sets — the imported reference catalog (is_visible =
+  // false, stock always 0) has nothing sellable in it, so it would just
+  // clutter this dropdown with sets no auction could ever start from.
   const { data: sets } = await supabase
     .from("sets")
     .select("id, slug, name")
+    .eq("is_visible", true)
     .order("name");
 
   return (

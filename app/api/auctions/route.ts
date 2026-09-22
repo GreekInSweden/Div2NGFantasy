@@ -82,17 +82,18 @@ export async function GET() {
   for (const a of auctions as any[]) {
     if (a.status !== "open") continue;
 
-    // Member numbers only — never anything else about a bidder — so the
-    // public listing can show "vem som leder" without exposing any
-    // contact details.
+    // Member number + their own chosen username only — never anything
+    // else about a bidder — so the public listing can show "vem som
+    // leder" without exposing any real identity or contact details.
     const { data: bidRows } = await supabaseAdmin
       .from("bids")
-      .select("amount_sek, created_at, members(member_number)")
+      .select("amount_sek, created_at, members(member_number, username)")
       .eq("auction_id", a.id)
       .order("amount_sek", { ascending: false });
 
     const bidHistory = (bidRows ?? []).map((b: any) => ({
       memberNumber: b.members?.member_number ?? null,
+      username: b.members?.username ?? null,
       amountSek: Number(b.amount_sek),
     }));
 
@@ -117,6 +118,7 @@ export async function GET() {
       bidCount: bidHistory.length,
       bidHistory,
       leadingMemberNumber: bidHistory[0]?.memberNumber ?? null,
+      leadingUsername: bidHistory[0]?.username ?? null,
       endsAt: a.ends_at,
       status: a.status,
       // Never send the actual reserve_price_sek to the client — only
