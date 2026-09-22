@@ -26,6 +26,7 @@ interface SetOption {
   slug: string;
   name: string;
   category_name: string;
+  product_line?: "pokemon" | "sportkort";
 }
 
 export default async function MasterSetPage({
@@ -37,7 +38,7 @@ export default async function MasterSetPage({
 
   const { data: setsData } = await supabase
     .from("sets")
-    .select("id, slug, name, category_name")
+    .select("id, slug, name, category_name, product_line")
     .order("category_name")
     .order("name");
   const sets = (setsData as SetOption[]) ?? [];

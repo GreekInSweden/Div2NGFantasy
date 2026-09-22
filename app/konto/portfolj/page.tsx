@@ -13,6 +13,7 @@ interface SetOption {
   slug: string;
   name: string;
   category_name: string;
+  product_line?: "pokemon" | "sportkort";
 }
 
 interface VariantRow {
@@ -47,7 +48,7 @@ export default async function PortfolioPage({
   // from any of it in their portfolio/wishlist.
   const { data: setsData } = await supabase
     .from("sets")
-    .select("id, slug, name, category_name")
+    .select("id, slug, name, category_name, product_line")
     .order("category_name")
     .order("name");
   const sets = (setsData as SetOption[]) ?? [];
