@@ -22,6 +22,16 @@ till dagens Mega Evolution/Scarlet & Violet-era, för att portfölj-/
   Gallery-set eller "SWSH001" i vissa kampanjset) har fått ett internt
   unikt nummer så de inte krockar med varandra – det är bara en teknisk
   detalj i databasen, syns inte för medlemmarna.
+- **Holo-only rariteter**: kort med rariteten "Rare" i gamla set (t.ex.
+  Base Sets Alakazam, Blastoise, Chansey) visas bara som "Holo" och
+  "Reverse Holo" — aldrig "Normal". Det stämmer historiskt: de här korten
+  gavs faktiskt aldrig ut i ett vanligt icke-holo-tryck, holo-versionen
+  ÄR grundtrycket. Samma modell används för alla set, inte bara Base.
+- **Reverse Holo fanns inte förrän Neo Destiny (2002)**. Set äldre än
+  det (Base, Jungle, Fossil, Team Rocket, Base Set 2, Gym Heroes/
+  Challenge, Neo Genesis/Discovery/Revelation, Wizards-promosen) erbjuder
+  därför bara "Holo"/"Normal", inte "Reverse Holo" — det alternativet
+  fanns helt enkelt inte att trycka på den tiden.
 
 ## Körordning
 
@@ -56,6 +66,13 @@ skulle behöva köras om.
 
 Störst fil är `sword-shield.sql` på ca 380 kB text – inga problem för SQL
 Editorn, men ha tålamod, det är många rader.
+
+**Har du redan kört en tidigare version** av `base.sql`, `gym.sql` eller
+`neo.sql` (innan Reverse Holo-fixen ovan fanns)? Kör i så fall
+`../catalog_import_reverse_holo_cleanup.sql` en gång för att städa bort
+de felaktigt tillagda Reverse Holo-alternativen för de här seten. Har du
+inte kört importen än, eller kör den för första gången nu, kan du
+ignorera den filen helt — de nya set-filerna gör redan rätt från början.
 
 ## Efter importen
 

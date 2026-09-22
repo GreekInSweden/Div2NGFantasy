@@ -23,6 +23,15 @@ const config: Config = {
           gold: "#F2C94C",
           promo: "#4FBF9F",
         },
+        // Sports cards (Topps m.fl.) get their own accent palette instead
+        // of borrowing the Pokémon rarity colors — pitch green ties the
+        // Sportkort-sektionen ihop, silver/bronze särskiljer Grundkort och
+        // Insert på själva korten.
+        sport: {
+          base: "#98A2B3",
+          insert: "#C69749",
+          pitch: "#22C55E",
+        },
       },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],

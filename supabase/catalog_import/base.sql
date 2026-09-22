@@ -122,8 +122,6 @@ select ic.id, x.variant, 0, 0
 from inserted_cards ic
 cross join lateral (
   select case when ic.rarity = 'rare' then 'holo' else 'normal' end as variant
-  union all
-  select 'reverse_holo' where ic.rarity in ('common','rare')
 ) as x(variant)
 on conflict (card_id, variant) do nothing;
 
@@ -210,8 +208,6 @@ select ic.id, x.variant, 0, 0
 from inserted_cards ic
 cross join lateral (
   select case when ic.rarity = 'rare' then 'holo' else 'normal' end as variant
-  union all
-  select 'reverse_holo' where ic.rarity in ('common','rare')
 ) as x(variant)
 on conflict (card_id, variant) do nothing;
 
@@ -287,8 +283,6 @@ select ic.id, x.variant, 0, 0
 from inserted_cards ic
 cross join lateral (
   select case when ic.rarity = 'rare' then 'holo' else 'normal' end as variant
-  union all
-  select 'reverse_holo' where ic.rarity in ('common','rare')
 ) as x(variant)
 on conflict (card_id, variant) do nothing;
 
@@ -373,8 +367,6 @@ select ic.id, x.variant, 0, 0
 from inserted_cards ic
 cross join lateral (
   select case when ic.rarity = 'rare' then 'holo' else 'normal' end as variant
-  union all
-  select 'reverse_holo' where ic.rarity in ('common','rare')
 ) as x(variant)
 on conflict (card_id, variant) do nothing;
 
@@ -527,8 +519,6 @@ select ic.id, x.variant, 0, 0
 from inserted_cards ic
 cross join lateral (
   select case when ic.rarity = 'rare' then 'holo' else 'normal' end as variant
-  union all
-  select 'reverse_holo' where ic.rarity in ('common','rare')
 ) as x(variant)
 on conflict (card_id, variant) do nothing;
 
@@ -634,7 +624,5 @@ select ic.id, x.variant, 0, 0
 from inserted_cards ic
 cross join lateral (
   select case when ic.rarity = 'rare' then 'holo' else 'normal' end as variant
-  union all
-  select 'reverse_holo' where ic.rarity in ('common','rare')
 ) as x(variant)
 on conflict (card_id, variant) do nothing;
