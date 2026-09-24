@@ -2600,10 +2600,11 @@ const TRANSLATIONS={
     "serie.latestResultsTitle":"📅 Senaste resultat (Omgång {n})","serie.upcomingTitle":"🔜 Kommande matcher (Omgång {n})",
     "serie.noResultsYet":"Inga resultat inlagda ännu.","serie.noUpcomingYet":"Inga kommande matcher inlagda ännu.",
     "serie.latestNewsTitle":"📰 Senaste nyheter","serie.noNewsYet":"Inga nyheter publicerade ännu.",
-    "serie.backToTable":"← Tillbaka till tabellen","serie.teamLatestResultTitle":"📅 Senaste resultat","serie.teamUpcomingTitle":"🔜 Kommande match",
+    "serie.backToTable":"← Tillbaka till tabellen","serie.teamLatestResultTitle":"📅 Senaste resultaten","serie.teamUpcomingTitle":"🔜 Kommande matcher",
     "serie.writerSectionTitle":"Nyheter från laget","serie.squadTitle":"👥 Truppen","serie.staffLabel":"Ledare",
     "serie.gkLabel":"Målvakter","serie.defLabel":"Försvar","serie.midLabel":"Mittfältare","serie.fwLabel":"Forwards",
     "serie.noSquadYet":"Ingen trupp inlagd ännu.","serie.topPlayersTitle":"⭐ Bästa spelarna (Fantasy-poäng)",
+    "serie.pointsListTitle":"🏆 Poängliga","serie.scorersListTitle":"⚽ Skytteliga","serie.noGoalsYet":"Inga mål inrapporterade ännu.",
     "tabs.hof":"Hall of Fame","tabs.standings":"Ställningar","tabs.profil":"Profil","tabs.stod":"Stöd oss",
     "header.suffix.tipp":" · Tipp","header.suffix.ligatipp":" · Tippa serien","header.suffix.snabbast":" · Snabbast",
     "header.suffix.maljakten":" · Måljakten","header.suffix.matchfokus":" · Matchexperten",
@@ -3182,10 +3183,11 @@ const TRANSLATIONS={
     "serie.latestResultsTitle":"📅 Latest results (Round {n})","serie.upcomingTitle":"🔜 Upcoming matches (Round {n})",
     "serie.noResultsYet":"No results entered yet.","serie.noUpcomingYet":"No upcoming matches entered yet.",
     "serie.latestNewsTitle":"📰 Latest news","serie.noNewsYet":"No news published yet.",
-    "serie.backToTable":"← Back to table","serie.teamLatestResultTitle":"📅 Latest result","serie.teamUpcomingTitle":"🔜 Upcoming match",
+    "serie.backToTable":"← Back to table","serie.teamLatestResultTitle":"📅 Latest results","serie.teamUpcomingTitle":"🔜 Upcoming matches",
     "serie.writerSectionTitle":"News from the team","serie.squadTitle":"👥 Squad","serie.staffLabel":"Staff",
     "serie.gkLabel":"Goalkeepers","serie.defLabel":"Defenders","serie.midLabel":"Midfielders","serie.fwLabel":"Forwards",
     "serie.noSquadYet":"No squad added yet.","serie.topPlayersTitle":"⭐ Top players (Fantasy points)",
+    "serie.pointsListTitle":"🏆 Points table","serie.scorersListTitle":"⚽ Top scorers","serie.noGoalsYet":"No goals reported yet.",
     "tabs.hof":"Hall of Fame","tabs.standings":"Standings","tabs.profil":"Profile","tabs.stod":"Support us",
     "header.suffix.tipp":" · Predict","header.suffix.ligatipp":" · Predict the League","header.suffix.snabbast":" · Fastest Wins",
     "header.suffix.maljakten":" · Goal Hunt","header.suffix.matchfokus":" · Match Expert",
@@ -3764,10 +3766,11 @@ const TRANSLATIONS={
     "serie.latestResultsTitle":"📅 Τελευταία αποτελέσματα (Γύρος {n})","serie.upcomingTitle":"🔜 Επόμενοι αγώνες (Γύρος {n})",
     "serie.noResultsYet":"Δεν έχουν καταχωρηθεί αποτελέσματα ακόμα.","serie.noUpcomingYet":"Δεν έχουν καταχωρηθεί επερχόμενοι αγώνες ακόμα.",
     "serie.latestNewsTitle":"📰 Τελευταία νέα","serie.noNewsYet":"Δεν έχουν δημοσιευτεί νέα ακόμα.",
-    "serie.backToTable":"← Πίσω στον πίνακα","serie.teamLatestResultTitle":"📅 Τελευταίο αποτέλεσμα","serie.teamUpcomingTitle":"🔜 Επόμενος αγώνας",
+    "serie.backToTable":"← Πίσω στον πίνακα","serie.teamLatestResultTitle":"📅 Τελευταία αποτελέσματα","serie.teamUpcomingTitle":"🔜 Επόμενοι αγώνες",
     "serie.writerSectionTitle":"Νέα από την ομάδα","serie.squadTitle":"👥 Ομάδα","serie.staffLabel":"Τεχνικό επιτελείο",
     "serie.gkLabel":"Τερματοφύλακες","serie.defLabel":"Αμυντικοί","serie.midLabel":"Μέσοι","serie.fwLabel":"Επιθετικοί",
     "serie.noSquadYet":"Δεν έχει προστεθεί ομάδα ακόμα.","serie.topPlayersTitle":"⭐ Κορυφαίοι παίκτες (πόντοι Fantasy)",
+    "serie.pointsListTitle":"🏆 Βαθμολογία πόντων","serie.scorersListTitle":"⚽ Σκόρερ","serie.noGoalsYet":"Δεν έχουν καταχωρηθεί γκολ ακόμα.",
     "tabs.hof":"Hall of Fame","tabs.standings":"Βαθμολογίες","tabs.profil":"Προφίλ","tabs.stod":"Στήριξέ μας",
     "header.suffix.tipp":" · Πρόβλεψη","header.suffix.ligatipp":" · Πρόβλεψε το Πρωτάθλημα","header.suffix.snabbast":" · Ο Πιο Γρήγορος",
     "header.suffix.maljakten":" · Κυνήγι Γκολ","header.suffix.matchfokus":" · Ειδικός Αγώνα",
@@ -8514,18 +8517,18 @@ function renderTeamPage(){
     </table>
   </div>`:`<div class="fg-card"><div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div></div>`;
 
-  // Senaste resultat + kommande match för just det här laget
+  // Senaste 5 resultat + kommande 5 matcher för just det här laget
   const played=getAllPlayedMatchesChrono().filter(m=>m.hId===team.id||m.aId===team.id);
-  const lastMatch=played.length?played[played.length-1]:null;
+  const lastMatches=played.slice(-5).reverse();
   const futureRounds=Object.keys(rounds).map(Number).filter(r=>!rounds[String(r)].results_published).sort((a,b)=>a-b);
-  let nextMatch=null;
+  const upcomingMatches=[];
   for(const r of futureRounds){
     const m=(rounds[String(r)].matches||[]).find(mt=>mt.hId===team.id||mt.aId===team.id);
-    if(m){ nextMatch={...m,round:r}; break; }
+    if(m){ upcomingMatches.push({...m,round:r}); if(upcomingMatches.length>=5) break; }
   }
   const matchLine=(m,showScore)=>{
     const h=TEAMS.find(tm=>tm.id===m.hId), a=TEAMS.find(tm=>tm.id===m.aId);
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;border-bottom:0.5px solid var(--color-border-tertiary)">
       <span style="flex:1;text-align:right;font-weight:${m.hId===team.id?600:400}">${esc(h?h.name:"")}</span>
       <span style="background:var(--color-background-secondary);border-radius:4px;padding:2px 8px;font-weight:600;min-width:44px;text-align:center">${showScore?`${m.hMål}–${m.aMål}`:"–"}</span>
       <span style="flex:1;font-weight:${m.aId===team.id?600:400}">${esc(a?a.name:"")}</span>
@@ -8534,9 +8537,9 @@ function renderTeamPage(){
 
   const resultsCard=`<div class="fg-card">
     <div style="font-weight:500;margin-bottom:4px">${esc(t("serie.teamLatestResultTitle"))}</div>
-    ${lastMatch?matchLine(lastMatch,true):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div>`}
+    ${lastMatches.length?lastMatches.map(m=>matchLine(m,true)).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noResultsYet"))}</div>`}
     <div style="font-weight:500;margin:12px 0 4px">${esc(t("serie.teamUpcomingTitle"))}</div>
-    ${nextMatch?matchLine(nextMatch,false):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noUpcomingYet"))}</div>`}
+    ${upcomingMatches.length?upcomingMatches.map(m=>matchLine(m,false)).join(""):`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noUpcomingYet"))}</div>`}
   </div>`;
 
   const writerCard=(team.writer_text&&team.writer_text.trim())?`<div class="fg-card">
@@ -8544,9 +8547,13 @@ function renderTeamPage(){
     <div style="font-size:13px;line-height:1.6;white-space:pre-wrap">${esc(team.writer_text)}</div>
   </div>`:"";
 
-  const avatar=(p)=>p.photo_url
-    ?`<img src="${esc(p.photo_url)}" alt="${esc(p.namn)}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0"/>`
-    :`<div style="width:52px;height:52px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:600;font-size:16px;flex-shrink:0">${esc(p.namn[0])}</div>`;
+  const avatar=(p,size)=>{
+    size=size||52;
+    const fs=Math.round(size*0.31);
+    return p.photo_url
+    ?`<img src="${esc(p.photo_url)}" alt="${esc(p.namn)}" style="width:${size}px;height:${size}px;border-radius:50%;object-fit:cover;flex-shrink:0"/>`
+    :`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${G_GREENL};color:${G_GREEN};display:flex;align-items:center;justify-content:center;font-weight:600;font-size:${fs}px;flex-shrink:0">${esc(p.namn[0])}</div>`;
+  };
 
   const staff=Array.isArray(team.staff)?team.staff:[];
   const staffHtml=staff.length?`<div style="display:flex;flex-wrap:wrap;gap:14px;margin-bottom:18px">
@@ -8557,32 +8564,73 @@ function renderTeamPage(){
     </div>`).join("")}
   </div>`:"";
 
-  const squadGroup=(pos,label)=>{
-    const list=players.filter(p=>p.teamId===team.id&&p.pos===pos)
-      .map(p=>({...p,seasonPts:playerSeasonFantasyPts(p)}))
-      .sort((a,b)=>b.seasonPts-a.seasonPts||a.namn.localeCompare(b.namn,"sv"));
-    if(!list.length) return "";
-    return `<div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px">${esc(label)}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:14px">
-        ${list.map(p=>`<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:76px;text-align:center">
-          ${avatar(p)}
-          <div style="font-size:11px;font-weight:500;line-height:1.3">${esc(p.namn)}</div>
-          ${p.seasonPts>0?`<div style="font-size:10px;color:${G_GREEN};font-weight:600">${p.seasonPts} p</div>`:""}
-        </div>`).join("")}
-      </div>
-    </div>`;
+  // ── Poängliga: alla spelare i laget, rangordnade efter Fantasy-poäng för
+  // säsongen, med en pil som visar om spelaren klättrat/rasat i den interna
+  // rangordningen sedan förra publicerade omgången.
+  const teamPlayers=players.filter(p=>p.teamId===team.id);
+  const pubRoundsAsc=Object.keys(rounds).map(Number).filter(r=>rounds[String(r)].results_published).sort((a,b)=>a-b);
+  const latestPubRound=pubRoundsAsc.length?pubRoundsAsc[pubRoundsAsc.length-1]:null;
+  const prevPubRound=pubRoundsAsc.length>1?pubRoundsAsc[pubRoundsAsc.length-2]:null;
+  const ptsThroughRound=(player,uptoRound)=>{
+    if(uptoRound==null) return 0;
+    return pubRoundsAsc.filter(r=>r<=uptoRound).reduce((s,r)=>s+plPts(player,rounds[String(r)]),0);
   };
+  const pointsRows=teamPlayers.map(p=>({
+    player:p,
+    pts:playerSeasonFantasyPts(p),
+    ptsPrev:ptsThroughRound(p,prevPubRound)
+  }));
+  const rankMapNow=new Map([...pointsRows].sort((a,b)=>b.pts-a.pts||a.player.namn.localeCompare(b.player.namn,"sv")).map((r,i)=>[r.player.id,i+1]));
+  const rankMapPrev=new Map([...pointsRows].sort((a,b)=>b.ptsPrev-a.ptsPrev||a.player.namn.localeCompare(b.player.namn,"sv")).map((r,i)=>[r.player.id,i+1]));
+  const pointsList=[...pointsRows].sort((a,b)=>b.pts-a.pts||a.player.namn.localeCompare(b.player.namn,"sv"));
 
-  const squadCard=`<div class="fg-card">
-    <div style="font-weight:500;margin-bottom:12px">${esc(t("serie.squadTitle"))}</div>
-    ${staff.length?`<div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px">${esc(t("serie.staffLabel"))}</div>${staffHtml}`:""}
-    ${squadGroup("GK",t("serie.gkLabel"))}
-    ${squadGroup("DEF",t("serie.defLabel"))}
-    ${squadGroup("MID",t("serie.midLabel"))}
-    ${squadGroup("FW",t("serie.fwLabel"))}
-    ${(!staff.length&&!players.some(p=>p.teamId===team.id))?`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noSquadYet"))}</div>`:""}
+  const pointsRowsHtml=pointsList.map(row=>{
+    const p=row.player;
+    const curRank=rankMapNow.get(p.id), prevRank=rankMapPrev.get(p.id);
+    let arrow="–",arrowColor="var(--color-text-secondary)";
+    if(prevPubRound!=null&&curRank!=null&&prevRank!=null){
+      if(curRank<prevRank){arrow="▲";arrowColor=G_GREEN;}
+      else if(curRank>prevRank){arrow="▼";arrowColor="#A32D2D";}
+    }
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <div style="width:18px;text-align:center;font-size:12px;color:var(--color-text-secondary);font-weight:600">${curRank}</div>
+      <div style="width:14px;text-align:center;font-size:12px;font-weight:700;color:${arrowColor}">${arrow}</div>
+      ${avatar(p,32)}
+      <div style="flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.namn)}</div>
+      <div style="font-weight:600;font-size:13px;flex-shrink:0">${row.pts} p</div>
+    </div>`;
+  }).join("");
+
+  const pointsCard=`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:10px">${esc(t("serie.pointsListTitle"))}</div>
+    ${pointsRowsHtml||`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noSquadYet"))}</div>`}
   </div>`;
+
+  // ── Skytteliga: interna målskyttar baserat på riktiga mål i spelade matcher.
+  const scorersList=teamPlayers
+    .map(p=>({player:p,goals:playerSeasonGoals(p)}))
+    .filter(r=>r.goals>0)
+    .sort((a,b)=>b.goals-a.goals||a.player.namn.localeCompare(b.player.namn,"sv"));
+
+  const scorersRowsHtml=scorersList.map((row,i)=>{
+    const p=row.player;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      <div style="width:18px;text-align:center;font-size:12px;color:var(--color-text-secondary);font-weight:600">${i+1}</div>
+      ${avatar(p,32)}
+      <div style="flex:1;min-width:0;font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(p.namn)}</div>
+      <div style="font-weight:600;font-size:13px;flex-shrink:0">⚽ ${row.goals}</div>
+    </div>`;
+  }).join("");
+
+  const scorersCard=`<div class="fg-card">
+    <div style="font-weight:500;margin-bottom:10px">${esc(t("serie.scorersListTitle"))}</div>
+    ${scorersRowsHtml||`<div style="font-size:13px;color:var(--color-text-secondary)">${esc(t("serie.noGoalsYet"))}</div>`}
+  </div>`;
+
+  const staffCard=staff.length?`<div class="fg-card">
+    <div style="font-size:12px;font-weight:600;color:var(--color-text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.3px">${esc(t("serie.staffLabel"))}</div>
+    ${staffHtml}
+  </div>`:"";
 
   return `
   <button data-act="team-page-back" style="background:none;border:none;color:${G_GREEN};font-size:13px;cursor:pointer;padding:0;margin-bottom:12px">${esc(t("serie.backToTable"))}</button>
@@ -8590,7 +8638,9 @@ function renderTeamPage(){
   ${rowHtml}
   ${resultsCard}
   ${writerCard}
-  ${squadCard}`;
+  ${pointsCard}
+  ${scorersCard}
+  ${staffCard}`;
 }
 function renderLigaTab(sorted){
   if(viewingTeamUserId&&(appMode==="fantasy"||appMode===null)){
