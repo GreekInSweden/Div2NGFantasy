@@ -712,68 +712,88 @@ async function saveRoundGoals(rnd,goals){
   const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals,locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot:cur.picks_snapshot||{},results_published:cur.results_published||false,league_id:currentLeague.id});
   if(error)console.error(error);
 }
+// Bygger en FÄRSK ögonblicksbild av allas lag (inkl. ev. aktivt chip, hämtat
+// direkt från databasen – aldrig det lokala, ev. inaktuella `users`-minnet)
+// och förbrukar aktiva chip + uppdaterar bytesbanken. Detta är den enda
+// platsen som gör detta, och körs både när en omgång låses manuellt OCH –
+// som säkerhetsnät – när resultat publiceras för en omgång som aldrig blev
+// manuellt låst (annars missas chip-förbrukningen helt och chippet fastnar
+// som aktivt för alltid, trots att omgången räknas som låst/klar överallt
+// annars via lock_deadline).
+async function finalizeRoundUsers(){
+  users=await fetchUsers();
+  const picks_snapshot=users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten,activeChip:u.activeChip||null,chipMeta:u.chipMeta||null};return acc;},{});
+
+  // ── Fantasy-byten ──────────────────────────────────────────────────────
+  // Räknar hur många spelare varje användare bytt ut sedan sin senaste
+  // sparade baseline (laget de gick in i den här omgången med), och
+  // uppdaterar antalet sparade byten inför NÄSTA omgång: förbrukade byten
+  // dras av, +1 för omgången som gick, max 5 sparade totalt. Spelare med
+  // Fritt lag-chippet aktivt undantas helt (chippet upphäver byte-gränsen
+  // för just den omgången, och deras lag återställs ändå direkt efter).
+  for(const u of users){
+    if(u.activeChip==="frittlag") continue;
+    if(u.transferBaselinePicks){
+      const oldIds=new Set(POSITIONS.flatMap(pos=>(u.transferBaselinePicks[pos]||[])));
+      const newIds=new Set(POSITIONS.flatMap(pos=>(u.picks[pos]||[])));
+      const usedTransfers=[...oldIds].filter(id=>!newIds.has(id)).length;
+      const currentBanked=u.freeTransfers==null?1:u.freeTransfers;
+      const newBanked=Math.min(5,Math.max(0,currentBanked-usedTransfers)+1);
+      try{ await sb.from("fantasy_users").update({free_transfers:newBanked}).eq("id",u.id); }catch(e){console.error("Kunde inte uppdatera byten för",u.namn,e);}
+    }
+  }
+  const usersWithChip=users.filter(u=>u.activeChip);
+  for(const u of usersWithChip){
+    const newChipsUsed=[...(u.chipsUsed||[]),u.activeChip];
+    const updateFields={active_chip:null,chip_meta:null,chip_pre_snapshot:null,chips_used:newChipsUsed};
+    if(u.activeChip==="frittlag"&&u.chipPreSnapshot){
+      updateFields.picks=u.chipPreSnapshot.picks;
+      updateFields.kapten=u.chipPreSnapshot.kapten;
+    }
+    try{
+      await sb.from("fantasy_users").update(updateFields).eq("id",u.id);
+    }catch(e){console.error("Kunde inte förbruka chip för",u.namn,e);}
+  }
+  // Uppdatera alla användares baseline till deras lag som det ser ut just nu
+  // (efter ev. chip-återställning ovan) – det här blir jämförelsepunkten
+  // för byten under NÄSTA omgång.
+  try{
+    const freshUsers=(usersWithChip.length)?await fetchUsers():users;
+    for(const u of freshUsers){
+      try{ await sb.from("fantasy_users").update({transfer_baseline_picks:u.picks}).eq("id",u.id); }catch(e){console.error("Kunde inte uppdatera baseline för",u.namn,e);}
+    }
+    users=await fetchUsers();
+    if(currentUser){ currentUser=users.find(x=>x.id===currentUser.id)||currentUser; }
+  }catch(e){console.error(e);}
+
+  return picks_snapshot;
+}
 async function toggleRoundLock(rnd,locked){
   const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
   const locked_at=locked?new Date().toISOString():null;
   const picks_snapshot=locked
-    ? users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten,activeChip:u.activeChip||null,chipMeta:u.chipMeta||null};return acc;},{})
+    ? await finalizeRoundUsers()
     : (cur.picks_snapshot||{});
   const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,locked_at,snabbast_result:cur.snabbast_result||[],picks_snapshot,results_published:cur.results_published||false,league_id:currentLeague.id});
   if(error)console.error(error);
-  // Om omgången precis låstes: förbruka chippet för alla som hade ett aktivt.
-  // "Fritt lag"-chippet återställer dessutom laget till hur det såg ut innan
-  // chippet aktiverades – helt automatiskt, oavsett vad som pillats med däremellan.
-  if(locked){
-    // ── Fantasy-byten ──────────────────────────────────────────────────────
-    // Räknar hur många spelare varje användare bytt ut sedan sin senaste
-    // sparade baseline (laget de gick in i den här omgången med), och
-    // uppdaterar antalet sparade byten inför NÄSTA omgång: förbrukade byten
-    // dras av, +1 för omgången som gick, max 5 sparade totalt. Spelare med
-    // Fritt lag-chippet aktivt undantas helt (chippet upphäver byte-gränsen
-    // för just den omgången, och deras lag återställs ändå direkt efter).
-    for(const u of users){
-      if(u.activeChip==="frittlag") continue;
-      if(u.transferBaselinePicks){
-        const oldIds=new Set(POSITIONS.flatMap(pos=>(u.transferBaselinePicks[pos]||[])));
-        const newIds=new Set(POSITIONS.flatMap(pos=>(u.picks[pos]||[])));
-        const usedTransfers=[...oldIds].filter(id=>!newIds.has(id)).length;
-        const currentBanked=u.freeTransfers==null?1:u.freeTransfers;
-        const newBanked=Math.min(5,Math.max(0,currentBanked-usedTransfers)+1);
-        try{ await sb.from("fantasy_users").update({free_transfers:newBanked}).eq("id",u.id); }catch(e){console.error("Kunde inte uppdatera byten för",u.namn,e);}
-      }
-    }
-    const usersWithChip=users.filter(u=>u.activeChip);
-    for(const u of usersWithChip){
-      const newChipsUsed=[...(u.chipsUsed||[]),u.activeChip];
-      const updateFields={active_chip:null,chip_meta:null,chip_pre_snapshot:null,chips_used:newChipsUsed};
-      if(u.activeChip==="frittlag"&&u.chipPreSnapshot){
-        updateFields.picks=u.chipPreSnapshot.picks;
-        updateFields.kapten=u.chipPreSnapshot.kapten;
-      }
-      try{
-        await sb.from("fantasy_users").update(updateFields).eq("id",u.id);
-      }catch(e){console.error("Kunde inte förbruka chip för",u.namn,e);}
-    }
-    // Uppdatera alla användares baseline till deras lag som det ser ut just nu
-    // (efter ev. chip-återställning ovan) – det här blir jämförelsepunkten
-    // för byten under NÄSTA omgång.
-    try{
-      const freshUsers=(usersWithChip.length)?await fetchUsers():users;
-      for(const u of freshUsers){
-        try{ await sb.from("fantasy_users").update({transfer_baseline_picks:u.picks}).eq("id",u.id); }catch(e){console.error("Kunde inte uppdatera baseline för",u.namn,e);}
-      }
-      users=await fetchUsers();
-      if(currentUser){ currentUser=users.find(x=>x.id===currentUser.id)||currentUser; }
-    }catch(e){console.error(e);}
-  }
   return {locked_at,picks_snapshot};
 }
 async function publishRoundResults(rnd,published=true){
   const cur=rounds[rnd]||{matches:[],goals:{},locked:false,picks_snapshot:{},results_published:false};
-  const picks_snapshot=published
-    ? users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten};return acc;},{})
-    : cur.picks_snapshot||{};
-  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked:cur.locked||false,locked_at:cur.locked_at||null,snabbast_result:cur.snabbast_result||[],picks_snapshot,results_published:published,league_id:currentLeague.id});
+  let locked=cur.locked||false, locked_at=cur.locked_at||null, picks_snapshot=cur.picks_snapshot||{};
+  if(published&&!cur.locked){
+    // Omgången blev aldrig manuellt låst innan resultaten publicerades – kör
+    // samma låsnings-logik nu som säkerhetsnät (färsk ögonblicksbild inkl.
+    // ev. aktivt chip, chip-förbrukning, bytesbank), annars missas allt det.
+    picks_snapshot=await finalizeRoundUsers();
+    locked=true;
+    locked_at=new Date().toISOString();
+  } else if(published&&!Object.keys(picks_snapshot).length){
+    // Redan manuellt låst men (av någon anledning) utan sparad ögonblicksbild
+    // – bygg en ändå så poängberäkningen har något att jobba med.
+    picks_snapshot=users.reduce((acc,u)=>{acc[u.id]={picks:u.picks,kapten:u.kapten,activeChip:u.activeChip||null,chipMeta:u.chipMeta||null};return acc;},{});
+  }
+  const {error}=await sb.from("rounds").upsert({round_num:Number(rnd),matches:cur.matches||[],goals:cur.goals||{},locked,locked_at,snabbast_result:cur.snabbast_result||[],picks_snapshot,results_published:published,league_id:currentLeague.id});
   return {error,picks_snapshot};
 }
 async function deleteRound(rnd){
@@ -8020,7 +8040,7 @@ function renderHofTab(){
 function renderStreakTab(){
   const rd=rounds[String(cfg.omg)];
   const matches=rd?.matches||[];
-  const locked=rd?.locked||false;
+  const locked=isRoundLocked(rd);
   const published=rd?.results_published||false;
   const myTip=streakMyTips.find(t=>t.round_num===cfg.omg);
   const publishedRounds=Object.keys(rounds).filter(r=>rounds[r].results_published).map(Number);
@@ -12920,6 +12940,8 @@ function attachHandlers(){
     }
     else if(act==="save-team"){
       if(blockIfTrialExpired())return;
+      const rdNow=rounds[String(cfg.omg)];
+      if(isRoundLocked(rdNow)){pickErr="Spelstoppet har passerat – laget kan inte längre sparas för den här omgången.";render();return;}
       const allFilled=POSITIONS.every(pos=>(pickState.picks[pos]||[]).length===POS_COUNT[pos]);
       if(!allFilled){pickErr="Fyll alla positioner enligt 4-3-3 innan du sparar.";render();return;}
       if(!pickState.kapten){pickErr="Sätt en kapten innan du sparar.";render();return;}
@@ -13691,6 +13713,7 @@ function attachHandlers(){
       if(blockIfTrialExpired())return;
       const rd=rounds[String(cfg.omg)];
       if(!rd||!rd.matches.length){flash("Inga matcher att tippa på.");return;}
+      if(isRoundLocked(rd)){flash("Spelstoppet har passerat – dina tips kan inte längre sparas för den här omgången.");render();return;}
       el.textContent="Sparar…";
       el.disabled=true;
       const tipsArr=rd.matches.map(m=>{
@@ -13959,6 +13982,25 @@ function attachHandlers(){
   }).catch(e=>console.error(e));
   updateCountdownEls();
   setInterval(updateCountdownEls,30000);
+  // Countdown-texten ovan uppdaterar bara sin egen textrad – den byter INTE
+  // om sidan från öppet ifyllningsläge till låst/read-only-läge, eftersom det
+  // kräver en full render(). Utan detta kan spelstoppet passera medan någon
+  // sitter kvar på en redan uppladdad sida, och formuläret ser fortsatt öppet
+  // och sparbart ut tills personen råkar trigga en render på annat sätt.
+  // Kollar därför varje 30:e sekund om AKTUELL omgång (cfg.omg) precis gick
+  // från olåst till låst, och tvingar då fram en render() så UI:t stängs
+  // igen automatiskt, live, utan att användaren behöver göra något.
+  setInterval(()=>{
+    if(!currentLeague||!cfg||cfg.omg==null) return;
+    const rnd=String(cfg.omg);
+    const rd=rounds[rnd];
+    if(!rd||!rd.lock_deadline) return;
+    const nowLocked=isRoundLocked(rd);
+    const prev=window._lastKnownRoundLocked&&window._lastKnownRoundLocked[rnd];
+    window._lastKnownRoundLocked=window._lastKnownRoundLocked||{};
+    window._lastKnownRoundLocked[rnd]=nowLocked;
+    if(nowLocked&&prev===false) render();
+  },30000);
   window._debugMaljakten=function(){
     const out={
       currentUserId: currentUser?currentUser.id:null,
