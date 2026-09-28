@@ -36,6 +36,20 @@ export interface SetRow {
   name: string;
 }
 
+// En färgad/numrerad variant av ett kort inom ETT set, t.ex.
+// "Gold Rainbow Foil /50" -- helt separat dimension från Variant
+// (normal/holo/reverse_holo), som bara gäller Pokémon. print_run null
+// betyder onumrerad (odds-baserad, t.ex. "1 av 4 paket").
+export interface ParallelTier {
+  id: string;
+  set_id: string;
+  name: string;
+  channel: string | null;
+  print_run: number | null;
+  sort_order: number;
+  image_url: string | null;
+}
+
 export interface CardVariantRow {
   id: string;
   card_id: string;

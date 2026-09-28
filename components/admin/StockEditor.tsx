@@ -32,8 +32,20 @@ interface CardRow {
 
 const VARIANT_ORDER: Variant[] = ["normal", "holo", "reverse_holo"];
 
-export default function StockEditor({ cards }: { cards: CardRow[] }) {
+export default function StockEditor({
+  cards,
+  productLine = "pokemon",
+}: {
+  cards: CardRow[];
+  productLine?: "pokemon" | "sportkort";
+}) {
   const router = useRouter();
+  // Holo/reverse holo och Pokémon-typ (energifärg) är begrepp som bara
+  // finns för Pokémon-kort -- ett Topps-sportkort har varken. Att visa
+  // dem ändå (som tidigare hände på alla set) var missvisande, så
+  // sportkort-set får bara sin bas-variant ("normal") och ingen typväljare.
+  const isSportkort = productLine === "sportkort";
+  const variantOrder = isSportkort ? (["normal"] as Variant[]) : VARIANT_ORDER;
   // Local editable copy: variantId -> current stock value shown in the input.
   const initial = useMemo(() => {
     const map: Record<string, number> = {};
@@ -254,10 +266,10 @@ export default function StockEditor({ cards }: { cards: CardRow[] }) {
 
       <div className="space-y-2">
         {filteredCards.map((card) => {
-          const variantsPresent = VARIANT_ORDER
+          const variantsPresent = variantOrder
             .map((vt) => card.card_variants.find((v) => v.variant === vt))
             .filter((v): v is VariantRow => !!v);
-          const missingVariants = VARIANT_ORDER.filter(
+          const missingVariants = variantOrder.filter(
             (vt) => !card.card_variants.some((v) => v.variant === vt)
           );
           const cardType = types[card.id] ?? null;
@@ -304,34 +316,36 @@ export default function StockEditor({ cards }: { cards: CardRow[] }) {
                   </div>
                   <div className="text-xs text-mute">{rarityLabel[card.rarity]}</div>
                 </div>
-                <div className="shrink-0 flex items-center gap-1.5">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full border border-line shrink-0"
-                    style={{
-                      backgroundColor: cardType
-                        ? pokemonTypeColor[cardType]
-                        : "transparent",
-                    }}
-                    aria-hidden
-                  />
-                  <select
-                    value={cardType ?? ""}
-                    onChange={(e) =>
-                      setType(card.id, e.target.value as PokemonType | "")
-                    }
-                    title="Pokémon-typ (färg)"
-                    className={`focus-ring bg-ink border rounded-sm px-1.5 py-1 text-xs text-paper ${
-                      isTypeDirty ? "border-gold" : "border-line"
-                    }`}
-                  >
-                    <option value="">Typ…</option>
-                    {pokemonTypeOptions.map((t) => (
-                      <option key={t} value={t}>
-                        {pokemonTypeLabel[t]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {!isSportkort && (
+                  <div className="shrink-0 flex items-center gap-1.5">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-line shrink-0"
+                      style={{
+                        backgroundColor: cardType
+                          ? pokemonTypeColor[cardType]
+                          : "transparent",
+                      }}
+                      aria-hidden
+                    />
+                    <select
+                      value={cardType ?? ""}
+                      onChange={(e) =>
+                        setType(card.id, e.target.value as PokemonType | "")
+                      }
+                      title="Pokémon-typ (färg)"
+                      className={`focus-ring bg-ink border rounded-sm px-1.5 py-1 text-xs text-paper ${
+                        isTypeDirty ? "border-gold" : "border-line"
+                      }`}
+                    >
+                      <option value="">Typ…</option>
+                      {pokemonTypeOptions.map((t) => (
+                        <option key={t} value={t}>
+                          {pokemonTypeLabel[t]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Rad 2: Pris */}
