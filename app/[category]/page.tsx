@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { LAGER_ENABLED } from "@/lib/siteConfig";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -51,6 +52,8 @@ export default async function CategoryPage({
 }: {
   params: { category: string };
 }) {
+  if (!LAGER_ENABLED) redirect("/lager");
+
   const sets = await getSetsForCategory(params.category);
   if (!sets) notFound();
 

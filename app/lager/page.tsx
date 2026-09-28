@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
+import { LAGER_ENABLED } from "@/lib/siteConfig";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -39,6 +40,21 @@ async function getCategories(): Promise<CategoryGroup[]> {
 }
 
 export default async function LagerPage() {
+  if (!LAGER_ENABLED) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-14">
+        <h1 className="font-display text-4xl font-bold text-paper mb-2">
+          Vårt lager
+        </h1>
+        <div className="border border-line rounded-md p-8 text-mute max-w-xl mt-8">
+          Lagret är tillfälligt pausat medan vi bygger om det. Din
+          portfölj, dina matchningar och meddelanden till andra medlemmar
+          fungerar som vanligt under tiden.
+        </div>
+      </div>
+    );
+  }
+
   const categories = await getCategories();
   const pokemonCategories = categories.filter((c) => c.productLine === "pokemon");
   const sportCategories = categories.filter((c) => c.productLine === "sportkort");

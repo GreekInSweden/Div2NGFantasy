@@ -41,6 +41,12 @@ export default async function KontoPage() {
           Mina matchningar
         </Link>
         <Link
+          href="/konto/meddelanden"
+          className="focus-ring text-sm rounded-sm border border-line px-4 py-2 text-paper hover:border-gold"
+        >
+          Meddelanden
+        </Link>
+        <Link
           href="/mest-eftertraktade"
           className="focus-ring text-sm rounded-sm border border-line px-4 py-2 text-paper hover:border-gold"
         >

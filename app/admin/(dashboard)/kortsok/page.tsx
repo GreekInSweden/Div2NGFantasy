@@ -18,6 +18,8 @@ interface EntryRow {
   sellable: boolean;
   tradeable: boolean;
   member_id: string;
+  parallel_tier_id: string | null;
+  parallel_tiers: { name: string } | null;
   members: { member_number: number; username: string | null; name: string; email: string } | null;
 }
 
@@ -30,6 +32,33 @@ interface CardGroup {
   entries: EntryRow[];
 }
 
+// Räknar UNIKA kort (card_id + variant + parallel), inte antal rader --
+// tre medlemmar som alla har samma Charizard ska bara räknas en gång.
+// PostgREST har en gräns på 1000 rader per svar, så sidan igenom med
+// .range() tills en sida kommer tillbaka kortare än sidstorleken.
+async function countUniqueCards(
+  supabase: ReturnType<typeof createServerSupabase>,
+  status: "have" | "want"
+): Promise<number> {
+  const pageSize = 1000;
+  let from = 0;
+  const keys = new Set<string>();
+  for (;;) {
+    const { data, error } = await supabase
+      .from("member_cards")
+      .select("card_id, variant, parallel_tier_id")
+      .eq("status", status)
+      .range(from, from + pageSize - 1);
+    if (error || !data) break;
+    for (const r of data as { card_id: string; variant: string; parallel_tier_id: string | null }[]) {
+      keys.add(`${r.card_id}:${r.variant}:${r.parallel_tier_id ?? ""}`);
+    }
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return keys.size;
+}
+
 export default async function AdminCardSearchPage({
   searchParams,
 }: {
@@ -37,6 +66,11 @@ export default async function AdminCardSearchPage({
 }) {
   const q = (searchParams.q ?? "").trim();
   const supabase = createServerSupabase();
+
+  const [uniqueHaveCount, uniqueWantCount] = await Promise.all([
+    countUniqueCards(supabase, "have"),
+    countUniqueCards(supabase, "want"),
+  ]);
 
   let groups: CardGroup[] = [];
   let truncated = false;
@@ -56,13 +90,45 @@ export default async function AdminCardSearchPage({
       .ilike("name", `%${q}%`)
       .limit(500);
 
-    const cards = matchingCards ?? [];
+    // Sökningen matchar även parallel-namn (t.ex. "1:4", "Gold Rainbow
+    // Foil") -- inte bara kortnamn. Hitta matchande parallel_tiers
+    // först, sen vilka kort som faktiskt har en member_cards-rad med
+    // någon av de tiersen, och slå ihop med namnträffarna ovan.
+    const { data: matchingTiers } = await supabase
+      .from("parallel_tiers")
+      .select("id")
+      .ilike("name", `%${q}%`)
+      .limit(200);
+    const tierIds = (matchingTiers ?? []).map((t: any) => t.id);
+
+    let cardsFromParallel: any[] = [];
+    if (tierIds.length > 0) {
+      const { data: parallelMemberRows } = await supabase
+        .from("member_cards")
+        .select("card_id")
+        .in("parallel_tier_id", tierIds);
+      const cardIdsFromParallel = Array.from(
+        new Set((parallelMemberRows ?? []).map((r: any) => r.card_id))
+      );
+      if (cardIdsFromParallel.length > 0) {
+        const { data: extraCards } = await supabase
+          .from("cards")
+          .select("id, number, name, rarity, sets(name)")
+          .in("id", cardIdsFromParallel);
+        cardsFromParallel = extraCards ?? [];
+      }
+    }
+
+    const cardMap = new Map<string, any>();
+    for (const c of matchingCards ?? []) cardMap.set(c.id, c);
+    for (const c of cardsFromParallel) if (!cardMap.has(c.id)) cardMap.set(c.id, c);
+    const cards = Array.from(cardMap.values());
 
     if (cards.length > 0) {
       const { data: entryRows } = await supabase
         .from("member_cards")
         .select(
-          "card_id, status, variant, sellable, tradeable, member_id, members(member_number, username, name, email)"
+          "card_id, status, variant, sellable, tradeable, member_id, parallel_tier_id, parallel_tiers(name), members(member_number, username, name, email)"
         )
         .in(
           "card_id",
@@ -96,16 +162,38 @@ export default async function AdminCardSearchPage({
         Kortsök
       </h1>
       <p className="text-mute text-sm mb-6">
-        Sök på ett kortnamn för att se vilka medlemmar säljer, byter eller
-        söker det — utan att behöva klicka in på varje medlem för sig.
+        Sök på ett kortnamn eller ett parallel-namn (t.ex. "1:4" eller
+        "Gold") för att se vilka medlemmar säljer, byter eller söker det —
+        utan att behöva klicka in på varje medlem för sig.
       </p>
+
+      <div className="flex flex-wrap gap-3 mb-8">
+        <div className="border border-line rounded-md p-4 bg-panel flex-1 min-w-[180px]">
+          <div className="text-xs text-mute uppercase tracking-wide mb-1">
+            Unika kort som finns
+          </div>
+          <div className="font-mono text-2xl text-gold">{uniqueHaveCount}</div>
+          <div className="text-[11px] text-mute mt-0.5">
+            Alla "har"-markeringar, oavsett om de är öppna för sälj/byte
+          </div>
+        </div>
+        <div className="border border-line rounded-md p-4 bg-panel flex-1 min-w-[180px]">
+          <div className="text-xs text-mute uppercase tracking-wide mb-1">
+            Unika kort som efterfrågas
+          </div>
+          <div className="font-mono text-2xl text-paper">{uniqueWantCount}</div>
+          <div className="text-[11px] text-mute mt-0.5">
+            Antal olika kort någon har på sin önskelista
+          </div>
+        </div>
+      </div>
 
       <form method="GET" className="mb-8">
         <input
           type="text"
           name="q"
           defaultValue={q}
-          placeholder="Sök kortnamn, t.ex. Charizard…"
+          placeholder="Sök kortnamn eller parallel, t.ex. Charizard eller 1:4…"
           autoFocus
           className="focus-ring w-full max-w-md rounded-sm border border-line bg-panel px-3 py-2 text-sm text-paper placeholder:text-mute"
         />
@@ -184,7 +272,7 @@ function MemberEntryRow({ entry }: { entry: EntryRow }) {
       </Link>
       <span className="flex items-center gap-2 shrink-0">
         <span className="text-xs text-mute font-mono">
-          {variantLabel[entry.variant as keyof typeof variantLabel] ?? entry.variant}
+          {entry.parallel_tiers?.name ?? variantLabel[entry.variant as keyof typeof variantLabel] ?? entry.variant}
           {entry.status === "have" &&
             (entry.sellable || entry.tradeable) &&
             ` · ${[entry.sellable ? "Säljer" : null, entry.tradeable ? "Byter" : null]

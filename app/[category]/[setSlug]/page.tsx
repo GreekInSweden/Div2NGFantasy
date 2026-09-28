@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { CardRow } from "@/lib/types";
 import CardGrid from "@/components/CardGrid";
+import { LAGER_ENABLED } from "@/lib/siteConfig";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -45,6 +46,8 @@ export default async function SetPage({
 }: {
   params: { category: string; setSlug: string };
 }) {
+  if (!LAGER_ENABLED) redirect("/lager");
+
   const result = await getSetWithCards(params.category, params.setSlug);
   if (!result) notFound();
   const { set, cards } = result;

@@ -42,21 +42,49 @@ async function handleLogin(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { email, password } = body as { email: string; password: string };
+  // "identifier" accepts either the member's email or their username —
+  // kept as one field in the UI since most members will reach for their
+  // username (it's the identity they actually see around the site), but
+  // email still works so nobody gets locked out just because they forgot
+  // which one they picked at registration.
+  const { identifier, password } = body as { identifier: string; password: string };
 
-  if (!email?.trim() || !password) {
-    return NextResponse.json({ error: "Fyll i e-post och lösenord." }, { status: 400 });
+  if (!identifier?.trim() || !password) {
+    return NextResponse.json(
+      { error: "Fyll i användarnamn/e-post och lösenord." },
+      { status: 400 }
+    );
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedIdentifier = identifier.trim().toLowerCase();
+  const MEMBER_COLUMNS =
+    "id, member_number, name, email, username, password_hash, failed_login_attempts, locked_until";
 
-  const { data: member, error: fetchError } = await supabaseAdmin
+  // Two separate, properly-escaped lookups rather than building a single
+  // .or() filter string by hand — the identifier is raw user input, and
+  // PostgREST's .or() syntax parses commas/parentheses out of a hand-built
+  // string, which would let a crafted "username" smuggle in extra filter
+  // conditions. .eq()/.ilike() escape their values safely on their own.
+  let member: any = null;
+  let fetchError: any = null;
+
+  const byEmail = await supabaseAdmin
     .from("members")
-    .select(
-      "id, member_number, name, email, username, password_hash, failed_login_attempts, locked_until"
-    )
-    .eq("email", normalizedEmail)
+    .select(MEMBER_COLUMNS)
+    .eq("email", normalizedIdentifier)
     .maybeSingle();
+  member = byEmail.data;
+  fetchError = byEmail.error;
+
+  if (!member && !fetchError) {
+    const byUsername = await supabaseAdmin
+      .from("members")
+      .select(MEMBER_COLUMNS)
+      .ilike("username", normalizedIdentifier)
+      .maybeSingle();
+    member = byUsername.data;
+    fetchError = byUsername.error;
+  }
 
   // A real query failure (e.g. a column the code expects isn't in the
   // database yet because a migration hasn't been run) must not be
@@ -96,7 +124,10 @@ async function handleLogin(req: NextRequest) {
         })
         .eq("id", member.id);
     }
-    return NextResponse.json({ error: "Fel e-post eller lösenord." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Fel användarnamn/e-post eller lösenord." },
+      { status: 401 }
+    );
   }
 
   await supabaseAdmin

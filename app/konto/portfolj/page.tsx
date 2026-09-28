@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentMember } from "@/lib/currentMember";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { Variant, Rarity } from "@/lib/types";
+import { Variant, Rarity, ParallelTier } from "@/lib/types";
 import PortfolioChecklist from "@/components/PortfolioChecklist";
 import SetPicker from "@/components/SetPicker";
 
@@ -63,7 +63,9 @@ export default async function PortfolioPage({
     status: "have" | "want";
     sellable: boolean;
     tradeable: boolean;
+    parallel_tier_id: string | null;
   }[] = [];
+  let parallelTiers: ParallelTier[] = [];
 
   if (selectedSet) {
     const { data: cardsData } = await supabase
@@ -73,13 +75,23 @@ export default async function PortfolioPage({
       .order("number");
     cards = (cardsData as unknown as CardRow[]) ?? [];
 
+    // Bara satt för Topps-set som faktiskt har definierade parallels (se
+    // supabase/parallel_tiers.sql) — tom lista annars, då visar
+    // PortfolioChecklist ingen parallel-väljare alls.
+    const { data: tiersData } = await supabase
+      .from("parallel_tiers")
+      .select("id, set_id, name, channel, print_run, sort_order, image_url")
+      .eq("set_id", selectedSet.id)
+      .order("sort_order");
+    parallelTiers = (tiersData as ParallelTier[]) ?? [];
+
     // member_cards is only readable by the admin login under RLS — a
     // member isn't a Supabase Auth user — so this has to go through the
     // service-role client, same as the /api/member/* routes, not the
     // anon-cookie client used for the public sets/cards above.
     const { data: entriesData } = await supabaseAdmin
       .from("member_cards")
-      .select("card_id, variant, status, sellable, tradeable")
+      .select("card_id, variant, status, sellable, tradeable, parallel_tier_id")
       .eq("member_id", member.id);
     ownEntries = (entriesData as any[]) ?? [];
   }
@@ -111,6 +123,7 @@ export default async function PortfolioPage({
           setName={selectedSet.name}
           cards={cards}
           initialEntries={ownEntries}
+          parallelTiers={parallelTiers}
         />
       )}
     </div>

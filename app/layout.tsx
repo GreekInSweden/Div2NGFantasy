@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 import { CartProvider } from "@/lib/CartContext";
 import SiteHeader from "@/components/SiteHeader";
+import { LAGER_ENABLED } from "@/lib/siteConfig";
 
 const display = Space_Grotesk({
   subsets: ["latin"],
@@ -22,7 +23,7 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Kortlagret",
+  title: "Kortmarknad",
   description: "Köp lösa Pokémonkort — välj kort, betala med Swish, vi skickar.",
 };
 
@@ -39,8 +40,11 @@ export default function RootLayout({
           <main className="flex-1">{children}</main>
           <footer className="border-t border-line py-8 mt-16">
             <div className="max-w-6xl mx-auto px-4 flex items-center justify-between text-sm text-mute">
-              <span>Kortlagret — köp lösa samlarkort. Frakt tillkommer, betalning via Swish.</span>
-              <Link href="/admin" className="focus-ring hover:text-paper shrink-0 ml-4">
+              <span>Kortmarknad — köp lösa samlarkort. Frakt tillkommer, betalning via Swish.</span>
+              <Link
+                href={LAGER_ENABLED ? "/admin" : "/admin/masterset"}
+                className="focus-ring hover:text-paper shrink-0 ml-4"
+              >
                 Admin
               </Link>
             </div>

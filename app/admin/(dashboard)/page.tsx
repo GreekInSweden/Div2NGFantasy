@@ -8,7 +8,7 @@ export default async function AdminHomePage() {
   const supabase = createServerSupabase();
   const { data: sets } = await supabase
     .from("sets")
-    .select("id, slug, name, category_name, is_visible")
+    .select("id, slug, name, category_name, is_visible, product_line")
     .order("category_name")
     .order("name");
 

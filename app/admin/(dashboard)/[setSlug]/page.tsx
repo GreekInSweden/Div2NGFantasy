@@ -14,7 +14,7 @@ export default async function AdminSetPage({
 
   const { data: set } = await supabase
     .from("sets")
-    .select("id, slug, name, category_name")
+    .select("id, slug, name, category_name, product_line")
     .eq("slug", params.setSlug)
     .single();
 
@@ -59,7 +59,10 @@ export default async function AdminSetPage({
         spara.
       </p>
 
-      <StockEditor cards={(cards as any) ?? []} />
+      <StockEditor
+        cards={(cards as any) ?? []}
+        productLine={set.product_line ?? "pokemon"}
+      />
     </div>
   );
 }

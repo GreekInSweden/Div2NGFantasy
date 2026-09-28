@@ -17,7 +17,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/konto/portfolj";
 
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +30,7 @@ function LoginForm() {
       const res = await fetch("/api/member/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ identifier, password }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -53,12 +53,13 @@ function LoginForm() {
       </h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <label className="block">
-          <span className="text-sm text-mute mb-1 block">E-post</span>
+          <span className="text-sm text-mute mb-1 block">Användarnamn eller e-post</span>
           <input
-            type="email"
+            type="text"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            autoCapitalize="none"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             className="focus-ring w-full bg-panel border border-line rounded-sm px-3 py-2 text-paper"
           />
         </label>
