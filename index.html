@@ -9718,10 +9718,10 @@ Div3 Nordvästra Götaland
         <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${groups[key].length})</span></summary>
         <div style="margin-top:4px">${groups[key].map(leagueRow).join("")}</div>
       </details>`).join("");
-    const bulkDeleteArea=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px">
-      <button data-act="bulk-show-leagues" class="fg-outbtn" style="width:100%">👁 Gör alla ${listData.length} synliga</button>
-      <button data-act="bulk-hide-leagues" class="fg-outbtn" style="width:100%">🔒 Dölj alla ${listData.length}</button>
-      <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier som matchar sökningen</button>
+    const bulkDeleteArea=listData.length?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px">
+      <button data-act="bulk-show-leagues" class="fg-outbtn" style="width:100%">👁 Gör alla ${listData.length} synliga${q?"":" (alla i listan)"}</button>
+      <button data-act="bulk-hide-leagues" class="fg-outbtn" style="width:100%">🔒 Dölj alla ${listData.length}${q?"":" (alla i listan)"}</button>
+      <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier${q?" som matchar sökningen":""}</button>
     </div>`:"";
     const searchBox=`<div class="fg-card">
       <input class="fg-input" id="admin-league-search" placeholder="🔍 Sök serie…" value="${esc(adminLeagueSearch||"")}" oninput="window._adminLeagueSearch&&window._adminLeagueSearch()"/>
@@ -11476,10 +11476,10 @@ function attachHandlers(){
     if(countEl) countEl.textContent=listData.length;
     const bulkDeleteEl=document.getElementById("admin-league-bulk-delete-area");
     if(bulkDeleteEl){
-      bulkDeleteEl.innerHTML=q?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px">
-        <button data-act="bulk-show-leagues" class="fg-outbtn" style="width:100%">👁 Gör alla ${listData.length} synliga</button>
-        <button data-act="bulk-hide-leagues" class="fg-outbtn" style="width:100%">🔒 Dölj alla ${listData.length}</button>
-        <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier som matchar sökningen</button>
+      bulkDeleteEl.innerHTML=listData.length?`<div style="margin-top:10px;padding-top:10px;border-top:0.5px solid var(--color-border-tertiary);display:flex;flex-direction:column;gap:6px">
+        <button data-act="bulk-show-leagues" class="fg-outbtn" style="width:100%">👁 Gör alla ${listData.length} synliga${q?"":" (alla i listan)"}</button>
+        <button data-act="bulk-hide-leagues" class="fg-outbtn" style="width:100%">🔒 Dölj alla ${listData.length}${q?"":" (alla i listan)"}</button>
+        <button data-act="bulk-delete-leagues" class="fg-outbtn" style="width:100%;border-color:#A32D2D;color:#A32D2D">🗑 Radera alla ${listData.length} serier${q?" som matchar sökningen":""}</button>
       </div>`:"";
     }
     attachHandlers();
@@ -12170,7 +12170,7 @@ function attachHandlers(){
         .filter(l=>isActiveView?l.admin_active:!l.admin_active)
         .filter(l=>!q||l.name.toLowerCase().includes(q));
       if(!matches.length){ flash("Inga serier matchar sökningen."); return; }
-      if(!confirm(`${makeHidden?"Dölja":"Göra synliga"} ${matches.length} serier som matchar "${q}"?\n\n${matches.map(l=>l.name).slice(0,20).join(", ")}${matches.length>20?` … och ${matches.length-20} till`:""}`))return;
+      if(!confirm(`${makeHidden?"Dölja":"Göra synliga"} ${matches.length} serier${q?` som matchar "${q}"`:" (alla i listan)"}?\n\n${matches.map(l=>l.name).slice(0,20).join(", ")}${matches.length>20?` … och ${matches.length-20} till`:""}`))return;
       el.textContent=makeHidden?"Döljer…":"Gör synliga…"; el.disabled=true;
       const ids=matches.map(l=>l.id);
       const {error}=await sb.from("leagues").update({hidden:makeHidden}).in("id",ids);
