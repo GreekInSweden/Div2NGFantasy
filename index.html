@@ -4707,7 +4707,7 @@ function groupLeaguesByPrefix(list){
   });
   return {groups,order};
 }
-function renderLeagueGroups(list){
+function renderLeagueGroups(list,q){
   if(!list.length) return `<div style="font-size:13px;color:var(--color-text-secondary);text-align:center">${esc(t("landing.noLeaguesMatch"))}</div>`;
   const {groups,order}=groupLeaguesByPrefix(list);
   return order.map(key=>{
@@ -4725,7 +4725,8 @@ function renderLeagueGroups(list){
         </div>
         <span style="color:var(--color-text-secondary)">›</span>
       </button>`;}).join("");
-    return `<details open style="margin-bottom:10px;text-align:left">
+    // Hopfällt som standard (300+ serier gör sidan ohanterlig annars) – fälls upp automatiskt vid aktiv sökning.
+    return `<details ${q?"open":""} style="margin-bottom:10px;text-align:left">
       <summary style="cursor:pointer;font-weight:600;font-size:13px;padding:6px 0;color:var(--color-text-primary)">${esc(key)} <span style="font-weight:400;color:var(--color-text-secondary)">(${items.length})</span></summary>
       <div style="margin-top:6px">${rows}</div>
     </details>`;
@@ -4769,7 +4770,7 @@ window._doLeagueSearch=function(){
   const resultsEl=document.getElementById("league-list-results");
   if(!resultsEl) return;
   const filtered=q?leagues.filter(l=>l.name.toLowerCase().includes(q)):leagues;
-  resultsEl.innerHTML=renderLeagueGroups(filtered);
+  resultsEl.innerHTML=renderLeagueGroups(filtered,q);
   attachHandlers();
 };
   return `
