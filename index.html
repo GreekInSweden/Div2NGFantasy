@@ -3059,6 +3059,8 @@ const TRANSLATIONS={
     "landing.leagueNotListedTitle":"Hittar du inte din serie?",
     "landing.leagueNotListedDesc":"Skapa ett konto ändå så kopplar vi dig till rätt serie så fort den finns tillgänglig.",
     "landing.leagueNotListedButton":"Skapa konto ändå →",
+    "landing.activeLeaguesTitle":"🔥 Spela nu",
+    "landing.activeLeaguesDesc":"Dessa serier är igång – hoppa in direkt!",
     "unassignedReg.title":"Skapa konto",
     "unassignedReg.leagueLabel":"Vilken serie vill du gå med i?",
     "unassignedReg.leaguePlaceholder":"T.ex. Premier League, Allsvenskan, ditt lags namn…",
@@ -3642,6 +3644,8 @@ const TRANSLATIONS={
     "landing.leagueNotListedTitle":"Can't find your series?",
     "landing.leagueNotListedDesc":"Create an account anyway and we'll connect you to the right series as soon as it's available.",
     "landing.leagueNotListedButton":"Create account anyway →",
+    "landing.activeLeaguesTitle":"🔥 Play now",
+    "landing.activeLeaguesDesc":"These series are up and running – jump in now!",
     "unassignedReg.title":"Create account",
     "unassignedReg.leagueLabel":"Which series do you want to join?",
     "unassignedReg.leaguePlaceholder":"E.g. Premier League, your team's name…",
@@ -4225,6 +4229,8 @@ const TRANSLATIONS={
     "landing.leagueNotListedTitle":"Δεν βρίσκεις τη σειρά σου;",
     "landing.leagueNotListedDesc":"Δημιούργησε λογαριασμό ούτως ή άλλως και θα σε συνδέσουμε με τη σωστή σειρά μόλις γίνει διαθέσιμη.",
     "landing.leagueNotListedButton":"Δημιουργία λογαριασμού ούτως ή άλλως →",
+    "landing.activeLeaguesTitle":"🔥 Παίξε τώρα",
+    "landing.activeLeaguesDesc":"Αυτές οι σειρές είναι ενεργές – μπες κατευθείαν!",
     "unassignedReg.title":"Δημιουργία λογαριασμού",
     "unassignedReg.leagueLabel":"Σε ποια σειρά θέλεις να συμμετάσχεις;",
     "unassignedReg.leaguePlaceholder":"π.χ. Premier League, το όνομα της ομάδας σου…",
@@ -4732,6 +4738,32 @@ function renderLeagueGroups(list,q){
     </details>`;
   }).join("");
 }
+// Serier admin markerat som ⭐ aktiva (riktigt igång, t.ex. provomgångar) – visas separat och mer
+// framträdande överst på startsidan så de inte drunknar bland alla "under uppbyggnad"-serier.
+function renderActiveLeagues(list){
+  const active=(list||[]).filter(l=>l.admin_active);
+  if(!active.length) return "";
+  const counts=window._leagueUserCountsCache||{};
+  const rows=active.map(l=>{
+    const count=counts[l.id]||0;
+    return `
+    <button class="fg-card" data-act="choose-league" data-id="${l.id}" style="display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left;width:100%;border:1.5px solid ${G_GREEN};background:${G_GREENL};margin-bottom:8px;box-shadow:0 1px 4px rgba(47,107,63,0.15)">
+      <div style="width:40px;height:40px;border-radius:10px;background:${G_GREEN};color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px">⚽</div>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="font-weight:600;font-size:15px;color:var(--color-text-primary)">${esc(l.name)}</div>
+          <span style="background:${G_GREEN};color:#fff;border-radius:20px;padding:1px 8px;font-size:10px;font-weight:600;letter-spacing:.3px">AKTIV</span>
+        </div>
+        <div style="font-size:11px;color:var(--color-text-secondary);margin-top:2px">${count} ${count===1?"spelare med":"spelare med"}</div>
+      </div>
+      <span style="color:${G_GREEN};font-weight:600">›</span>
+    </button>`;}).join("");
+  return `<div style="width:100%;max-width:340px;margin-bottom:8px">
+    <div style="font-weight:600;font-size:15px;margin-bottom:2px;text-align:center">${esc(t("landing.activeLeaguesTitle"))}</div>
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">${esc(t("landing.activeLeaguesDesc"))}</div>
+    ${rows}
+  </div>`;
+}
 
 function renderLeagues(){
   if(pendingUnassignedUser){
@@ -4810,6 +4842,7 @@ window._doLeagueSearch=function(){
       <input class="fg-input" id="entry-search" placeholder="${esc(t("onboarding.searchPlaceholder"))}" oninput="window._doEntrySearch&&window._doEntrySearch()" autocomplete="off" autocorrect="off"/>
       <div id="entry-search-results" style="margin-top:10px"></div>
     </div>
+    ${renderActiveLeagues(leagues)}
     <div style="width:100%;max-width:340px;border-top:0.5px solid var(--color-border-tertiary);padding-top:16px;margin-top:8px">
       <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:10px;text-align:center">${esc(t("onboarding.newPlayerPrompt"))}</div>
       <input class="fg-input" id="league-search" placeholder="${esc(t("landing.searchLeaguesPlaceholder"))}" oninput="window._doLeagueSearch&&window._doLeagueSearch()" autocomplete="off" autocorrect="off" style="margin-bottom:12px"/>
