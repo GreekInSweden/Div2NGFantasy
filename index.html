@@ -13809,7 +13809,7 @@ function attachHandlers(){
             });
           }
           if(foundTeam){
-            entries.push({team:foundTeam.name,goals:Number(nextLine)});
+            entries.push({team:foundTeam.name,teamId:foundTeam.id,goals:Number(nextLine)});
             i+=2; continue;
           }
         }
@@ -13821,25 +13821,36 @@ function attachHandlers(){
 
       const parsedMatches=[];
       for(let j=0;j<entries.length-1;j+=2){
-        parsedMatches.push({homeTeam:entries[j].team,homeScore:entries[j].goals,awayTeam:entries[j+1].team,awayScore:entries[j+1].goals});
+        parsedMatches.push({homeTeam:entries[j].team,homeId:entries[j].teamId,homeScore:entries[j].goals,awayTeam:entries[j+1].team,awayId:entries[j+1].teamId,awayScore:entries[j+1].goals});
       }
 
+      // Matcha på LAG, inte på position – inklistrad ordning behöver inte följa ordningen i appen.
+      const unmatched=[];
       if(bulkRows.length>0){
-        bulkRows=bulkRows.map((r,idx)=>{
-          const pm=parsedMatches[idx];
-          if(!pm)return r;
-          return {...r,hMål:pm.homeScore,aMål:pm.awayScore};
+        const rowsNext=bulkRows.map(r=>({...r}));
+        const used=new Set();
+        parsedMatches.forEach(pm=>{
+          let idx=rowsNext.findIndex((r,k)=>!used.has(k)&&Number(r.hId)===Number(pm.homeId)&&Number(r.aId)===Number(pm.awayId));
+          if(idx>=0){
+            rowsNext[idx].hMål=pm.homeScore; rowsNext[idx].aMål=pm.awayScore; used.add(idx); return;
+          }
+          // Samma match men hemma/borta omvänt i inklistringen → byt plats på siffrorna
+          idx=rowsNext.findIndex((r,k)=>!used.has(k)&&Number(r.hId)===Number(pm.awayId)&&Number(r.aId)===Number(pm.homeId));
+          if(idx>=0){
+            rowsNext[idx].hMål=pm.awayScore; rowsNext[idx].aMål=pm.homeScore; used.add(idx); return;
+          }
+          unmatched.push(pm.homeTeam+" – "+pm.awayTeam);
         });
+        bulkRows=rowsNext;
       } else {
-        const rd=rounds[String(cfg.omg)];
-        const existingMatches=rd?.matches||[];
-        bulkRows=parsedMatches.map((pm,idx)=>{
-          const ex=existingMatches[idx];
-          return {hId:ex?.hId??"",aId:ex?.aId??"",hMål:pm.homeScore,aMål:pm.awayScore,id:ex?.id??`m${idx}`};
-        });
+        bulkRows=parsedMatches.map(pm=>({hId:pm.homeId,aId:pm.awayId,hMål:pm.homeScore,aMål:pm.awayScore}));
       }
       render();
-      flash(`✓ ${parsedMatches.length} resultat inlästa! Kontrollera och klicka "Spara resultat".`);
+      if(unmatched.length){
+        flash(`⚠️ ${parsedMatches.length-unmatched.length} av ${parsedMatches.length} resultat inlästa. Hittade ingen match i omgången för: ${unmatched.join(", ")}`);
+      } else {
+        flash(`✓ ${parsedMatches.length} resultat inlästa! Kontrollera och klicka "Spara resultat".`);
+      }
     }
     else if(act==="bulk-save"){
       const rnd=document.getElementById("bulk-rnd").value;
