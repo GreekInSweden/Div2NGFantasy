@@ -8931,7 +8931,8 @@ function renderAdminTab(){
   if(adminSection==="round"){
     const teamOpts=t=>TEAMS.map(x=>`<option value="${x.id}" ${x.id===t?"selected":""}>${esc(x.name)}</option>`).join("");
     const curRoundData = rounds[String(cfg.omg)];
-    const isLocked = curRoundData && curRoundData.locked;
+    const isLocked = isRoundLocked(curRoundData);
+    const isLockedFlag = !!(curRoundData && curRoundData.locked);
     const isPublished = curRoundData && curRoundData.results_published;
     const rowsHtml = bulkRows.map((r,i)=>`
       <div class="fg-mrow">
@@ -8990,7 +8991,7 @@ function renderAdminTab(){
           <div style="flex:1">
             <div style="font-size:12px;font-weight:500;color:${isLocked?'#A32D2D':G_GREEN}">${isLocked?'Tippning stängd':'Tippning öppen'}</div>
           </div>
-          <button data-act="toggle-lock" data-locked="${isLocked?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isLocked?'Öppna':'Stäng'}</button>
+          <button data-act="toggle-lock" data-locked="${isLockedFlag?'1':'0'}" style="background:${isLocked?'#fff':G_GREEN};color:${isLocked?'#A32D2D':'#fff'};border:${isLocked?'0.5px solid #A32D2D':'none'};border-radius:6px;padding:6px 8px;font-size:11px;cursor:pointer;font-weight:500;white-space:nowrap">${isLockedFlag?'Öppna':(isLocked?'Lås &amp; räkna':'Stäng')}</button>
         </div>
         <div style="flex:1;background:${isPublished?'#fffbeb':'var(--color-background-secondary)'};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${isPublished?'✅':'⏳'}</span>
