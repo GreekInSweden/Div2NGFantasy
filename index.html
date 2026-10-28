@@ -4360,7 +4360,7 @@ function render(){
         const searchVal=document.getElementById("player-search")?.value.toLowerCase()||"";
         pickTeamFilter=document.getElementById("team-filter")?.value||"";
         const teamFilter=pickTeamFilter;
-        const usedTeams=(currentUser&&currentUser.activeChip==="frittlag")?[]:usedTeamIds(null);
+        const usedTeams=(currentUser&&currentUser.activeChip==="frittlag")?[]:fullTeamIds(null);
         const filtered=players.filter(p=>{
           if(p.pos!==pickPos)return false;
           if(searchVal&&!p.namn.toLowerCase().includes(searchVal))return false;
@@ -5220,6 +5220,22 @@ function pickMissingText(){
   return "";
 }
 
+// Max antal spelare från samma lag i Fantasy-laget. Standard: ceil(11/antal lag)
+// så att serier med färre än 11 lag ändå kan fylla ett 11-mannalag. Admin kan
+// skriva över per serie via leagues.max_per_team.
+function maxPerTeam(){
+  const ov=Number(currentLeague&&currentLeague.max_per_team)||0;
+  if(ov>0) return ov;
+  const n=(TEAMS&&TEAMS.length)||0;
+  const total=Object.values(POS_COUNT).reduce((a,b)=>a+b,0);
+  return n>0?Math.max(1,Math.ceil(total/n)):1;
+}
+// Lag som redan nått taket (de som inte längre går att välja spelare från).
+function fullTeamIds(excludePid){
+  const max=maxPerTeam(), cnt={};
+  usedTeamIds(excludePid).forEach(id=>{cnt[id]=(cnt[id]||0)+1;});
+  return Object.keys(cnt).filter(id=>cnt[id]>=max).map(Number);
+}
 function usedTeamIds(excludePid){
   let ids=[];
   POSITIONS.forEach(pos=>{ (pickState.picks[pos]||[]).forEach(pid=>{ if(pid!==excludePid)ids.push(pid); }); });
@@ -5274,7 +5290,7 @@ function renderPick(){
     if(teamFilter && String(p.teamId)!==teamFilter) return false;
     return true;
   });
-  const usedTeams = (currentUser&&currentUser.activeChip==="frittlag") ? [] : usedTeamIds(null);
+  const usedTeams = (currentUser&&currentUser.activeChip==="frittlag") ? [] : fullTeamIds(null);
 
   const posTabs=POSITIONS.map(pos=>{
     const have=(picks[pos]||[]).length, need=POS_COUNT[pos];
@@ -5351,7 +5367,7 @@ function renderPick(){
       ${renderChipCard()}
       ${(()=>{
         const frittlagActive=currentUser&&currentUser.activeChip==="frittlag";
-        const usedTeamsForDisplay=frittlagActive?[]:usedTeamIds(null);
+        const usedTeamsForDisplay=frittlagActive?[]:fullTeamIds(null);
         const badges=TEAMS.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(tm=>{
           const used=usedTeamsForDisplay.includes(tm.id);
           return `<span style="padding:4px 10px;border-radius:14px;font-size:11px;font-weight:500;white-space:nowrap;background:${used?'#e8e8e8':S_GREENL};color:${used?'#999':S_GREEN};border:0.5px solid ${used?'#ddd':S_GREEN}">${used?"✓ ":""}${esc(tm.name)}</span>`;
@@ -8985,6 +9001,14 @@ function renderAdminTab(){
         <button class="fg-outbtn" data-act="save-lock-deadline" style="padding:9px 14px">Spara</button>
       </div>
       ${curRoundData&&curRoundData.lock_deadline&&!isLocked?`<div style="font-size:16px;font-weight:700;color:#A32D2D;margin:-6px 0 14px" data-countdown-deadline="${curRoundData.lock_deadline}">Räknar…</div>`:""}
+      <div class="fg-card" style="margin-bottom:12px;padding:10px 12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="flex:1;min-width:180px">
+          <div style="font-size:12px;font-weight:500">Max spelare per lag i Fantasy</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">Auto för ${TEAMS.length} lag: ${Math.max(1,Math.ceil(11/Math.max(1,TEAMS.length)))}. Lämna tomt för auto.</div>
+        </div>
+        <input class="fg-input" id="max-per-team-input" type="number" min="1" max="11" placeholder="auto" value="${currentLeague&&currentLeague.max_per_team?currentLeague.max_per_team:""}" style="width:70px"/>
+        <button class="fg-outbtn" data-act="save-max-per-team" style="padding:9px 14px">Spara</button>
+      </div>
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <div style="flex:1;background:${isLocked?'#FCEBEB':G_GREENL};border-radius:6px;padding:10px 12px;display:flex;align-items:center;gap:8px">
           <span style="font-size:16px">${isLocked?'🔒':'🔓'}</span>
@@ -12896,8 +12920,8 @@ function attachHandlers(){
         pickErr=""; render(); return;
       }
       if(inPos.length>=POS_COUNT[pl.pos]){pickErr=`Du har redan valt ${POS_COUNT[pl.pos]} ${POS_LABEL[pl.pos].toLowerCase()}(e).`;render();setTimeout(()=>{pickErr="";render();},2200);return;}
-      const used=(currentUser&&currentUser.activeChip==="frittlag")?[]:usedTeamIds(null);
-      if(used.includes(pl.teamId)){pickErr="Du har redan en spelare från det laget i ditt lag.";render();setTimeout(()=>{pickErr="";render();},2200);return;}
+      const used=(currentUser&&currentUser.activeChip==="frittlag")?[]:fullTeamIds(null);
+      if(used.includes(pl.teamId)){pickErr=maxPerTeam()>1?`Du kan max ha ${maxPerTeam()} spelare från samma lag.`:"Du har redan en spelare från det laget i ditt lag.";render();setTimeout(()=>{pickErr="";render();},2200);return;}
       pickState.picks[pl.pos]=[...inPos,pl.id];
       pickErr=""; render();
     }
@@ -13724,6 +13748,15 @@ function attachHandlers(){
           .eq("league_id",currentLeague.id).eq("round_num",Number(rnd));
         flash("⏳ Resultat återkallades.");
       }
+    }
+    else if(act==="save-max-per-team"){
+      const raw=document.getElementById("max-per-team-input").value.trim();
+      const v=raw===""?null:Math.max(1,Math.min(11,parseInt(raw,10)||1));
+      const {error}=await sb.from("leagues").update({max_per_team:v}).eq("id",currentLeague.id);
+      if(error){flash("Kunde inte spara – har du kört SQL-filen add_max_per_team.sql? ("+error.message+")");return;}
+      currentLeague={...currentLeague,max_per_team:v};
+      flash(v?`✓ Max ${v} spelare per lag.`:"✓ Auto-läge för max per lag.");
+      render();
     }
     else if(act==="save-lock-deadline"){
       const val=document.getElementById("lock-deadline-input").value;
